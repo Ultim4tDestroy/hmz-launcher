@@ -1,0 +1,59 @@
+{
+  "name": "hmz-launcher",
+  "productName": "HMZ Launcher",
+  "version": "2.2.0",
+  "description": "Tous tes jeux au même endroit : PC, DS, 3DS, Switch et Switch 2.",
+  "main": "boot.js",
+  "author": "HMZ",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis",
+    "release": "electron-builder --win nsis --publish always"
+  },
+  "devDependencies": {
+    "electron": "^45.0.0",
+    "electron-builder": "^26.0.0"
+  },
+  "build": {
+    "appId": "fr.hmz.launcher",
+    "productName": "HMZ Launcher",
+    "files": [
+      "boot.js",
+      "main.js",
+      "preload.js",
+      "src/**",
+      "renderer/**",
+      "!renderer/dev.html",
+      "build/icon.png"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "HMZ-Launcher-Setup-${version}.${ext}",
+      "shortcutName": "HMZ Launcher",
+      "include": "build/installer.nsh"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Ultim4tDestroy",
+        "repo": "hmz-launcher",
+        "releaseType": "release"
+      }
+    ]
+  },
+  "dependencies": {
+    "electron-updater": "^6.6.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Ultim4tDestroy/hmz-launcher.git"
+  }
+}

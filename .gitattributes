@@ -1,0 +1,2 @@
+*.bat text eol=crlf
+*.nsh text eol=crlf

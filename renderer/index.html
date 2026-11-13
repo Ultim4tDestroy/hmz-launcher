@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' file: data: https:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'">
+  <title>HMZ Launcher</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <header class="titlebar">
+      <div class="brand"><span class="brand-mark"></span>HMZ</div>
+      <button class="search-trigger" id="searchBtn" title="Rechercher (Ctrl+K)">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <span>Rechercher un jeu</span><kbd>Ctrl K</kbd>
+      </button>
+      <div class="tb-right">
+        <div class="scan-status" id="scanStatus"></div>
+        <button class="tv-btn" id="tvBtn" title="Mode TV (F11)">
+          <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 20h8"/></svg>Mode TV
+        </button>
+        <div class="win-ctrls">
+          <button data-win="minimize" title="Réduire"><svg viewBox="0 0 12 12"><path d="M2 6h8"/></svg></button>
+          <button data-win="maximize" title="Agrandir"><svg viewBox="0 0 12 12"><rect x="2" y="2" width="8" height="8"/></svg></button>
+          <button data-win="close" class="close" title="Fermer"><svg viewBox="0 0 12 12"><path d="m2 2 8 8M10 2l-8 8"/></svg></button>
+        </div>
+      </div>
+    </header>
+
+    <nav class="side" id="side">
+      <button data-view="home" class="active"><svg viewBox="0 0 24 24"><path d="M4 11 12 4l8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></svg><span>Accueil</span></button>
+      <button data-view="library"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg><span>Bibliothèque</span></button>
+      <button data-view="emulators"><svg viewBox="0 0 24 24"><rect x="2.5" y="7" width="19" height="11" rx="5.5"/><path d="M7 11v3M5.5 12.5h3"/><circle cx="16" cy="11.5" r=".8"/><circle cx="18" cy="13.5" r=".8"/></svg><span>Émulateurs</span></button>
+      <button data-view="stats"><svg viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7"/></svg><span>Statistiques</span></button>
+      <div class="side-spacer"></div>
+      <button data-view="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span>Paramètres</span></button>
+    </nav>
+
+    <main id="view"></main>
+  </div>
+
+  <section id="tv" hidden></section>
+  <div id="modal-root"></div>
+  <div id="ctx" hidden></div>
+  <div id="toasts"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
