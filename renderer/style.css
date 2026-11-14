@@ -1179,3 +1179,69 @@ textarea.notes { width: 100%; min-height: 76px; resize: vertical; font: inherit;
 .modal.welcome .acts { display: flex; justify-content: space-between; margin-top: 18px; }
 .emu-page .emu .sys { display: flex; flex-wrap: wrap; gap: 8px; }
 .emu-page .emu .sys-item { flex: 1 1 210px; min-width: 0; }
+
+/* Page émulateurs, version allégée (2.12.1) ------------------------------- */
+.emu-legal { display: flex; align-items: center; gap: 8px; margin: 14px 2px 0; color: var(--faint); font-size: 12.5px; line-height: 1.4; }
+.emu-legal svg { width: 14px; height: 14px; flex: none; opacity: .8; }
+.emu-page .emu-bar { margin-top: 16px; }
+.emu-sec { margin-top: 26px; }
+.emu-fam-t { margin: 18px 4px 8px; font: 650 12.5px var(--ui); color: var(--faint); letter-spacing: .01em; }
+.emu-sec .emu-fam-t:first-of-type { margin-top: 4px; }
+
+/* Catalogue : une ligne par émulateur */
+.erows { display: flex; flex-direction: column; border-radius: 16px; overflow: hidden; background: var(--glass-bg); box-shadow: var(--glass-hi); }
+.emu-page .emu.erow { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 12px; padding: 11px 12px 11px 16px; border-radius: 0; background: transparent; box-shadow: none; transition: background .15s; }
+.emu-page .emu.erow + .emu.erow { border-top: 1px solid var(--line); }
+.emu-page .emu.erow::before { display: none; }
+.emu-page .emu.erow:hover { background: rgba(var(--fg-rgb), .035); box-shadow: none; }
+.erow .edot { width: 8px; height: 8px; border-radius: 50%; background: var(--c); flex: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 18%, transparent); }
+.erow .emain { flex: 1 1 0; min-width: 0; }
+.ename { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.ename b { font: 700 15px/1.2 var(--display); letter-spacing: -.01em; margin-right: 4px; }
+.ename .tag { font-size: 10.5px; padding: 2px 7px; }
+.eblurb { margin-top: 3px; color: var(--muted); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.erow .btn.sm { height: 32px; flex: none; }
+.erow .eprog { flex: 0 1 300px; min-width: 200px; }
+.erow .eerr { flex: 1 0 100%; display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; margin-left: 20px; border-radius: 10px; background: color-mix(in srgb, var(--red) 10%, transparent); color: #f3d3cf; font-size: 12.5px; line-height: 1.45; }
+.erow .eerr svg { width: 15px; height: 15px; flex: none; color: var(--red); margin-top: 1px; }
+.ehints { display: flex; gap: 2px; flex: none; }
+.ehint { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; color: var(--faint); cursor: help; }
+.ehint svg { width: 15px; height: 15px; }
+.ehint.ok { color: color-mix(in srgb, #5fd38d 80%, var(--muted)); }
+.ehint.warn { color: color-mix(in srgb, #f6c344 80%, var(--muted)); }
+.ehint:hover { background: rgba(var(--fg-rgb), .06); }
+
+/* Installés : cartes, une action principale */
+.emu-page .emu-sec .emu-grid { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.emu-page .emu.ecard { padding: 16px; gap: 10px; }
+.emu-page .emu.ecard::before { opacity: 1; }
+.ecard-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.emu-page .ecard h3 { font-size: 18px; }
+.ecard .ename .ehints { margin-left: auto; }
+.ecard-a { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
+.ecard-a .btn { height: 36px; }
+.ecard-a .btn.primary { flex: 1; justify-content: center; }
+.esys { display: flex; gap: 6px; }
+.esys-i { flex: 1; display: flex; align-items: center; gap: 7px; height: 34px; padding: 0 10px; border-radius: 10px; background: rgba(var(--fg-rgb), .045); color: var(--muted); font-size: 12.5px; font-weight: 600; }
+.esys-i svg { width: 14px; height: 14px; flex: none; }
+.esys-i small { margin-left: auto; font-weight: 500; color: color-mix(in srgb, #f6c344 80%, var(--muted)); }
+.esys-i.ok small { color: color-mix(in srgb, #5fd38d 80%, var(--muted)); }
+.esys-i:hover { background: rgba(var(--fg-rgb), .08); color: var(--text); }
+
+/* Dossiers et mobile repliés en bas */
+.emu-more { margin-top: 30px; border-radius: 16px; background: var(--glass-bg); box-shadow: var(--glass-hi); }
+.emu-more > summary { display: flex; align-items: center; gap: 10px; padding: 14px 18px; cursor: pointer; list-style: none; font: 650 14px var(--ui); }
+.emu-more > summary::-webkit-details-marker { display: none; }
+.emu-more > summary::before { content: '›'; font-size: 18px; line-height: 1; color: var(--faint); transition: transform .15s; }
+.emu-more[open] > summary::before { transform: rotate(90deg); }
+.emu-more > summary small { color: var(--faint); font-weight: 500; }
+.emu-more > .section-sub, .emu-more > .folders-table { margin: 0 18px 16px; }
+#ctx button.danger { color: var(--red); }
+@media (max-width: 760px) { .eblurb { white-space: normal; } .erow .ehints { display: none; } }
+.emu-page .emu-sec .emu-grid { align-items: stretch; }
+.ecard .ecard-a, .ecard > .progress { margin-top: auto; }
+.esys-i { min-width: 0; }
+.esys-i small { white-space: nowrap; }
+.esys-i span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.esys-i { justify-content: center; color: color-mix(in srgb, #f6c344 85%, var(--muted)); background: color-mix(in srgb, #f6c344 9%, transparent); }
+.esys-i.ok { color: color-mix(in srgb, #5fd38d 85%, var(--muted)); background: color-mix(in srgb, #5fd38d 8%, transparent); }

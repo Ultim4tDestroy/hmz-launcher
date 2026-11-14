@@ -129,6 +129,7 @@ document.addEventListener('click', async (ev) => {
     try { await call('emu:uninstall', e.id); delete emuErr[e.id]; toast(`${e.name} est ${e.custom ? 'oublié' : 'supprimé'}.`, 'ok'); } catch {}
     return;
   }
+  if (d.emumenu) { const r = t.closest('[data-emumenu]').getBoundingClientRect(); return openEmuCtx(d.emumenu, r.right, r.bottom + 6); }
   if (d.emufam) { ui.emu.fam = d.emufam; return render(); }
   if (d.gstatus !== undefined && d.id) { await call('game:update', d.id, { status: d.gstatus }); return refreshModal(); }
   if (d.rate && d.id) { const g = gameById(d.id); const n = Number(d.rate); await call('game:update', d.id, { rating: g.rating === n ? 0 : n }); return refreshModal(); }
@@ -336,3 +337,6 @@ addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout((
 $('#tvBtn').onclick = () => enterTV();
 $('#themeBtn').onclick = (e) => { e.stopPropagation(); toggleThemePop(); };
 $('#randomBtn').onclick = () => randomGame();
+
+// Garde ouvert/fermé le bloc « Dossiers de jeux » d'un rendu à l'autre.
+document.addEventListener('toggle', (e) => { if (e.target.dataset && e.target.dataset.emumore) ui.emuMore = e.target.open; }, true);

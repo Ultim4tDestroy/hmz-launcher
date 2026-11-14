@@ -122,3 +122,24 @@ function toast(text, kind = 'info', ms = 4200, action = null) {
   $('#toasts').appendChild(el);
   setTimeout(() => { el.style.transition = 'opacity .3s'; el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, ms);
 }
+
+// Menu ⋯ d'un émulateur : les actions rares, pour garder la page légère.
+function openEmuCtx(id, x, y) {
+  const e = S.emulators.find((k) => k.id === id);
+  if (!e) return;
+  const ctx = $('#ctx');
+  const b = (attr, icon, label, cls = '') => `<button ${attr}="${esc(e.id)}"${cls ? ` class="${cls}"` : ''}>${icon}${label}</button>`;
+  ctx.innerHTML = e.installed
+    ? `${e.tuned ? b('data-emucfg', ICON.refresh, 'Réglages conseillés') + b('data-emupad', ICON.pad, 'Régler la manette') + '<hr>' : ''}
+      ${b('data-installzip', ICON.download, 'Mettre à jour depuis une archive')}
+      ${b('data-locate', ICON.ext, 'Choisir un autre .exe')}
+      <button data-url="${esc(e.page)}">${ICON.ext}Page officielle</button>
+      <hr>${b('data-emudel', ICON.trash, e.custom ? 'Oublier cet émulateur' : 'Supprimer', 'danger')}`
+    : `${b('data-installzip', ICON.download, 'Installer depuis une archive')}
+      ${b('data-locate', ICON.folder, 'Je l\'ai déjà installé')}
+      <button data-url="${esc(e.page)}">${ICON.ext}Page officielle</button>`;
+  ctx.hidden = false;
+  const r = ctx.getBoundingClientRect();
+  ctx.style.left = Math.max(10, Math.min(x - r.width, innerWidth - r.width - 10)) + 'px';
+  ctx.style.top = (y + r.height > innerHeight - 10 ? Math.max(10, y - r.height - 40) : y) + 'px';
+}

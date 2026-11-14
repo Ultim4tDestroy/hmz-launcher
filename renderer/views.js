@@ -235,89 +235,105 @@ function emuSorted(list) {
   return [...list].sort((a, b) => rank(a) - rank(b) || (b.isDefault - a.isDefault) || byName(a, b));
 }
 function emuResultsHTML() {
-  const list = emuSorted(S.emulators.filter(emuMatches));
-  if (!list.length) return `<div class="empty"><h3>Aucun émulateur</h3><p>Rien ne correspond${ui.emu.q ? ` à « ${esc(ui.emu.q)} »` : ''}. Essaie un autre filtre.</p><button class="btn" data-emureset="1">Tout afficher</button></div>`;
-  if (ui.emu.sort !== 'console' || ui.emu.fam !== 'all') return `<div class="emu-grid">${list.map(emuCard).join('')}</div>`;
-  const groups = [];
-  for (const e of list) {
-    const f = emuFamily(e);
-    let g = groups.find((x) => x.f === f);
-    if (!g) groups.push((g = { f, items: [] }));
-    g.items.push(e);
+  const all = emuSorted(S.emulators.filter(emuMatches));
+  if (!all.length) return `<div class="empty"><h3>Aucun émulateur</h3><p>Rien ne correspond${ui.emu.q ? ` à « ${esc(ui.emu.q)} »` : ''}. Essaie un autre filtre.</p><button class="btn" data-emureset="1">Tout afficher</button></div>`;
+  const inst = all.filter((e) => e.installed);
+  const avail = all.filter((e) => !e.installed);
+  let html = '';
+  if (inst.length) html += `<section class="emu-sec"><h2 class="emu-gtitle">Installés<span>${inst.length}</span></h2><div class="emu-grid">${inst.map(emuCard).join('')}</div></section>`;
+  if (avail.length) {
+    // Catalogue : lignes compactes, rangées par famille de consoles.
+    const groups = [];
+    for (const e of avail) {
+      const f = ui.emu.fam === 'all' && !ui.emu.q ? emuFamily(e) : 'all';
+      let g = groups.find((x) => x.f === f);
+      if (!g) groups.push((g = { f, items: [] }));
+      g.items.push(e);
+    }
+    html += `<section class="emu-sec"><h2 class="emu-gtitle">${inst.length ? 'À installer' : 'Émulateurs disponibles'}<span>${avail.length}</span></h2>
+      ${groups.map((g) => `${g.f !== 'all' ? `<h3 class="emu-fam-t">${esc(FAMILY[g.f] || g.f)}</h3>` : ''}<div class="erows">${g.items.map(emuCard).join('')}</div>`).join('')}</section>`;
   }
-  return groups.map((g) => `<section class="emu-group"><h2 class="emu-gtitle">${esc(FAMILY[g.f] || g.f)}<span>${g.items.length}</span></h2><div class="emu-grid">${g.items.map(emuCard).join('')}</div></section>`).join('');
+  return html;
 }
 function renderEmulators() {
   const s = S.settings;
   const nInst = S.emulators.filter((e) => e.installed).length;
   const f = ui.emu;
   const chip = (k, l) => `<button class="${f.fam === k ? 'on' : ''}" data-emufam="${k}">${l}</button>`;
-  const st = (k, l) => `<button class="${f.st === k ? 'on' : ''}" data-emust="${k}">${l}</button>`;
   const dirPlats = ORDER.filter((p) => s.romDirs[p] && S.platforms[p]);
   return `<div class="page emu-page">
-    <div class="page-head"><div><h1>Émulateurs</h1><p>${S.emulators.length} émulateurs, ${nInst} installé${nInst > 1 ? 's' : ''}. Chacun vient de sa page officielle et s'installe dans <span class="linkish" data-action="open-root">${esc(s.root)}\\Emulateurs</span>.</p></div>
-      <button class="btn ghost" data-action="check-updates">${ICON.refresh}Vérifier les mises à jour</button></div>
-    <div class="note">${ICON.warn}<div><b>Les jeux, BIOS, clés et firmware ne sont pas fournis.</b> Ils doivent venir de ta propre console et de tes propres jeux. Ne télécharge jamais un émulateur ailleurs que sur sa page officielle : de faux sites distribuent des virus.</div></div>
+    <div class="page-head"><div><h1>Émulateurs</h1><p>${nInst ? `${nInst} installé${nInst > 1 ? 's' : ''} · ` : ''}${S.emulators.length} disponibles, téléchargés depuis leur site officiel.</p></div>
+      ${nInst ? `<button class="btn ghost sm" data-action="check-updates">${ICON.refresh}Mises à jour</button>` : ''}</div>
+    <p class="emu-legal">${ICON.info}<span>Les jeux, BIOS et clés ne sont pas fournis : ils viennent de ta propre console. Installe les émulateurs ici ou depuis leur site officiel, jamais ailleurs.</span></p>
     <div class="emu-bar">
-      <label class="emu-search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="emuQ" type="search" placeholder="Chercher un émulateur ou une console" value="${esc(f.q)}" autocomplete="off" spellcheck="false"></label>
+      <label class="emu-search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="emuQ" type="search" placeholder="Chercher une console ou un émulateur" value="${esc(f.q)}" autocomplete="off" spellcheck="false"></label>
       <div class="seg emu-fam">${chip('all', 'Toutes')}${Object.entries(FAMILY).map(([k, l]) => chip(k, l)).join('')}</div>
-      <div class="seg emu-st">${st('all', 'Tous')}${st('installed', 'Installés')}${st('available', 'À installer')}</div>
-      <select class="select" id="emuSort">${[['console', 'Par console'], ['name', 'Par nom'], ['installed', 'Installés d\'abord']].map(([k, l]) => `<option value="${k}"${f.sort === k ? ' selected' : ''}>${l}</option>`).join('')}</select>
     </div>
     <div class="emu-results">${emuResultsHTML()}</div>
-    <h2 class="section-title">Jeux mobiles</h2>
-    <p class="section-sub">Tes jeux installés dans BlueStacks, rangés dans la catégorie Mobile et lancés directement dans BlueStacks.</p>
-    <div class="frow" style="grid-template-columns:120px 1fr auto"><div><span class="tag" style="--c:#3ddc84">BlueStacks</span></div>
-      <div class="paths"><div class="path" style="font-family:var(--ui)">HMZ cherche les jeux installés dans BlueStacks et retrouve leur nom sur Google Play.</div></div>
-      <div class="acts"><button class="btn sm primary" data-action="bluestacks-add">${ICON.plus}Ajouter mes jeux BlueStacks</button></div></div>
-    <h2 class="section-title">Dossiers de jeux</h2>
-    <p class="section-sub">Dépose tes jeux dans ces dossiers ; HMZ cherche aussi dans les sous-dossiers. Le dossier d'une console apparaît quand un de ses émulateurs est installé.</p>
-    <div class="folders-table">
-      ${dirPlats.map((p) => { const P = S.platforms[p]; const ext = P.eboot ? `dossiers de jeux (EBOOT.BIN)${P.ext.length ? ', ' + P.ext.join(' ') : ''}` : P.ext.join(' '); return `<div class="frow">
-        <div><span class="tag" style="--c:${plat(p).color}">${esc(plat(p).label)}</span><div class="ext" style="margin-top:6px">${esc(ext)}</div></div>
-        <div class="paths">${(s.romDirs[p] || []).map((d, i) => `<div class="path"><span title="${esc(d)}">${esc(d)}</span>${i > 0 ? `<button data-rmdir="${p}" data-dir="${esc(d)}">retirer</button>` : ''}</div>`).join('') || '<div class="path">Aucun dossier</div>'}</div>
-        <div class="acts"><button class="btn sm" data-opendir="${p}">${ICON.folder}Ouvrir</button><button class="btn sm ghost" data-adddir="${p}">${ICON.plus}Autre dossier</button></div>
-      </div>`; }).join('')}
-    </div>
+    <details class="emu-more"${ui.emuMore ? ' open' : ''} data-emumore="1">
+      <summary><span>Dossiers de jeux et jeux mobiles</span><small>${dirPlats.length} dossier${dirPlats.length > 1 ? 's' : ''}</small></summary>
+      <p class="section-sub">Dépose tes jeux dans ces dossiers ; HMZ cherche aussi dans les sous-dossiers. Le dossier d'une console apparaît quand un de ses émulateurs est installé.</p>
+      <div class="folders-table">
+        ${dirPlats.map((p) => { const P = S.platforms[p]; const ext = P.eboot ? `dossiers de jeux (EBOOT.BIN)${P.ext.length ? ', ' + P.ext.join(' ') : ''}` : P.ext.join(' '); return `<div class="frow">
+          <div><span class="tag" style="--c:${plat(p).color}">${esc(plat(p).label)}</span><div class="ext" style="margin-top:6px">${esc(ext)}</div></div>
+          <div class="paths">${(s.romDirs[p] || []).map((d, i) => `<div class="path"><span title="${esc(d)}">${esc(d)}</span>${i > 0 ? `<button data-rmdir="${p}" data-dir="${esc(d)}">retirer</button>` : ''}</div>`).join('') || '<div class="path">Aucun dossier</div>'}</div>
+          <div class="acts"><button class="btn sm" data-opendir="${p}">${ICON.folder}Ouvrir</button><button class="btn sm ghost" data-adddir="${p}">${ICON.plus}Autre dossier</button></div>
+        </div>`; }).join('')}
+        <div class="frow"><div><span class="tag" style="--c:#3ddc84">BlueStacks</span></div>
+          <div class="paths"><div class="path" style="font-family:var(--ui)">Tes jeux Android installés dans BlueStacks, rangés dans Mobile.</div></div>
+          <div class="acts"><button class="btn sm" data-action="bluestacks-add">${ICON.plus}Ajouter mes jeux</button></div></div>
+      </div>
+    </details>
   </div>`;
+}
+
+// Petites icônes d'information (BIOS nécessaire, manette) : le détail est dans l'infobulle.
+function emuHints(e) {
+  const pad = e.padAuto ? (e.id === 'dolphin' ? 'Manette réglée toute seule (manettes Xbox, pour la GameCube)' : 'Manette réglée toute seule') : 'Manette à régler une fois dans l\'émulateur';
+  return `<span class="ehints">${e.needs ? `<span class="ehint warn" title="${esc(e.needs)}">${ICON.info}</span>` : ''}<span class="ehint${e.padAuto ? ' ok' : ''}" title="${esc(pad)}">${ICON.pad}</span></span>`;
+}
+function emuTags(e, shared) {
+  return `${e.platforms.map((p) => `<span class="tag" style="--c:${plat(p).color}">${esc(plat(p).label)}</span>`).join('')}${e.experimental ? '<span class="tag" style="--c:#f6c344">Expérimental</span>' : ''}${shared ? '<span class="tag" style="--c:var(--cream)">Conseillé</span>' : ''}`;
+}
+function emuProgressHTML(prog) {
+  const pct = prog.total ? Math.min(100, Math.round((prog.done / prog.total) * 100)) : null;
+  return `<div class="progress"><span>${esc(prog.step)}${pct !== null ? ` · ${pct} %` : ''}${prog.total ? ` · ${fmtSize(prog.done)} / ${fmtSize(prog.total)}` : ''}</span>
+    <div class="bar${pct === null ? ' indet' : ''}"><i style="width:${pct ?? 35}%"></i></div></div>`;
 }
 
 function emuCard(e) {
   const prog = emuProg[e.id];
   const color = plat(e.platforms[0]).color;
-  const hasUpdate = e.installed && !e.custom && e.latest && e.version && e.latest !== e.version;
-  const status = e.installed ? (hasUpdate ? `<span class="status upd">Mise à jour : ${esc(e.latest)}</span>` : `<span class="status ok">Installé${e.version && e.version !== 'perso' ? ' · ' + esc(e.version) : ''}</span>`) : '';
   const shared = e.isDefault && S.emulators.some((o) => o.id !== e.id && o.platforms.some((p) => e.platforms.includes(p)));
-  let body;
-  if (prog && prog.step) {
-    const pct = prog.total ? Math.min(100, Math.round((prog.done / prog.total) * 100)) : null;
-    body = `<div class="progress"><span>${esc(prog.step)}${pct !== null ? ` · ${pct} %` : ''}${prog.total ? ` · ${fmtSize(prog.done)} / ${fmtSize(prog.total)}` : ''}</span>
-      <div class="bar${pct === null ? ' indet' : ''}"><i style="width:${pct ?? 35}%"></i></div></div>`;
-  } else if (!e.installed) {
-    body = `${emuErr[e.id] ? `<div class="emu-err">${ICON.warn}<div><b>Le téléchargement automatique a échoué.</b> ${esc(emuErr[e.id])}<br>Télécharge la version Windows (.zip ou .7z) depuis la <span class="linkish" data-url="${esc(e.page)}">page officielle</span>, puis clique sur « Installer depuis une archive ».</div></div>` : ''}
-      <div class="emu-actions"><button class="btn primary" data-install="${e.id}">${ICON.download}${emuErr[e.id] ? 'Réessayer' : 'Installer'}</button>
-      <button class="btn${emuErr[e.id] ? ' primary' : ' ghost'}" data-installzip="${e.id}">Depuis une archive</button>
-      <button class="btn ghost" data-locate="${e.id}">Je l'ai déjà</button></div>`;
-  } else {
-    body = `<div class="emu-actions">
-      ${hasUpdate ? `<button class="btn primary" data-install="${e.id}">${ICON.download}Mettre à jour</button>` : ''}
-      <button class="btn" data-emuopen="${e.id}">${ICON.ext}Ouvrir</button>
-      <button class="btn ghost" data-emudir="${e.id}">${ICON.folder}Dossier</button>
-      ${e.tuned ? `<button class="btn ghost" data-emucfg="${e.id}" title="Applique des graphismes adaptés à ton PC">${ICON.refresh}Réglages conseillés</button><button class="btn ghost" data-emupad="${e.id}">${ICON.pad}Manette</button>` : ''}
+  const menu = `<button class="icon-btn" data-emumenu="${e.id}" title="Plus d'options" aria-label="Plus d'options">${ICON.dots}</button>`;
+
+  // Pas installé : une ligne compacte du catalogue.
+  if (!e.installed) {
+    const err = emuErr[e.id];
+    return `<div class="emu erow${err ? ' has-err' : ''}" data-emu="${e.id}" style="--c:${color}">
+      <span class="edot"></span>
+      <div class="emain"><div class="ename"><b>${esc(e.name)}</b>${emuTags(e, shared)}</div><div class="eblurb" title="${esc(e.blurb)}">${esc(e.blurb)}</div></div>
+      ${prog && prog.step ? `<div class="eprog">${emuProgressHTML(prog)}</div>` : `${emuHints(e)}<button class="btn sm primary" data-install="${e.id}">${ICON.download}${err ? 'Réessayer' : 'Installer'}</button>${menu}`}
+      ${err ? `<div class="eerr">${ICON.warn}<span>Téléchargement impossible : ${esc(err)} Télécharge la version Windows depuis la <span class="linkish" data-url="${esc(e.page)}">page officielle</span>, puis « Depuis une archive » dans le menu ⋯.</span></div>` : ''}
     </div>`;
   }
-  const sys = e.needsKeys && e.installed ? `<div class="sys">
-      <div class="sys-item"><span class="lbl"><span class="check${e.keys && e.keys.keys ? ' on' : ''}">${e.keys && e.keys.keys ? ICON.check : ''}</span>Clés</span><button class="btn sm" data-keys="${e.id}">${ICON.key}${e.keys && e.keys.keys ? 'Remplacer' : 'Ajouter prod.keys'}</button></div>
-      <div class="sys-item"><span class="lbl"><span class="check${e.keys && e.keys.firmware ? ' on' : ''}">${e.keys && e.keys.firmware ? ICON.check : ''}</span>Firmware</span><button class="btn sm" data-fw="${e.id}">${ICON.chip}${e.keys && e.keys.firmware ? 'Remplacer' : 'Installer'}</button></div>
+
+  // Installé : une carte, une action principale, le reste dans ⋯.
+  const hasUpdate = !e.custom && e.latest && e.version && e.latest !== e.version;
+  const ver = e.version && e.version !== 'perso' ? esc(e.version) : e.custom ? 'perso' : '';
+  const sys = e.needsKeys ? `<div class="esys">
+      <button class="esys-i${e.keys && e.keys.keys ? ' ok' : ''}" data-keys="${e.id}" title="${e.keys && e.keys.keys ? 'Clés installées' : 'Clés manquantes : clique pour les ajouter'}">${e.keys && e.keys.keys ? ICON.check : ICON.key}<span>Clés</span></button>
+      <button class="esys-i${e.keys && e.keys.firmware ? ' ok' : ''}" data-fw="${e.id}" title="${e.keys && e.keys.firmware ? 'Firmware installé' : 'Firmware manquant : clique pour l\'installer'}">${e.keys && e.keys.firmware ? ICON.check : ICON.chip}<span>Firmware</span></button>
     </div>` : '';
-  return `<article class="emu${e.installed ? ' is-inst' : ''}" data-emu="${e.id}" style="--c:${color}">
-    <div class="emu-top"><div><h3>${esc(e.name)}</h3><div class="tags">${e.platforms.map((p) => `<span class="tag" style="--c:${plat(p).color}">${esc(plat(p).label)}</span>`).join('')}${e.experimental ? '<span class="tag" style="--c:#f6c344">Expérimental</span>' : ''}${shared ? '<span class="tag" style="--c:var(--cream)">Conseillé</span>' : ''}</div></div>${status}</div>
-    <p>${esc(e.blurb)}</p>
-    ${e.needs ? `<div class="emu-need">${ICON.info}<span>${esc(e.needs)}</span></div>` : ''}
-    <div class="emu-pad${e.padAuto ? ' ok' : ''}">${ICON.pad}<span>${e.padAuto ? (e.id === 'dolphin' ? 'Manette réglée toute seule (manettes Xbox, pour la GameCube)' : 'Manette réglée toute seule') : 'Manette à régler une fois dans l\'émulateur'}</span></div>
-    ${body}
+  return `<article class="emu ecard" data-emu="${e.id}" style="--c:${color}">
+    <div class="ecard-h"><h3>${esc(e.name)}</h3>${hasUpdate ? `<span class="status upd">${esc(e.latest)} dispo</span>` : `<span class="status ok">${ver ? ver : 'Installé'}</span>`}</div>
+    <div class="ename">${emuTags(e, shared)}${emuHints(e)}</div>
     ${sys}
-    <div class="links"><button data-url="${esc(e.page)}">Page officielle ↗</button>${e.installed ? `<button data-installzip="${e.id}">Depuis une archive</button><button data-locate="${e.id}">Autre .exe</button><span class="grow"></span><button class="danger" data-emudel="${e.id}">${e.custom ? 'Oublier' : 'Supprimer'}</button>` : ''}</div>
+    ${prog && prog.step ? emuProgressHTML(prog) : `<div class="ecard-a">
+      ${hasUpdate ? `<button class="btn primary" data-install="${e.id}">${ICON.download}Mettre à jour</button><button class="btn" data-emuopen="${e.id}">${ICON.ext}Ouvrir</button>` : `<button class="btn primary" data-emuopen="${e.id}">${ICON.ext}Ouvrir</button>`}
+      <button class="icon-btn" data-emudir="${e.id}" title="Ouvrir le dossier">${ICON.folder}</button>
+      ${menu}
+    </div>`}
   </article>`;
 }
 
