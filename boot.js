@@ -26,7 +26,8 @@ function overrideVersion() {
 
 function setAside(reason) {
   try {
-    const dest = path.join(os.homedir(), 'HMZ', `app-ecartee-${Date.now()}`);
+    // Nom unique même si deux versions sont écartées dans la même milliseconde.
+    const dest = path.join(os.homedir(), 'HMZ', `app-ecartee-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`);
     fs.renameSync(OVERRIDE, dest);
     fs.writeFileSync(path.join(dest, 'RAISON.txt'), reason);
   } catch {}
