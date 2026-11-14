@@ -1,6 +1,6 @@
 {
  "version": 1,
- "count": 276,
+ "count": 305,
  "games": {
   "2xko": {
    "name": "2XKO",
@@ -9,12 +9,33 @@
    "hero": "https://cdn2.steamgriddb.com/hero/a3006860e891c26968e410e803266d34.png",
    "logo": "https://cdn2.steamgriddb.com/logo/c68778aef2e4327f252fe2b22c9e1779.png"
   },
+  "8 ball": {
+   "name": "8 Ball",
+   "sgdb": 26454,
+   "cover": "https://cdn2.steamgriddb.com/grid/8ce037b9657282f1c715d785c09665ed.png",
+   "hero": "https://cdn2.steamgriddb.com/hero/509212008def037bf1dc80aeb77ff6db.png",
+   "logo": "https://cdn2.steamgriddb.com/logo/a537c315b8774b9881ff1d80c2741fe7.png"
+  },
+  "8 ball pool": {
+   "name": "8 Ball",
+   "sgdb": 26454,
+   "cover": "https://cdn2.steamgriddb.com/grid/8ce037b9657282f1c715d785c09665ed.png",
+   "hero": "https://cdn2.steamgriddb.com/hero/509212008def037bf1dc80aeb77ff6db.png",
+   "logo": "https://cdn2.steamgriddb.com/logo/a537c315b8774b9881ff1d80c2741fe7.png"
+  },
   "advance wars dual strike": {
    "name": "Advance Wars: Dual Strike",
    "sgdb": 37576,
    "cover": "https://cdn2.steamgriddb.com/grid/ae1b5d06d4d9c648456b043b130d3b87.png",
    "hero": "https://cdn2.steamgriddb.com/hero/ba864753a45f620c697c889f875ac173.png",
    "logo": "https://cdn2.steamgriddb.com/logo/4dd042f08d5ecb215e276a2e280965e9.png"
+  },
+  "afk journey": {
+   "name": "AFK Journey",
+   "sgdb": 5448217,
+   "cover": "https://cdn2.steamgriddb.com/grid/66a1ddbf45b75a9d40a073b66560bcf4.jpg",
+   "hero": "https://cdn2.steamgriddb.com/hero/e98043c16265282fb185adf9e8b7d197.png",
+   "logo": "https://cdn2.steamgriddb.com/logo/876b8b763f66995b2a03fac8067de0ca.png"
   },
   "albion online": {
    "name": "Albion Online",
@@ -92,6 +113,13 @@
    "cover": "https://cdn2.steamgriddb.com/grid/e9571c97ad8514c0aa6bb199bda1427b.png",
    "hero": "https://cdn2.steamgriddb.com/hero/1cff4ffa5e4d39479f25d29d4d140c3f.png",
    "logo": "https://cdn2.steamgriddb.com/logo/a383d5fdaea275d6a06a1958beaf4db4.png"
+  },
+  "azur lane": {
+   "name": "Azur Lane",
+   "sgdb": 5262782,
+   "cover": "https://cdn2.steamgriddb.com/grid/735bebc03b20c8ade3e08cd71ed796c2.png",
+   "hero": "https://cdn2.steamgriddb.com/hero/46a5a92c481d5d4e0478d68bad240fc6.jpg",
+   "logo": "https://cdn2.steamgriddb.com/logo/352d47cf1a528e7f85aca7ef55669802.png"
   },
   "baldur s gate 3": {
    "name": "Baldur's Gate 3 Toolkit",
@@ -191,12 +219,26 @@
    "hero": "https://cdn2.steamgriddb.com/hero/ddc2d6b4966c50ee8fa5885d10931758.png",
    "logo": "https://cdn2.steamgriddb.com/logo/1820c4b6fcbf5be5758bffe24c41fa6a.png"
   },
+  "call of duty mobile": {
+   "name": "Call of Duty: Mobile",
+   "sgdb": 5249741,
+   "cover": "https://cdn2.steamgriddb.com/grid/e570a3a050812455f4af51072487e903.png",
+   "hero": "https://cdn2.steamgriddb.com/hero/c0248542adbc4200f3ea47edc7c1b650.png",
+   "logo": "https://cdn2.steamgriddb.com/logo/5dd99cea810bff54b39b66b08dbf03c0.png"
+  },
   "call of duty warzone": {
    "name": "Call of Duty: Warzone",
    "sgdb": 5257960,
    "cover": "https://cdn2.steamgriddb.com/grid/da64a736b47e9b601309a3a86f013db0.png",
    "hero": "https://cdn2.steamgriddb.com/hero/c7bb78561eac13b4c772f3996075b9e3.png",
    "logo": "https://cdn2.steamgriddb.com/logo/a82d667c0d647b93386af011ae26b09c.png"
+  },
+  "candy crush saga": {
+   "name": "Candy Crush Saga",
+   "sgdb": 5278156,
+   "cover": "https://cdn2.steamgriddb.com/grid/a72dd51d3c515d0a346466dcf96edc06.jpg",
+   "hero": "https://cdn2.steamgriddb.com/hero/7ee88a9926490d07e8026f245d9bf263.jpg",
+   "logo": "https://cdn2.steamgriddb.com/logo/7887968ac1e67b5624dcf811d007ed12.png"
   },
   "captain toad treasure tracker": {
    "name": "Captain Toad: Treasure Tracker",
@@ -345,12 +387,26 @@
    "hero": "https://cdn2.steamgriddb.com/hero/3128b33a072cf16061282eb389e4ffff.png",
    "logo": "https://cdn2.steamgriddb.com/logo/0d7dc1e945de6eefd270f4f9834c83f1.png"
   },
+  "dragon ball legends": {
+   "name": "DRAGON BALL LEGENDS",
+   "sgdb": 5286903,
+   "cover": "https://cdn2.steamgriddb.com/grid/2d5fb1ecd865bff5dd1b6afd6da8d2a4.png",
+   "hero": "https://cdn2.steamgriddb.com/hero/2db4fd37f2bb6fc68a62bad6474b0dc7.png",
+   "logo": "https://cdn2.steamgriddb.com/logo/4cf45c6982fded7aca34453024148d43.png"
+  },
   "dragon ball sparking zero": {
    "name": "Dragon Ball: Sparking! Zero",
    "sgdb": 5438464,
    "cover": "https://cdn2.steamgriddb.com/grid/e1113f40e20464469d860bef72793600.png",
    "hero": "https://cdn2.steamgriddb.com/hero/2d12729c665a9c1c3bda27ba1273154c.jpg",
    "logo": "https://cdn2.steamgriddb.com/logo/607d43d8f2fa41b135fd2f70bd830785.png"
+  },
+  "dragon ball z dokkan battle": {
+   "name": "Dragon Ball Z Dokkan Battle",
+   "sgdb": 5286904,
+   "cover": "https://cdn2.steamgriddb.com/grid/8731b664aa6f4b2521b65b0561835705.png",
+   "hero": "https://cdn2.steamgriddb.com/hero/87c4b69c9d3811ec19bb825c44447a7d.png",
+   "logo": "https://cdn2.steamgriddb.com/logo/283215616c4eaffc7fa5e247d3f27c64.png"
   },
   "dragon ball z supersonic warriors 2": {
    "name": "Dragon Ball Z: Supersonic Warriors 2",
@@ -415,6 +471,13 @@
    "hero": "https://cdn2.steamgriddb.com/hero/d1fcdf15cb97c47d0ed1e1e10773ae36.png",
    "logo": "https://cdn2.steamgriddb.com/logo/69f5d5c1249e17f4ac1d5b716db47105.png"
   },
+  "epic seven": {
+   "name": "Epic Seven",
+   "sgdb": 5338095,
+   "cover": "https://cdn2.steamgriddb.com/grid/9d3ab205f1b9d5fbceddda9d1ef25920.png",
+   "hero": "https://cdn2.steamgriddb.com/hero/a7944fb6f039472fce1b5ddcaf017290.png",
+   "logo": "https://cdn2.steamgriddb.com/logo/28be6f7e6c4321ea57b4c58080a95bf4.png"
+  },
   "euro truck simulator 2": {
    "name": "Euro Truck Simulator 2",
    "sgdb": 2442,
@@ -435,6 +498,13 @@
    "cover": "https://cdn2.steamgriddb.com/grid/1fbfa92495d30d20aa39fd57cee4bf0a.png",
    "hero": "https://cdn2.steamgriddb.com/hero/eb51bae453607697419719dfa9f33e36.png",
    "logo": "https://cdn2.steamgriddb.com/logo/062bc199adf3a262d5eefbb88e328e11.png"
+  },
+  "fate grand order": {
+   "name": "Fate/Grand Order",
+   "sgdb": 5268471,
+   "cover": "https://cdn2.steamgriddb.com/grid/ca690a614a61da51aaf4a4fff4a8db97.png",
+   "hero": "https://cdn2.steamgriddb.com/hero/3a3c7831e6971e28d730f410b461e8f2.png",
+   "logo": "https://cdn2.steamgriddb.com/logo/f59db0df527cd9bc7b7d71b6e35ee6d7.png"
   },
   "final fantasy iii": {
    "name": "Final Fantasy III",
@@ -520,12 +590,33 @@
    "hero": "https://cdn2.steamgriddb.com/hero/894f2c736075c519dbe099240d339277.jpg",
    "logo": "https://cdn2.steamgriddb.com/logo/24c83138bad4823ff3e03e8b2f13b8d0.png"
   },
+  "free fire": {
+   "name": "Garena Free Fire",
+   "sgdb": 5302080,
+   "cover": "https://cdn2.steamgriddb.com/grid/c6e7526fe6c02eaf3de35b5d3c1dde29.png",
+   "hero": "https://cdn2.steamgriddb.com/hero/e8d2546088e6be7ff164964c7a07bdb3.png",
+   "logo": "https://cdn2.steamgriddb.com/logo/66f7b045db373d410f4f0c317378f679.png"
+  },
   "game builder garage": {
    "name": "Game Builder Garage",
    "sgdb": 5287506,
    "cover": "https://cdn2.steamgriddb.com/grid/d9dbc062f07550199d225b71bee9c825.png",
    "hero": "https://cdn2.steamgriddb.com/hero/446858a43b90af2963b8c89d41ef6f04.png",
    "logo": "https://cdn2.steamgriddb.com/logo/8d95bb25c0116d6cc71c97a80125dda3.png"
+  },
+  "game of thrones kingsroad": {
+   "name": "Game of Thrones: Kingsroad",
+   "sgdb": 5479685,
+   "cover": "https://cdn2.steamgriddb.com/grid/95fcfbf3be3e9ef67cec3d4fc1c16f2c.png",
+   "hero": "https://cdn2.steamgriddb.com/hero/62b98866fdf53b846bd54b64422d0b17.jpg",
+   "logo": "https://cdn2.steamgriddb.com/logo/8554bc3e0982e74427b50927d4c618e7.png"
+  },
+  "garena free fire": {
+   "name": "Garena Free Fire",
+   "sgdb": 5302080,
+   "cover": "https://cdn2.steamgriddb.com/grid/c6e7526fe6c02eaf3de35b5d3c1dde29.png",
+   "hero": "https://cdn2.steamgriddb.com/hero/e8d2546088e6be7ff164964c7a07bdb3.png",
+   "logo": "https://cdn2.steamgriddb.com/logo/66f7b045db373d410f4f0c317378f679.png"
   },
   "genshin impact": {
    "name": "Genshin Impact",
@@ -555,6 +646,13 @@
    "hero": "https://cdn2.steamgriddb.com/hero/768e9810f221e93905d462c8d601936e.jpg",
    "logo": "https://cdn2.steamgriddb.com/logo/99042a495af06f062902ade0eacd4064.png"
   },
+  "goddess of victory nikke": {
+   "name": "Nikke: Goddess of Victory",
+   "sgdb": 5426441,
+   "cover": "https://cdn2.steamgriddb.com/grid/aa6118d178fa3e061f9c53e9c47d40fa.png",
+   "hero": "https://cdn2.steamgriddb.com/hero/571976c2c991f4b573d7e2b2ab527dd2.png",
+   "logo": "https://cdn2.steamgriddb.com/logo/718ac6fafeae75c2379850ae6337152b.png"
+  },
   "grand theft auto v": {
    "name": "Grand Theft Auto V",
    "sgdb": 3674,
@@ -575,6 +673,13 @@
    "cover": "https://cdn2.steamgriddb.com/grid/ac0169aeecebc5576074bb1dce51e382.png",
    "hero": "https://cdn2.steamgriddb.com/hero/a4d849d331d0a9857b8b599475460dad.jpg",
    "logo": "https://cdn2.steamgriddb.com/logo/73aaacf9803fed2a04f802f3f85225e5.png"
+  },
+  "hay day": {
+   "name": "Hay Day",
+   "sgdb": 5280948,
+   "cover": "https://cdn2.steamgriddb.com/grid/47fd1fcde46f2e400bb2c84a1240b3c5.jpg",
+   "hero": "https://cdn2.steamgriddb.com/hero/27ab5664643d84a2cc7696582bcd39a4.png",
+   "logo": "https://cdn2.steamgriddb.com/logo/d499871897037516f52fb1042946e4a9.png"
   },
   "hearthstone": {
    "name": "Hearthstone",
@@ -618,6 +723,13 @@
    "hero": "https://cdn2.steamgriddb.com/hero/33a4e204a72d69ec3786ff1cd02e7a66.png",
    "logo": "https://cdn2.steamgriddb.com/logo/804bfd285116c91c935176b2b199894d.png"
   },
+  "honor of kings": {
+   "name": "Honor of Kings",
+   "sgdb": 5459783,
+   "cover": "https://cdn2.steamgriddb.com/grid/6776c7f6cd45c6fb6f8557a6df90d86d.png",
+   "hero": "https://cdn2.steamgriddb.com/hero/0c8452a60e1775c60bdbdcff20e6537f.png",
+   "logo": "https://cdn2.steamgriddb.com/logo/dbe51b497775f16f6e2e1d7baa56b7b5.png"
+  },
   "hyrule warriors age of calamity": {
    "name": "Hyrule Warriors: Age of Calamity",
    "sgdb": 5267007,
@@ -652,6 +764,20 @@
    "cover": "https://cdn2.steamgriddb.com/grid/8a0c5592a55d87bf520ed3a881469aaa.png",
    "hero": "https://cdn2.steamgriddb.com/hero/6bc8a4225b3545e66a4a868c83718f6e.png",
    "logo": "https://cdn2.steamgriddb.com/logo/ea119a40c1592979f51819b0bd38d39d.png"
+  },
+  "king of fighters all star": {
+   "name": "The King of Fighters All Star",
+   "sgdb": 5433199,
+   "cover": "https://cdn2.steamgriddb.com/grid/a8442f2fc34e1745239a98bde654c5d6.jpg",
+   "hero": "https://cdn2.steamgriddb.com/hero/fc7d6ead840dac10f05f0e0719872e96.jpg",
+   "logo": "https://cdn2.steamgriddb.com/logo/4f3bb9df29a7062aaea183b5c065732b.png"
+  },
+  "king of fighters allstar": {
+   "name": "The King of Fighters All Star",
+   "sgdb": 5433199,
+   "cover": "https://cdn2.steamgriddb.com/grid/a8442f2fc34e1745239a98bde654c5d6.jpg",
+   "hero": "https://cdn2.steamgriddb.com/hero/fc7d6ead840dac10f05f0e0719872e96.jpg",
+   "logo": "https://cdn2.steamgriddb.com/logo/4f3bb9df29a7062aaea183b5c065732b.png"
   },
   "kingdom hearts 358 2 days": {
    "name": "Kingdom Hearts 358/2 Days",
@@ -715,6 +841,20 @@
    "cover": "https://cdn2.steamgriddb.com/grid/769fda94fbd3dd567d4cf6e296226fc8.png",
    "hero": "https://cdn2.steamgriddb.com/hero/ae5e9154ff3754a3a942ca2417701560.png",
    "logo": "https://cdn2.steamgriddb.com/logo/1956768b78ac039215c9600c9691c572.png"
+  },
+  "last war": {
+   "name": "Last War",
+   "sgdb": 5490691,
+   "cover": "https://cdn2.steamgriddb.com/grid/b29f5a58d950b275a7bd008ab158445d.png",
+   "hero": "https://cdn2.steamgriddb.com/hero/f71720a1e86943b676d7dbd2b84c23e0.png",
+   "logo": "https://cdn2.steamgriddb.com/logo/f533447788155b02c6a6fd3ee60a3e5d.png"
+  },
+  "last war survival": {
+   "name": "Last War",
+   "sgdb": 5490691,
+   "cover": "https://cdn2.steamgriddb.com/grid/b29f5a58d950b275a7bd008ab158445d.png",
+   "hero": "https://cdn2.steamgriddb.com/hero/f71720a1e86943b676d7dbd2b84c23e0.png",
+   "logo": "https://cdn2.steamgriddb.com/logo/f533447788155b02c6a6fd3ee60a3e5d.png"
   },
   "league of legends": {
    "name": "League of Legends",
@@ -919,6 +1059,13 @@
    "hero": "https://cdn2.steamgriddb.com/hero/5edd823a821d99913fd45bf7c20903df.png",
    "logo": "https://cdn2.steamgriddb.com/logo/c33d79c3eb9a569b883b184ef5b59fd7.png"
   },
+  "marvel future fight": {
+   "name": "Marvel: Future Fight",
+   "sgdb": 5256728,
+   "cover": "https://cdn2.steamgriddb.com/grid/0c5525e84f24f25152eb5fa27f3d90aa.png",
+   "hero": "https://cdn2.steamgriddb.com/hero/4b2944dfea61be814911110c21ddd974.jpg",
+   "logo": "https://cdn2.steamgriddb.com/logo/cfda59a6d56ad73a26d084cb2e182f31.png"
+  },
   "marvel rivals": {
    "name": "Marvel Rivals",
    "sgdb": 5447951,
@@ -988,6 +1135,13 @@
    "cover": "https://cdn2.steamgriddb.com/grid/8b738f0251e06ce8f455cd1a7bb8773c.jpg",
    "hero": "https://cdn2.steamgriddb.com/hero/5c38e19a910657ec18a4115b6888b2b0.jpg",
    "logo": "https://cdn2.steamgriddb.com/logo/82439352dc33fe021c33865cedc4d0bc.png"
+  },
+  "mobile legends bang bang": {
+   "name": "Mobile Legends: Bang Bang",
+   "sgdb": 5440717,
+   "cover": "https://cdn2.steamgriddb.com/grid/0226eaaf8270cfee15be9b7bae9dff2e.png",
+   "hero": "https://cdn2.steamgriddb.com/hero/e9c8647e2516d5c7ac2ac9f0d89e812b.png",
+   "logo": "https://cdn2.steamgriddb.com/logo/6e7b8e8b9462c7e2e2d5b4fc2662fa08.png"
   },
   "monster hunter 4 ultimate": {
    "name": "Monster Hunter 4 Ultimate",
@@ -1080,6 +1234,20 @@
    "hero": "https://cdn2.steamgriddb.com/hero/3364667f3dabfa4055a7d13cd430dde5.png",
    "logo": "https://cdn2.steamgriddb.com/logo/4fac9ba115140ac4f1c22da82aa0bc7f.png"
   },
+  "ni no kuni cross worlds": {
+   "name": "Ni no Kuni: Cross Worlds",
+   "sgdb": 5330554,
+   "cover": "https://cdn2.steamgriddb.com/grid/65b96d5f0a07ca8e44c6251d6a0336df.png",
+   "hero": "https://cdn2.steamgriddb.com/hero/a638b925a99018f63a3a78cec2a6e83d.png",
+   "logo": "https://cdn2.steamgriddb.com/logo/1671377f1825c504031c77f6453299a3.png"
+  },
+  "nikke goddess of victory": {
+   "name": "Nikke: Goddess of Victory",
+   "sgdb": 5426441,
+   "cover": "https://cdn2.steamgriddb.com/grid/aa6118d178fa3e061f9c53e9c47d40fa.png",
+   "hero": "https://cdn2.steamgriddb.com/hero/571976c2c991f4b573d7e2b2ab527dd2.png",
+   "logo": "https://cdn2.steamgriddb.com/logo/718ac6fafeae75c2379850ae6337152b.png"
+  },
   "nintendo switch sports": {
    "name": "Nintendo Switch Sports",
    "sgdb": 5326304,
@@ -1093,6 +1261,13 @@
    "cover": "https://cdn2.steamgriddb.com/grid/9faa9aa28cb471c7207d3087c28176b3.png",
    "hero": "https://cdn2.steamgriddb.com/hero/08dd1c0e421f593154ed4f4f0a379f92.png",
    "logo": "https://cdn2.steamgriddb.com/logo/c5567420277c182bdfc7dca09791072a.png"
+  },
+  "one piece bounty rush": {
+   "name": "ONE PIECE Bounty Rush",
+   "sgdb": 5462551,
+   "cover": "https://cdn2.steamgriddb.com/grid/9956fe9c0b52a59a2f4173f62a82f1f8.png",
+   "hero": null,
+   "logo": "https://cdn2.steamgriddb.com/logo/273c32313d09b78262e327d1a0ea9526.png"
   },
   "one piece odyssey": {
    "name": "One Piece Odyssey",
@@ -1248,6 +1423,13 @@
    "hero": "https://cdn2.steamgriddb.com/hero/bd6dd73b5ea38bdbc9b64a9639a85e66.png",
    "logo": "https://cdn2.steamgriddb.com/logo/1d88c0882b666e2481f805d01d2c0d25.png"
   },
+  "pokemon go": {
+   "name": "Pokémon GO",
+   "sgdb": 5273848,
+   "cover": "https://cdn2.steamgriddb.com/grid/fb4ded46f67717a1db81ebfef28d9c66.png",
+   "hero": "https://cdn2.steamgriddb.com/hero/d0eb61f26691d0e6aa548549ab20c0a6.png",
+   "logo": "https://cdn2.steamgriddb.com/logo/ff99ba166c78ad26da4d9c6c923f4f51.png"
+  },
   "pokemon heartgold": {
    "name": "Pokémon HeartGold Version",
    "sgdb": 38123,
@@ -1289,6 +1471,13 @@
    "cover": "https://cdn2.steamgriddb.com/grid/0d2bb68b98bd5246fe99a698c9a3aa3e.png",
    "hero": "https://cdn2.steamgriddb.com/hero/ab7a710458b8378b523e39143a6764d6.png",
    "logo": "https://cdn2.steamgriddb.com/logo/b37242925ffe0da400d9b98c254b9fcd.png"
+  },
+  "pokemon masters ex": {
+   "name": "Pokémon Masters EX",
+   "sgdb": 5254537,
+   "cover": "https://cdn2.steamgriddb.com/grid/e79c5e2b38aebb8a29e0f4c5cb9025a2.png",
+   "hero": "https://cdn2.steamgriddb.com/hero/24b7da0fbd918d689a1d5aeb38db3907.png",
+   "logo": "https://cdn2.steamgriddb.com/logo/d92bed54b54112a3f1dff6910592e8ef.png"
   },
   "pokemon moon": {
    "name": "Pokémon Moon",
@@ -1542,12 +1731,26 @@
    "hero": "https://cdn2.steamgriddb.com/hero/f387624df552cea2f369918c5e1e12bc.png",
    "logo": "https://cdn2.steamgriddb.com/logo/83da7c539e1ab4e759623c38d8737e9e.png"
   },
+  "pubg mobile": {
+   "name": "PUBG Mobile",
+   "sgdb": 5438971,
+   "cover": "https://cdn2.steamgriddb.com/grid/5598dbef5e8e05a91473d35724fe522f.png",
+   "hero": "https://cdn2.steamgriddb.com/hero/3a51210cbc5fdc721ef28942a0311351.png",
+   "logo": "https://cdn2.steamgriddb.com/logo/4c3736090e37b68f9357fccb3ee2b976.png"
+  },
   "punishing gray raven": {
    "name": "Punishing: Gray Raven",
    "sgdb": 5362634,
    "cover": "https://cdn2.steamgriddb.com/grid/3e4fddaa78fd4a6a932a842ce24492d4.png",
    "hero": "https://cdn2.steamgriddb.com/hero/ce0d3d8872efe653b0c766a9be2a922d.png",
    "logo": "https://cdn2.steamgriddb.com/logo/49afb53917ff1fc309d4ccd322d0f3cb.png"
+  },
+  "raid shadow legends": {
+   "name": "RAID: Shadow Legends",
+   "sgdb": 5254530,
+   "cover": "https://cdn2.steamgriddb.com/grid/feeffbac13f38a04232783756976d1af.png",
+   "hero": "https://cdn2.steamgriddb.com/hero/9dd392b489323caeccb5bd457e36d873.png",
+   "logo": "https://cdn2.steamgriddb.com/logo/a10a26631d45928cb8be4ebabbee8b8d.png"
   },
   "red dead redemption": {
    "name": "Red Dead Redemption",
@@ -1626,6 +1829,13 @@
    "hero": "https://cdn2.steamgriddb.com/hero/fb45283f515a00639b9f89229702578e.png",
    "logo": "https://cdn2.steamgriddb.com/logo/e70d01cd3cf78d67a32c7ce01165dafd.png"
   },
+  "seven knights re birth": {
+   "name": "Seven Knights Re:BIRTH",
+   "sgdb": 5508559,
+   "cover": "https://cdn2.steamgriddb.com/grid/02db0eadf39bff285a8bbb9695270ef5.png",
+   "hero": "https://cdn2.steamgriddb.com/hero/f7900669fea7ba123fa899ca7d8f5cb6.png",
+   "logo": "https://cdn2.steamgriddb.com/logo/56071e812db19be750a3524b9c67b76f.png"
+  },
   "silent hill 2": {
    "name": "Silent Hill 2",
    "sgdb": 36708,
@@ -1653,6 +1863,13 @@
    "cover": "https://cdn2.steamgriddb.com/grid/92085372c9895b9e1bb8a5a62b1e60f4.png",
    "hero": "https://cdn2.steamgriddb.com/hero/91bbb07116cf42985ce1a2850de0b467.png",
    "logo": "https://cdn2.steamgriddb.com/logo/66862e23f05c8e1f6b559799b744a320.png"
+  },
+  "solo leveling arise": {
+   "name": "Solo Leveling: Arise",
+   "sgdb": 5492407,
+   "cover": "https://cdn2.steamgriddb.com/grid/faa89e92388e4e5893483ad6ce2c850e.jpg",
+   "hero": "https://cdn2.steamgriddb.com/hero/819e94239fdef397756916ec7c881304.png",
+   "logo": "https://cdn2.steamgriddb.com/logo/cbe799fabbd4d8766531b2e3812ed82e.png"
   },
   "sonic frontiers": {
    "name": "Sonic Frontiers",
@@ -1724,12 +1941,26 @@
    "hero": "https://cdn2.steamgriddb.com/hero/8d0584dafa9462a7c48608451dd3ea87.jpg",
    "logo": "https://cdn2.steamgriddb.com/logo/35e10b0ed406f7a8fead6011951f4342.png"
   },
+  "stumble guys": {
+   "name": "Stumble Guys",
+   "sgdb": 5292392,
+   "cover": "https://cdn2.steamgriddb.com/grid/7467072eba2280042a6966201dc0dd5a.png",
+   "hero": "https://cdn2.steamgriddb.com/hero/cc18d3b2397eccbf04591b5b99dcc377.jpg",
+   "logo": "https://cdn2.steamgriddb.com/logo/dfcf1c8d76f621fe372715d92b6bcd13.png"
+  },
   "subnautica": {
    "name": "Subnautica",
    "sgdb": 3477,
    "cover": "https://cdn2.steamgriddb.com/grid/50896c8a37922749110dae272e7a345b.png",
    "hero": "https://cdn2.steamgriddb.com/hero/d94fd74dcde1aa553be72c1006578b23.png",
    "logo": "https://cdn2.steamgriddb.com/logo/9c16f6606460d1543759fc966b9bb797.png"
+  },
+  "subway surfers": {
+   "name": "Subway Surfers",
+   "sgdb": 5283916,
+   "cover": "https://cdn2.steamgriddb.com/grid/fffbaa156b026dfc0e11dbd799bf7344.png",
+   "hero": "https://cdn2.steamgriddb.com/hero/d62224671615ac9328a32903b314b447.png",
+   "logo": "https://cdn2.steamgriddb.com/logo/35856571321788e2cfb267bccef93f07.png"
   },
   "summoners war": {
    "name": "Summoners War",
@@ -1891,6 +2122,13 @@
    "cover": "https://cdn2.steamgriddb.com/grid/b8ecaab830683fe1e7547f6f588507f4.png",
    "hero": null,
    "logo": "https://cdn2.steamgriddb.com/logo/8e1fedcad9b54db3e0013d8df232697e.png"
+  },
+  "umamusume pretty derby": {
+   "name": "Umamusume: Pretty Derby",
+   "sgdb": 5325570,
+   "cover": "https://cdn2.steamgriddb.com/grid/c7c53b829e0b11043361809c1fac3cbd.png",
+   "hero": "https://cdn2.steamgriddb.com/hero/b12cfb356544c9bf08a9bff044e86bdb.jpg",
+   "logo": "https://cdn2.steamgriddb.com/logo/66d91d4433fee7788003cc720ac4f805.png"
   },
   "undertale": {
    "name": "Undertale",
