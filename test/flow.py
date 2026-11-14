@@ -7,6 +7,7 @@ async def main():
         errs=[]; pg.on('pageerror', lambda e: errs.append(str(e)))
         await pg.goto('file:///home/claude/hmz/renderer/dev.html'); await pg.wait_for_timeout(600)
         await pg.click('[data-view=library]')
+        await pg.click('[data-libview=grid]'); await pg.wait_for_timeout(200)
         await pg.click('[data-action=new-coll]')
         await pg.fill('#newCollName', 'Mes RPG')
         await pg.press('#newCollName', 'Enter'); await pg.wait_for_timeout(400)

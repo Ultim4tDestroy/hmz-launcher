@@ -1,0 +1,28 @@
+import asyncio
+from playwright.async_api import async_playwright
+async def main():
+    async with async_playwright() as p:
+        b = await p.chromium.launch(executable_path='/usr/bin/google-chrome', args=['--allow-file-access-from-files'])
+        pg = await b.new_page(viewport={'width':1440,'height':880})
+        errs=[]; pg.on('pageerror', lambda e: errs.append(str(e)))
+        await pg.goto('file:///home/claude/hmz/renderer/dev.html'); await pg.wait_for_timeout(700)
+        await pg.evaluate("document.querySelector('#view').scrollTop=430"); await pg.wait_for_timeout(300)
+        await pg.screenshot(path='test/sh-home.png')
+        s = pg.locator('.rows .shelf').nth(0).locator('.slot').nth(2)
+        await s.hover(); await pg.wait_for_timeout(700)
+        await pg.screenshot(path='test/sh-hover.png')
+        await s.click(); await pg.wait_for_timeout(800)
+        await pg.mouse.move(5,5); await pg.wait_for_timeout(300)
+        await pg.screenshot(path='test/sh-flip.png')
+        await pg.keyboard.press('Escape')
+        await pg.click('[data-view=library]'); await pg.wait_for_timeout(700)
+        await pg.screenshot(path='test/sh-lib.png')
+        await pg.keyboard.press('Control+k'); await pg.wait_for_timeout(300)
+        await pg.screenshot(path='test/sh-pal.png')
+        await pg.keyboard.type('thème'); await pg.wait_for_timeout(200)
+        await pg.screenshot(path='test/sh-pal2.png')
+        await pg.keyboard.press('Escape'); await pg.keyboard.press('?'); await pg.wait_for_timeout(300)
+        await pg.screenshot(path='test/sh-keys.png')
+        print(errs or 'no errors')
+        await b.close()
+asyncio.run(main())

@@ -91,7 +91,7 @@ function defaults() {
     settings: {
       root, romDirs, sgdbKey: '', startInTV: false, emuFullscreen: true, minimizeOnPlay: true,
       scanSteam: true, scanEpic: true, scanOthers: true,
-      theme: 'foret', accent: '', cardSize: 168, libView: 'grid',
+      theme: 'foret', accent: '', cardSize: 168, libView: 'shelf',
       padQuit: true, padHome: true, backups: true, backupDir: '', autostart: false,
     },
     emulators: {},
@@ -448,6 +448,8 @@ app.whenReady().then(() => {
     db.data.artRules = 3;
     db.save();
   }
+  // 2.6.0 : l'étagère devient la vue par défaut de la bibliothèque.
+  if ((db.data.uiRev || 0) < 1) { db.data.settings.libView = 'shelf'; db.data.uiRev = 1; db.save(); }
   createWindow();
   setTimeout(() => scanLibrary().catch(console.error), 600);
   setInterval(() => pollProcesses().catch(() => {}), 20000);

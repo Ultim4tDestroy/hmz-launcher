@@ -39,6 +39,7 @@ const ICON = {
   key: '<svg viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M17 6l3 3M15 8l2 2"/></svg>',
   chip: '<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></svg>',
   palette: '<svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.6-.8 1.6-1.6 0-.5-.2-.8-.5-1.2-.3-.3-.4-.7-.4-1.1 0-.9.7-1.6 1.6-1.6H16a5 5 0 0 0 5-5c0-4-4-7.5-9-7.5z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10.5" cy="7" r="1"/><circle cx="15.5" cy="7.5" r="1"/></svg>',
+  shelf: '<svg viewBox="0 0 24 24"><path d="M3 20h18M3 12h18"/><rect x="5" y="4" width="3" height="8" rx=".5"/><rect x="9.5" y="5" width="3" height="7" rx=".5"/><rect x="14" y="14" width="3" height="6" rx=".5"/><rect x="6" y="14.5" width="4" height="5.5" rx=".5"/></svg>',
   grid: '<svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>',
   list: '<svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/></svg>',
   chev: '<svg class="chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>',
@@ -179,7 +180,89 @@ function cardHTML(g, { selected = false } = {}) {
     <div class="card-sub"><i class="pdot"></i>${esc(plat(g.platform).label)}${g.minutes >= 1 ? ` · ${fmtTime(g.minutes)}` : ''}</div>
   </button>`;
 }
+// --- Étagère -------------------------------------------------------------------------------
+const BOX = {
+  switch2: { w: 146, h: 232, d: 17, band: 'SWITCH 2' },
+  switch: { w: 146, h: 232, d: 17, band: 'SWITCH' },
+  '3ds': { w: 176, h: 192, d: 15, band: '3DS' },
+  ds: { w: 176, h: 192, d: 15, band: 'DS' },
+  pc: { w: 156, h: 234, d: 19, band: null },
+};
+const SRC_COLOR = { steam: '#66c0f4', epic: '#e8e8e8', riot: '#ff4655', launcher: '#c084fc', installed: '#f6c344', manual: '#7fd1b9' };
+function boxDims(g) {
+  const b = BOX[g.platform] || BOX.pc;
+  const k = (S.settings.cardSize || 168) / 168;
+  return { ...b, w: Math.round(b.w * k), h: Math.round(b.h * k), d: Math.max(10, Math.round(b.d * k)) };
+}
+function boxHTML(g, { selected = false } = {}) {
+  const b = boxDims(g);
+  const kind = BOX[g.platform] ? g.platform : 'pc';
+  const bg = g.art.cover || g.art.hero || g.art.header || '';
+  const genres = (g.genres || []).slice(0, 3).join(', ');
+  return `<div class="slot k-${kind}${selected ? ' selected' : ''}" data-game="${esc(g.id)}" draggable="true" tabindex="0" role="button" aria-label="${esc(g.name)}"
+    style="--bw:${b.w}px;--bh:${b.h}px;--bd:${b.d}px;--src:${SRC_COLOR[g.source] || '#7aa2ff'};--c:${plat(g.platform).color}">
+    <div class="box">
+      <div class="face f-front">
+        ${b.band ? `<div class="band"><i class="pip"></i>${b.band}</div>` : ''}
+        <div class="art">${coverHTML(g)}</div>
+        ${g.favorite ? `<span class="badge-fav">${ICON.star}</span>` : ''}
+        ${g.running ? '<span class="badge-live"><i class="dot"></i>En cours</span>' : ''}
+      </div>
+      <div class="face f-back"><div class="back-in">
+        ${bg ? `<div class="bg" style="background-image:url('${esc(bg)}')"></div>` : ''}
+        <h4>${esc(g.name)}</h4>
+        <dl><dt>Temps de jeu</dt><dd>${g.minutes >= 1 ? fmtTime(g.minutes) : '—'}</dd><dt>Dernière partie</dt><dd>${g.last ? esc(fmtLast(g.last)) : 'jamais'}</dd>${g.platform !== 'pc' ? `<dt>Émulateur</dt><dd>${esc((S.emulators.find((e) => e.id === g.emu) || {}).name || '—')}</dd>` : ''}</dl>
+        ${genres ? `<div class="gl">${esc(genres)}</div>` : ''}
+        <div class="acts"><button class="go" data-play="${esc(g.id)}">${ICON.play}Jouer</button><button class="info" data-detail="${esc(g.id)}" title="Voir la fiche">${ICON.info}</button></div>
+      </div></div>
+      <div class="face f-spine"><span class="sp-title">${esc(g.name)}</span><span class="sp-plat">${esc(plat(g.platform).label)}</span></div>
+      <div class="face f-side"></div>
+      <div class="face f-top"></div>
+    </div>
+  </div>`;
+}
+function shelfHTML({ title, color, games, more, selectedId }) {
+  return `<section class="shelf">
+    <div class="shelf-head"><h2>${color ? `<i class="sw" style="--c:${color}"></i>` : ''}${esc(title)}</h2><span class="count">${games.length} jeu${games.length > 1 ? 'x' : ''}</span>${more ? `<button class="more" data-seeall="${more}">Tout voir</button>` : ''}</div>
+    <div class="shelf-track"><div class="shelf-inner">${games.map((g) => boxHTML(g, { selected: g.id === selectedId })).join('')}</div></div>
+  </section>`;
+}
+function shelfRows(games, avail) {
+  const gap = 26, pad = 44, rows = [];
+  let row = [], width = pad;
+  for (const g of games) {
+    const w = boxDims(g).w;
+    if (row.length && width + gap + w > avail) { rows.push(row); row = []; width = pad; }
+    width += (row.length ? gap : 0) + w;
+    row.push(g);
+  }
+  if (row.length) rows.push(row);
+  return rows;
+}
+function libShelvesHTML(list) {
+  const avail = Math.max(400, ($('#view') ? $('#view').clientWidth : innerWidth - 80) - 260 - 88);
+  const groups = ui.coll.type === 'platform' ? [[ui.coll.key, list]] : ORDER.map((p) => [p, list.filter((g) => g.platform === p)]).filter(([, l]) => l.length);
+  return `<div class="lib-shelves">${groups.map(([p, l]) => `<section class="shelf">
+    ${ui.coll.type !== 'platform' ? `<div class="shelf-head"><h2><i class="sw" style="--c:${plat(p).color}"></i>${esc(plat(p).label)}</h2><span class="count">${l.length} jeu${l.length > 1 ? 'x' : ''}</span></div>` : ''}
+    ${shelfRows(l, avail).map((r) => `<div class="shelf-track"><div class="shelf-inner">${r.map((g) => boxHTML(g)).join('')}</div></div>`).join('')}
+  </section>`).join('')}</div>`;
+}
+function toggleFlip(slot) {
+  const on = !slot.classList.contains('flipped');
+  $$('.slot.flipped').forEach((x) => x.classList.remove('flipped'));
+  if (on) slot.classList.add('flipped');
+}
+
 const addCardHTML = () => `<button class="card add" data-action="add-game"><div class="cover"><div><span class="plus">${ICON.plus}</span>Ajouter un jeu<small style="color:var(--faint);font-weight:500">PC ou console</small></div></div></button>`;
+
+// Une image chargée apparaît en fondu.
+document.addEventListener('load', (e) => {
+  const img = e.target;
+  if (!img || img.tagName !== 'IMG') return;
+  img.classList.add('loaded');
+  const c = img.closest('.cover');
+  if (c) c.classList.add('ready');
+}, true);
 
 // Une image qui ne charge pas : on affiche la version de secours.
 document.addEventListener('error', (e) => {
@@ -196,7 +279,7 @@ document.addEventListener('error', (e) => {
   const thumb = img.closest('.thumb');
   if (thumb) { thumb.classList.add('noimg'); $$('img', thumb).forEach((i) => i.remove()); $('.bgblur', thumb)?.remove(); return; }
   const cover = img.closest('.cover');
-  if (cover) { cover.classList.add('noimg'); cover.classList.remove('logo-card'); img.remove(); return; }
+  if (cover) { cover.classList.add('noimg', 'ready'); cover.classList.remove('logo-card'); img.remove(); return; }
   const big = img.closest('.hero-cover, .tv-cover');
   if (big) big.style.display = 'none';
 }, true);
@@ -221,27 +304,18 @@ function render() {
   view.scrollTop = st;
   if (!$('#tv').hidden) renderTV(true);
 }
-function go(v) { ui.view = v; $('#view').scrollTop = 0; render(); }
+function go(v) {
+  const run = () => { ui.view = v; $('#view').scrollTop = 0; render(); };
+  if (document.startViewTransition && ui.view !== v && !matchMedia('(prefers-reduced-motion: reduce)').matches) document.startViewTransition(run);
+  else run();
+}
 
 // Accueil ------------------------------------------------------------------------------------
-function renderHome() {
-  const list = visible();
-  if (!list.length) return renderWelcome();
-  const g = featured();
+function heroHTML(g) {
   const h = heroInfo(g);
-  const recent = list.filter((x) => x.last).sort(byRecent).slice(0, 16);
-  const rows = [];
-  rows.push({ key: 'recent', title: recent.length ? 'Reprendre' : 'Ta collection', games: recent.length ? recent : [...list].sort(byRecent).slice(0, 16), add: !recent.length });
-  const favs = list.filter((x) => x.favorite).sort(byRecent);
-  if (favs.length) rows.push({ key: 'fav', title: 'Favoris', games: favs });
-  for (const p of ORDER) {
-    const gs = list.filter((x) => x.platform === p).sort(byRecent);
-    if (gs.length) rows.push({ key: p, title: plat(p).label, games: gs, color: plat(p).color });
-  }
   const title = g.name;
-  const meta = metaParts(g).map(esc).join('<span class="sep">·</span>');
-  return `<div class="home">
-    <section class="hero">
+  const meta = metaParts(g).map((x) => `<span class="mi">${esc(x)}</span>`).join('');
+  return `<section class="hero">
       ${h ? `<div class="hero-bg${h.blur ? ' blur' : ''}" style="background-image:url('${esc(h.url)}')"></div>` : `<div class="hero-bg" style="background:radial-gradient(80% 90% at 70% 30%, ${plat(g.platform).color}55, transparent 70%)"></div>`}
       <div class="hero-shade"></div>
       ${h && h.cover ? `<div class="hero-cover"><img src="${esc(h.cover)}" draggable="false"></div>` : ''}
@@ -255,14 +329,39 @@ function renderHome() {
           <button class="btn round" data-menu="${esc(g.id)}" title="Plus d'options">${ICON.dots}</button>
         </div>
       </div>
-    </section>
-    <div class="rows">
-      ${rows.map((r) => `<section class="row">
-        <div class="row-head"><h2>${r.color ? `<span class="tag" style="--c:${r.color}">${esc(r.title)}</span>` : esc(r.title)}<span class="count">${r.games.length} jeu${r.games.length > 1 ? 'x' : ''}</span></h2>
-        ${r.key !== 'recent' ? `<button data-seeall="${r.key}">Tout voir</button>` : ''}</div>
-        <div class="row-track">${r.games.map((x) => cardHTML(x, { selected: x.id === g.id })).join('')}${r.add ? addCardHTML() : ''}</div>
-      </section>`).join('')}
-    </div>
+    </section>`;
+}
+function renderHero() {
+  const el = $('.hero');
+  const g = featured();
+  if (!el || !g) return;
+  const tmp = document.createElement('div');
+  tmp.innerHTML = heroHTML(g);
+  el.replaceWith(tmp.firstElementChild);
+  $$('.slot.selected').forEach((x) => x.classList.remove('selected'));
+  $$(`.slot[data-game="${CSS.escape(g.id)}"]`).forEach((x) => x.classList.add('selected'));
+}
+
+function renderHome() {
+  const list = visible();
+  if (!list.length) return renderWelcome();
+  const g = featured();
+  const recent = list.filter((x) => x.last).sort(byRecent).slice(0, 14);
+  const shelves = [];
+  shelves.push({ title: recent.length ? 'Reprendre' : 'Ta collection', games: recent.length ? recent : [...list].sort(byRecent).slice(0, 14) });
+  const favs = list.filter((x) => x.favorite).sort(byRecent);
+  if (favs.length) shelves.push({ title: 'Favoris', games: favs.slice(0, 14), more: favs.length > 14 ? 'fav' : null });
+  for (const c of S.collections || []) {
+    const gs = c.games.map(gameById).filter((x) => x && (ui.showHidden || !x.hidden));
+    if (gs.length) shelves.push({ title: c.name, color: c.color, games: gs.slice(0, 14), more: 'c:' + c.id });
+  }
+  for (const p of ORDER) {
+    const gs = list.filter((x) => x.platform === p).sort(byRecent);
+    if (gs.length) shelves.push({ title: plat(p).label, color: plat(p).color, games: gs.slice(0, 14), more: p });
+  }
+  return `<div class="home">
+    ${heroHTML(g)}
+    <div class="rows">${shelves.map((sh) => shelfHTML({ ...sh, selectedId: g.id })).join('')}</div>
   </div>`;
 }
 
@@ -371,7 +470,7 @@ function renderLibrary() {
   };
   list.sort(sorts[ui.sort]);
   const info = collInfo(ui.coll);
-  const view = S.settings.libView || 'grid';
+  const view = S.settings.libView || 'shelf';
   const isUser = ui.coll.type === 'user';
   const emptyMsg = isUser ? 'Glisse des jeux sur cette collection dans le panneau de gauche, ou fais un clic droit sur un jeu › Ajouter à une collection.'
     : ui.coll.type === 'platform' && ui.coll.key !== 'pc' ? `Dépose tes jeux ${esc(plat(ui.coll.key).label)} dans leur dossier, puis relance la recherche.` : 'Essaie une autre collection ou une autre recherche.';
@@ -386,14 +485,15 @@ function renderLibrary() {
         </div>
       </div>
       <div class="toolbar">
-        <div class="viewsw"><button class="${view === 'grid' ? 'on' : ''}" data-libview="grid" title="Grille">${ICON.grid}</button><button class="${view === 'list' ? 'on' : ''}" data-libview="list" title="Liste">${ICON.list}</button></div>
-        ${view === 'grid' ? `<input type="range" class="range" id="cardSize" min="120" max="260" step="4" value="${S.settings.cardSize || 168}" title="Taille des jaquettes" style="width:150px">` : ''}
+        <div class="viewsw"><button class="${view === 'shelf' ? 'on' : ''}" data-libview="shelf" title="Étagère">${ICON.shelf}</button><button class="${view === 'grid' ? 'on' : ''}" data-libview="grid" title="Grille">${ICON.grid}</button><button class="${view === 'list' ? 'on' : ''}" data-libview="list" title="Liste">${ICON.list}</button></div>
+        ${view !== 'list' ? `<input type="range" class="range" id="cardSize" min="120" max="260" step="4" value="${S.settings.cardSize || 168}" title="Taille des jaquettes" style="width:150px">` : ''}
         <div class="grow"></div>
         <select class="select" id="libSort">
           ${[['recent', 'Joués récemment'], ['name', 'Nom'], ['time', 'Temps de jeu'], ['added', 'Ajoutés récemment']].map(([k, l]) => `<option value="${k}"${ui.sort === k ? ' selected' : ''}>${l}</option>`).join('')}
         </select>
       </div>
       ${!list.length ? `<div class="empty"><h3>Aucun jeu ici</h3><p>${emptyMsg}</p>${ui.coll.type === 'platform' && ui.coll.key !== 'pc' ? `<button class="btn" data-opendir="${ui.coll.key}">${ICON.folder}Ouvrir le dossier</button>` : ''}</div>`
+        : view === 'shelf' ? libShelvesHTML(list)
         : view === 'list' ? `<div class="list"><div class="list-head"><span></span><span>Jeu</span><span>Console</span><span>Dernière partie</span><span>Temps</span><span></span></div>${list.map(listRowHTML).join('')}</div>`
         : `<div class="grid">${list.map((g) => cardHTML(g)).join('')}${ui.coll.type === 'all' && !ui.q ? addCardHTML() : ''}</div>`}
     </div></div>
@@ -671,26 +771,68 @@ function confirmBox(title, text, yes = 'Continuer') {
 }
 
 // --- Recherche rapide (Ctrl+K) -------------------------------------------------------------
+function paletteActions() {
+  return [
+    { label: 'Passer en mode TV', icon: ICON.play, kbd: 'F11', run: () => enterTV() },
+    { label: 'Aller à l\'accueil', icon: ICON.grid, kbd: 'Ctrl 1', run: () => go('home') },
+    { label: 'Aller à la bibliothèque', icon: ICON.shelf, kbd: 'Ctrl 2', run: () => go('library') },
+    { label: 'Aller aux émulateurs', icon: ICON.pad, kbd: 'Ctrl 3', run: () => go('emulators') },
+    { label: 'Aller aux statistiques', icon: ICON.clock, kbd: 'Ctrl 4', run: () => go('stats') },
+    { label: 'Ouvrir les paramètres', icon: ICON.edit, kbd: 'Ctrl 5', run: () => go('settings') },
+    { label: 'Ajouter un jeu', icon: ICON.plus, run: async () => { const n = await call('game:add'); if (n) toast(`${n} jeu${n > 1 ? 'x' : ''} ajouté${n > 1 ? 's' : ''}.`, 'ok'); } },
+    { label: 'Rechercher mes jeux', icon: ICON.refresh, run: async () => { toast('Recherche des jeux…'); await call('library:scan'); toast('Bibliothèque à jour.', 'ok'); } },
+    { label: 'Nouvelle collection', icon: ICON.folder, run: () => { ui.coll = { type: 'all' }; go('library'); setTimeout(() => $('[data-action="new-coll"]')?.click(), 80); } },
+    { label: 'Afficher en étagère', icon: ICON.shelf, run: () => { setAppearance({ libView: 'shelf' }); go('library'); render(); } },
+    { label: 'Afficher en grille', icon: ICON.grid, run: () => { setAppearance({ libView: 'grid' }); go('library'); render(); } },
+    { label: 'Afficher en liste', icon: ICON.list, run: () => { setAppearance({ libView: 'list' }); go('library'); render(); } },
+    { label: 'Raccourcis clavier', icon: ICON.info, kbd: '?', run: () => openKeys() },
+    ...THEMES.map((t) => ({ label: `Thème ${t.label}`, icon: ICON.palette, run: () => setAppearance({ theme: t.id }) })),
+  ];
+}
+
 function openPalette() {
-  modal('<div class="palette"><input id="palIn" placeholder="Rechercher un jeu, puis Entrée pour jouer"><div class="res" id="palRes"></div></div>');
-  let sel = 0, results = [];
+  modal(`<div class="palette"><input id="palIn" placeholder="Rechercher un jeu ou une action"><div class="res" id="palRes"></div>
+    <div class="foot"><span><kbd>↑</kbd><kbd>↓</kbd>naviguer</span><span><kbd>Entrée</kbd>ouvrir</span><span><kbd>Maj</kbd><kbd>Entrée</kbd>voir la fiche</span><span><kbd>Échap</kbd>fermer</span></div></div>`);
+  let sel = 0, items = [];
   const draw = () => {
     const q = $('#palIn').value.trim().toLowerCase();
-    results = visible().filter((g) => !q || g.name.toLowerCase().includes(q)).sort(byRecent).slice(0, 30);
-    sel = Math.min(sel, Math.max(0, results.length - 1));
-    $('#palRes').innerHTML = results.length ? results.map((g, i) => `<button class="it${i === sel ? ' on' : ''}" data-i="${i}"><span class="mini">${coverHTML(g)}</span><span class="nm">${esc(g.name)}</span><span class="tag" style="--c:${plat(g.platform).color}">${esc(plat(g.platform).label)}</span><span class="hint">${g.minutes ? fmtTime(g.minutes) : ''}</span></button>`).join('') : '<div class="none">Aucun jeu trouvé</div>';
+    const games = visible().filter((g) => !q || g.name.toLowerCase().includes(q)).sort(byRecent).slice(0, q ? 12 : 5).map((g) => ({ type: 'game', g }));
+    const acts = paletteActions().filter((a) => !q || a.label.toLowerCase().includes(q)).slice(0, q ? 8 : 7).map((a) => ({ type: 'act', a }));
+    items = [...games, ...acts];
+    sel = Math.min(sel, Math.max(0, items.length - 1));
+    let html = '', i = 0;
+    if (games.length) html += `<div class="grp">${q ? 'Jeux' : 'Joués récemment'}</div>` + games.map((x) => `<button class="it${i === sel ? ' on' : ''}" data-i="${i++}"><span class="mini">${coverHTML(x.g)}</span><span class="nm">${esc(x.g.name)}</span><span class="tag" style="--c:${plat(x.g.platform).color}">${esc(plat(x.g.platform).label)}</span></button>`).join('');
+    if (acts.length) html += '<div class="grp">Actions</div>' + acts.map((x) => `<button class="it${i === sel ? ' on' : ''}" data-i="${i++}"><span class="ico">${x.a.icon}</span><span class="nm">${esc(x.a.label)}</span>${x.a.kbd ? `<kbd>${esc(x.a.kbd)}</kbd>` : ''}</button>`).join('');
+    $('#palRes').innerHTML = html || '<div class="none">Rien trouvé. Essaie un autre mot.</div>';
     $('.it.on', $('#palRes'))?.scrollIntoView({ block: 'nearest' });
+  };
+  const runItem = (it, shift) => {
+    closeModal();
+    if (it.type === 'game') { if (shift) openDetail(it.g.id); else play(it.g.id); } else it.a.run();
   };
   const inp = $('#palIn');
   inp.oninput = () => { sel = 0; draw(); };
   inp.onkeydown = (e) => {
-    if (e.key === 'ArrowDown') { sel = Math.min(results.length - 1, sel + 1); draw(); e.preventDefault(); }
+    if (e.key === 'ArrowDown') { sel = Math.min(items.length - 1, sel + 1); draw(); e.preventDefault(); }
     else if (e.key === 'ArrowUp') { sel = Math.max(0, sel - 1); draw(); e.preventDefault(); }
-    else if (e.key === 'Enter' && results[sel]) { const id = results[sel].id; closeModal(); if (e.shiftKey) openDetail(id); else play(id); }
+    else if (e.key === 'Enter' && items[sel]) runItem(items[sel], e.shiftKey);
     else if (e.key === 'Escape') closeModal();
   };
-  $('#palRes').onclick = (e) => { const b = e.target.closest('.it'); if (b) { const id = results[+b.dataset.i].id; closeModal(); openDetail(id); } };
+  $('#palRes').onclick = (e) => { const b = e.target.closest('.it'); if (b) runItem(items[+b.dataset.i], e.shiftKey); };
   draw(); inp.focus();
+}
+
+function openKeys() {
+  const row = (label, keys) => `<span>${label}</span><span class="k">${keys.map((k) => `<kbd>${k}</kbd>`).join('')}</span>`;
+  modal(`<div class="modal dialog" style="width:min(540px,92vw)"><button class="x" data-close>${ICON.x}</button><h3>Raccourcis clavier</h3>
+    <div class="keys">
+      <h5>Partout</h5>
+      ${row('Rechercher un jeu ou une action', ['Ctrl', 'K'])}${row('Accueil, bibliothèque, émulateurs, stats, paramètres', ['Ctrl', '1 à 5'])}${row('Mode TV', ['F11'])}${row('Cette aide', ['?'])}
+      <h5>Étagère</h5>
+      ${row('Choisir un jeu', ['←', '→'])}${row('Retourner le boîtier', ['Espace'])}${row('Jouer', ['Entrée'])}${row('Remettre les boîtiers', ['Échap'])}
+      <h5>Manette</h5>
+      ${row('Quitter un jeu', ['Select', 'Start'])}${row('Changer de rayon en mode TV', ['LB', 'RB'])}${row('Ajouter aux favoris', ['Y'])}
+    </div></div>`);
 }
 
 // --- Menu contextuel ----------------------------------------------------------------------
@@ -731,10 +873,18 @@ function openCollCtx(id, x, y) {
 }
 
 // --- Notifications -----------------------------------------------------------------------
-function toast(text, kind = 'info', ms = 4200) {
+function toast(text, kind = 'info', ms = 4200, action = null) {
   const el = document.createElement('div');
-  el.className = `toast ${kind}`;
+  el.className = `toast ${kind}${action ? ' act' : ''}`;
   el.textContent = text;
+  if (action) {
+    const b = document.createElement('button');
+    b.className = 'btn sm';
+    b.textContent = action.label;
+    b.onclick = () => { action.fn(); el.remove(); };
+    el.appendChild(b);
+    ms = Math.max(ms, 6500);
+  }
   $('#toasts').appendChild(el);
   setTimeout(() => { el.style.transition = 'opacity .3s'; el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, ms);
 }
@@ -780,11 +930,16 @@ async function installEmu(id) {
 }
 
 document.addEventListener('click', async (ev) => {
-  const t = ev.target.closest('button, [data-url], .linkish, a, .lrow');
+  const t = ev.target.closest('button, [data-url], .linkish, a, .lrow, .slot');
   if (!ev.target.closest('.theme-pop, #themeBtn')) $('.theme-pop')?.remove();
   if (!$('#ctx').hidden && !ev.target.closest('#ctx')) closeCtx();
   if (!t) return;
   const d = t.dataset;
+  if (t.classList.contains('slot')) {
+    toggleFlip(t);
+    if (ui.view === 'home') { ui.heroId = t.dataset.game; renderHero(); }
+    return;
+  }
   if (d.noop) return;
   if (t.closest('#ctx') && !d.colltoggle && !d.collnewfor) closeCtx();
 
@@ -796,7 +951,12 @@ document.addEventListener('click', async (ev) => {
   if (d.detail) return openDetail(d.detail);
   if (d.menu) { const r = t.getBoundingClientRect(); return openCtx(d.menu, r.left, r.bottom + 8); }
   if (d.fav) { const g = gameById(d.fav); await call('game:update', d.fav, { favorite: !g.favorite }); return; }
-  if (d.hide) { const g = gameById(d.hide); await call('game:update', d.hide, { hidden: !g.hidden }); if (!g.hidden) toast(`${g.name} est masqué. Tu peux l'afficher à nouveau dans Paramètres.`); return; }
+  if (d.hide) {
+    const g = gameById(d.hide); const was = g.hidden;
+    await call('game:update', d.hide, { hidden: !was });
+    if (!was) { if (modalState) closeModal(); toast(`${g.name} est masqué.`, 'info', 6500, { label: 'Annuler', fn: () => call('game:update', g.id, { hidden: false }) }); }
+    return;
+  }
   if (d.rename) { const g = gameById(d.rename); const v = await askText('Renommer', 'Laisse vide pour reprendre le nom d\'origine.', g.name); if (v !== null) await call('game:update', g.id, { customName: v === g.originalName ? '' : v }); return; }
   if (d.art) { if (modalState && modalState.picker) { const back = modalState.picker; closeModal(); await call('game:setArt', d.id, d.art); openDetail(back); return; } return call('game:setArt', d.id, d.art); }
   if (d.pick) return openPicker(d.id, d.pick);
@@ -807,7 +967,7 @@ document.addEventListener('click', async (ev) => {
   if (d.remove) { closeModal(); return call('game:remove', d.remove); }
   if (d.setemu) return call('game:update', d.id, { emu: d.setemu });
   if (d.setplat) return call('game:setPlatform', d.id, d.setplat);
-  if (d.seeall) { ui.coll = d.seeall === 'fav' ? { type: 'fav' } : { type: 'platform', key: d.seeall }; ui.q = ''; return go('library'); }
+  if (d.seeall) { ui.coll = d.seeall === 'fav' ? { type: 'fav' } : d.seeall.startsWith('c:') ? { type: 'user', key: d.seeall.slice(2) } : { type: 'platform', key: d.seeall }; ui.q = ''; return go('library'); }
   const co = ev.target.closest('[data-collopen]');
   if (co) { ui.openColl[co.dataset.collopen] = !ui.openColl[co.dataset.collopen]; return render(); }
   if (d.coll) { ui.coll = JSON.parse(d.coll); $('#view').scrollTop = 0; return render(); }
@@ -816,7 +976,12 @@ document.addEventListener('click', async (ev) => {
   if (d.themePick) { setAppearance({ theme: d.themePick }); $$('[data-theme-pick]').forEach((b) => b.classList.toggle('on', b.dataset.themePick === d.themePick)); return; }
   if (d.accent !== undefined) { setAppearance({ accent: d.accent }); $$('[data-accent]').forEach((b) => b.classList.toggle('on', b.dataset.accent === d.accent)); return; }
   if (d.collmenu) { const r = t.getBoundingClientRect(); return openCollCtx(d.collmenu, r.left, r.bottom + 8); }
-  if (d.colltoggle) { const on = await call('collection:toggle', d.colltoggle, d.id); const c = S.collections.find((x) => x.id === d.colltoggle); toast(on ? `Ajouté à « ${c.name} ».` : `Retiré de « ${c.name} ».`, 'ok', 2200); closeCtx(); return; }
+  if (d.colltoggle) {
+    const gid = d.id, cid = d.colltoggle;
+    const on = await call('collection:toggle', cid, gid); const c = S.collections.find((x) => x.id === cid);
+    toast(on ? `Ajouté à « ${c.name} ».` : `Retiré de « ${c.name} ».`, 'ok', 3000, { label: 'Annuler', fn: () => call('collection:toggle', cid, gid, !on) });
+    closeCtx(); return;
+  }
   if (d.collnewfor) { closeCtx(); const name = await askText('Nouvelle collection', 'Donne un nom à ta collection.', ''); if (name) { await call('collection:create', name, d.collnewfor); toast(`Collection « ${name} » créée.`, 'ok'); } return; }
   if (d.collrename) { closeCtx(); const c = S.collections.find((x) => x.id === d.collrename); const v = await askText('Renommer la collection', '', c.name); if (v) await call('collection:update', c.id, { name: v }); return; }
   if (d.collcolor) { closeCtx(); return call('collection:update', d.id, { color: d.collcolor }); }
@@ -887,6 +1052,7 @@ document.addEventListener('click', async (ev) => {
 let dragId = null;
 document.addEventListener('dragstart', (e) => {
   const c = e.target.closest && e.target.closest('[data-game][draggable="true"]');
+  if (c) $$('.slot.flipped').forEach((x) => x.classList.remove('flipped'));
   if (!c) return;
   dragId = c.dataset.game;
   c.classList.add('dragging');
@@ -912,8 +1078,8 @@ document.addEventListener('drop', async (e) => {
 });
 
 document.addEventListener('dblclick', (e) => {
-  const card = e.target.closest('.card[data-game], .lrow[data-game]');
-  if (card && $('#tv').hidden && !e.target.closest('.play-ic')) play(card.dataset.game);
+  const card = e.target.closest('.card[data-game], .lrow[data-game], .slot[data-game]');
+  if (card && $('#tv').hidden && !e.target.closest('.play-ic, .f-back button')) { $$('.slot.flipped').forEach((x) => x.classList.remove('flipped')); play(card.dataset.game); }
 });
 document.addEventListener('contextmenu', (e) => {
   const coll = e.target.closest('[data-collid]');
@@ -929,7 +1095,11 @@ document.addEventListener('keydown', async (e) => {
 }, true);
 document.addEventListener('focusout', (e) => { if (e.target.id === 'newCollName' && ui.newColl) setTimeout(() => { if (ui.newColl && document.activeElement?.id !== 'newCollName') { ui.newColl = false; render(); } }, 150); });
 document.addEventListener('input', (e) => {
-  if (e.target.id === 'cardSize') { document.documentElement.style.setProperty('--card-min', `${e.target.value}px`); S.settings.cardSize = Number(e.target.value); clearTimeout(window.__cs); window.__cs = setTimeout(() => api.call('settings:set', { cardSize: Number(e.target.value) }), 300); return; }
+  if (e.target.id === 'cardSize') {
+    document.documentElement.style.setProperty('--card-min', `${e.target.value}px`); S.settings.cardSize = Number(e.target.value);
+    clearTimeout(window.__cs); window.__cs = setTimeout(() => { api.call('settings:set', { cardSize: Number(e.target.value) }); if ($('.slot')) { const v = e.target.value; render(); const r = $('#cardSize'); if (r) r.value = v; } }, 250);
+    return;
+  }
   if (e.target.id === 'libSearch') {
     ui.q = e.target.value;
     const pos = e.target.selectionStart;
@@ -945,19 +1115,36 @@ document.addEventListener('change', (e) => {
 document.addEventListener('keydown', (e) => {
   if (!$('#tv').hidden) return tvKey(e);
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); return openPalette(); }
+  if ((e.ctrlKey || e.metaKey) && /^[1-5]$/.test(e.key)) { e.preventDefault(); closeModal(); return go(['home', 'library', 'emulators', 'stats', 'settings'][+e.key - 1]); }
+  const typing = e.target.matches('input, select, textarea');
+  if (!typing && !modalState && e.key === '?') { e.preventDefault(); return openKeys(); }
+  const slot = document.activeElement && document.activeElement.closest && document.activeElement.closest('.slot');
+  if (slot && !modalState) {
+    const sibs = $$('.slot', slot.closest('.shelf'));
+    const i = sibs.indexOf(slot);
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+      e.preventDefault();
+      const n = sibs[Math.max(0, Math.min(sibs.length - 1, i + (e.key === 'ArrowRight' ? 1 : -1)))];
+      if (n) { n.focus({ preventScroll: true }); n.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' }); if (ui.view === 'home') { ui.heroId = n.dataset.game; renderHero(); } }
+      return;
+    }
+    if (e.key === ' ') { e.preventDefault(); return toggleFlip(slot); }
+    if (e.key === 'Enter') { e.preventDefault(); return play(slot.dataset.game); }
+  }
+  if (e.key === 'Escape' && $('.slot.flipped') && !modalState) { $$('.slot.flipped').forEach((x) => x.classList.remove('flipped')); return; }
   if (e.key === 'F11') { e.preventDefault(); return enterTV(); }
   if (e.key === 'Escape') { if (!$('#ctx').hidden) return closeCtx(); if (modalState) return closeModal(); }
   if (e.target.matches('input, select, textarea') || modalState) return;
-  if (ui.view === 'home' && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
-    const list = $$('.rows .row:first-child .card[data-game]').map((c) => c.dataset.game);
-    const i = list.indexOf(featured()?.id);
-    const n = Math.max(0, Math.min(list.length - 1, i + (e.key === 'ArrowRight' ? 1 : -1)));
-    if (list[n]) { ui.heroId = list[n]; render(); $('.card.selected')?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' }); }
+  if (ui.view === 'home' && !slot && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
+    const first = $(`.slot[data-game="${CSS.escape((featured() || {}).id || '')}"]`) || $('.slot');
+    if (first) { e.preventDefault(); first.focus(); }
   }
-  if (ui.view === 'home' && e.key === 'Enter' && featured()) play(featured().id);
+  if (ui.view === 'home' && !slot && e.key === 'Enter' && featured()) play(featured().id);
 });
 
 $('#searchBtn').onclick = openPalette;
+let resizeT = null;
+addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(() => { if (ui.view === 'library' && (S.settings.libView || 'shelf') === 'shelf' && !$('#view input:focus')) render(); }, 160); });
 $('#tvBtn').onclick = () => enterTV();
 $('#themeBtn').onclick = (e) => { e.stopPropagation(); toggleThemePop(); };
 
@@ -1056,7 +1243,7 @@ function renderTV(keepShelf) {
   const cov = $('#tvCover');
   if (h && h.cover) { cov.style.display = ''; $('img', cov).src = h.cover; cov.style.opacity = 1; } else cov.style.opacity = 0;
 
-  const meta = metaParts(g).map(esc).join('<span class="sep">·</span>');
+  const meta = metaParts(g).map((x) => `<span class="mi">${esc(x)}</span>`).join('');
   $('#tvInfo').innerHTML = `
     <div class="kicker${g.running ? ' live' : ''}"><i class="dot"></i>${g.running ? 'En cours' : (g.emuReady ? 'Prêt à jouer' : 'Émulateur à installer')}</div>
     ${g.art.logo ? `<img class="tv-logo" src="${esc(g.art.logo)}" alt="" data-title="${esc(g.name)}">` : `<h1 class="tv-title${g.name.length > 20 ? ' long' : ''}">${esc(g.name)}</h1>`}

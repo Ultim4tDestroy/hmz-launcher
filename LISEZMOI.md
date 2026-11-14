@@ -47,11 +47,18 @@ Toutes les manettes marchent : Xbox, PlayStation (DualShock 4, DualSense), Switc
 
 Après chaque partie, tes sauvegardes sont copiées dans `HMZ\Sauvegardes` (15 dernières par émulateur). Tu peux choisir un dossier OneDrive dans Paramètres.
 
+## Étagère
+
+Tes jeux sont rangés comme de vrais boîtiers : rouge pour la Switch et la Switch 2, blanc pour la 3DS, noir pour la DS, métal avec la couleur du launcher pour le PC. Survole un boîtier pour le sortir de l'étagère, clique pour le retourner et voir tes stats au dos, double-clique pour jouer. La bibliothèque propose aussi une grille et une liste.
+
 ## Raccourcis
 
 | Bureau | Action |
 |--------|--------|
-| Ctrl+K | Rechercher un jeu (Entrée pour jouer, Maj+Entrée pour la fiche) |
+| Ctrl+K | Rechercher un jeu ou une action (thème, mode TV, pages…) |
+| Ctrl+1 à 5 | Accueil, Bibliothèque, Émulateurs, Statistiques, Paramètres |
+| ? | Liste des raccourcis |
+| Espace | Retourner le boîtier sélectionné |
 | ← → puis Entrée | Choisir et lancer un jeu sur l'accueil |
 | Clic droit | Options du jeu |
 | F11 | Mode TV |
