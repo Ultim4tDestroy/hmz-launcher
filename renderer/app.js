@@ -1109,7 +1109,18 @@ document.addEventListener('click', async (ev) => {
     case 'genre-clear': ui.genre = null; ui.genreOpen = false; render(); break;
     case 'toggle-genres': ui.allGenres = !ui.allGenres; render(); break;
     case 'new-coll': ui.newColl = true; render(); setTimeout(() => $('#newCollName')?.focus(), 0); break;
-    case 'add-game': { const n = await call('game:add'); if (n) toast(`${n} jeu${n > 1 ? 'x' : ''} ajouté${n > 1 ? 's' : ''}.`, 'ok'); break; }
+    case 'add-game': {
+      if (!t.dataset.direct) {
+        const r = t.getBoundingClientRect();
+        const ctx = $('#ctx');
+        ctx.innerHTML = `<button data-action="add-game" data-direct="1">${ICON.folder}Un jeu PC ou console…<span style="margin-left:auto;color:var(--faint);font-size:12px">fichier .exe, .nsp…</span></button>
+          <button data-action="bluestacks-add">${ICON.pad}Mes jeux BlueStacks…</button>`;
+        ctx.hidden = false;
+        const w = ctx.getBoundingClientRect().width;
+        ctx.style.left = Math.max(10, Math.min(r.right - w, innerWidth - w - 10)) + 'px';
+        ctx.style.top = (r.bottom + 8) + 'px';
+        break;
+      } const n = await call('game:add'); if (n) toast(`${n} jeu${n > 1 ? 'x' : ''} ajouté${n > 1 ? 's' : ''}.`, 'ok'); break; }
     case 'rescan': toast('Recherche des jeux…'); await call('library:scan'); toast('Bibliothèque à jour.', 'ok'); break;
     case 'refresh-art': await call('art:refresh', true); toast('Recherche des images en cours…'); break;
     case 'check-updates': toast('Vérification…'); await call('emu:checkUpdates'); toast('Vérification terminée.', 'ok'); break;
