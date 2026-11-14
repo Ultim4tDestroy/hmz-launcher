@@ -14,7 +14,7 @@ async def main():
         title = await pg.inner_text('.lib-head h1')
         await pg.click('[data-coll*=all]'); await pg.wait_for_timeout(200)
         src = pg.locator('.grid .card[data-game="3ds:pokemon-ultra-sun"]')
-        dst = pg.locator('.coll-item', has_text='Mes RPG')
+        dst = pg.locator('.citem', has_text='Mes RPG')
         await src.drag_to(dst); await pg.wait_for_timeout(500)
         await dst.click(); await pg.wait_for_timeout(300)
         n = await pg.locator('.grid .card[data-game]').count()

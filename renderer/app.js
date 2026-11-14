@@ -414,36 +414,45 @@ const sameColl = (a, b) => a.type === b.type && (a.key || '') === (b.key || '');
 function collItem(c, n, extra = '') {
   const info = collInfo(c);
   const on = sameColl(ui.coll, c);
-  return `<button class="coll-item${on ? ' on' : ''}" data-coll="${esc(JSON.stringify(c))}"${c.type === 'user' ? ` data-collid="${esc(c.key)}"` : ''} style="--c:${info.color}">
-    <span class="ic">${info.icon}</span><span class="nm">${esc(info.label)}</span>${extra}<span class="n">${n}</span></button>`;
+  const mark = c.type === 'user' ? `<i class="cdot" style="background:${info.color}"></i>` : `<span class="cico">${info.icon}</span>`;
+  return `<button class="citem${on ? ' on' : ''}" data-coll="${esc(JSON.stringify(c))}"${c.type === 'user' ? ` data-collid="${esc(c.key)}"` : ''}>
+    ${mark}<span class="nm">${esc(info.label)}</span>${extra}<span class="n">${n}</span></button>`;
+}
+function collPill(c, n) {
+  const info = collInfo(c);
+  const on = sameColl(ui.coll, c);
+  const dot = c.type === 'genre' ? '' : `<i class="pdot2" style="background:${info.color}"></i>`;
+  return `<button class="cpill${on ? ' on' : ''}" data-coll="${esc(JSON.stringify(c))}">${dot}${esc(info.label)}<span class="n">${n}</span></button>`;
 }
 function collSection(key, title, body, addBtn = '') {
-  const closed = ui.closed[key];
-  return `<div class="coll-sec${closed ? ' closed' : ''}"><div class="coll-title"><button data-collsec="${key}" style="display:flex;align-items:center;gap:6px">${ICON.chev}${esc(title)}</button>${addBtn}</div><div class="coll-items">${body}</div></div>`;
+  return `<section class="csec"><div class="csec-h"><span>${esc(title)}</span>${addBtn}</div>${body}</section>`;
 }
 
 function renderCollPanel(all) {
   const count = (c) => all.filter(collFilter(c)).length;
   const quick = [{ type: 'all' }, { type: 'fav' }, { type: 'recent' }, { type: 'never' }].map((c) => { const n = count(c); return c.type === 'all' || n ? collItem(c, n) : ''; }).join('');
-  const plats = ORDER.map((p) => ({ type: 'platform', key: p })).map((c) => { const n = count(c); return n ? collItem(c, n) : ''; }).join('');
-  const srcs = Object.keys(SOURCES).map((k) => ({ type: 'source', key: k })).map((c) => { const n = count(c); return n ? collItem(c, n) : ''; }).join('');
+  const plats = ORDER.map((p) => ({ type: 'platform', key: p })).map((c) => { const n = count(c); return n ? collPill(c, n) : ''; }).join('');
+  const srcs = Object.keys(SOURCES).map((k) => ({ type: 'source', key: k })).map((c) => { const n = count(c); return n ? collPill(c, n) : ''; }).join('');
   const gcount = {};
   for (const g of all) for (const x of g.genres || []) gcount[x] = (gcount[x] || 0) + 1;
-  const genres = Object.entries(gcount).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'fr')).map(([k, n]) => collItem({ type: 'genre', key: k }, n)).join('');
+  const glist = Object.entries(gcount).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'fr'));
+  const gshown = ui.allGenres ? glist : glist.slice(0, 10);
+  const genres = gshown.map(([k, n]) => collPill({ type: 'genre', key: k }, n)).join('')
+    + (glist.length > 10 ? `<button class="cpill more" data-action="toggle-genres">${ui.allGenres ? 'Moins' : `+${glist.length - 10}`}</button>` : '');
   const user = S.collections.map((col) => {
     const games = col.games.map(gameById).filter(Boolean);
     const open = ui.openColl[col.id];
-    return collItem({ type: 'user', key: col.id }, games.length, `<span class="icon-btn" data-collopen="${esc(col.id)}" style="width:20px;height:20px;transform:rotate(${open ? 0 : -90}deg)">${ICON.chev}</span>`)
+    return collItem({ type: 'user', key: col.id }, games.length, games.length ? `<span class="chev-b" data-collopen="${esc(col.id)}" style="transform:rotate(${open ? 0 : -90}deg)">${ICON.chev}</span>` : '')
       + (open && games.length ? `<div class="coll-games">${games.map((g) => `<button class="coll-game" data-detail="${esc(g.id)}" data-game-ctx="${esc(g.id)}"><span class="mini">${coverHTML(g)}</span><span>${esc(g.name)}</span></button>`).join('')}</div>` : '');
   }).join('');
   const newRow = ui.newColl ? `<div class="coll-new"><input id="newCollName" placeholder="Nom de la collection" maxlength="60"></div>` : '';
   return `<aside class="coll-panel">
-    <div class="coll-search">${'<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>'}<input id="libSearch" placeholder="Rechercher dans la bibliothèque" value="${esc(ui.q)}"></div>
-    ${collSection('quick', 'Bibliothèque', quick)}
-    ${collSection('user', 'Mes collections', (user || (ui.newColl ? '' : '<div style="padding:4px 10px 8px;color:var(--faint);font-size:12.5px">Crée une collection, puis glisse des jeux dessus.</div>')) + newRow, `<button class="add" data-action="new-coll" title="Nouvelle collection">${ICON.plus}</button>`)}
-    ${plats ? collSection('plats', 'Consoles', plats) : ''}
-    ${srcs ? collSection('srcs', 'Launchers', srcs) : ''}
-    ${genres ? collSection('genres', 'Genres', genres) : ''}
+    <div class="coll-search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="libSearch" placeholder="Filtrer" value="${esc(ui.q)}"></div>
+    <nav class="clist">${quick}</nav>
+    ${collSection('user', 'Mes collections', `<div class="clist">${user || (ui.newColl ? '' : '<p class="chint">Crée une collection, puis glisse des jeux dessus.</p>')}${newRow}</div>`, `<button class="cadd" data-action="new-coll" title="Nouvelle collection">${ICON.plus}</button>`)}
+    ${plats ? collSection('plats', 'Consoles', `<div class="pills">${plats}</div>`) : ''}
+    ${srcs ? collSection('srcs', 'Launchers', `<div class="pills">${srcs}</div>`) : ''}
+    ${genres ? collSection('genres', 'Genres', `<div class="pills">${genres}</div>`) : ''}
   </aside>`;
 }
 
@@ -1025,6 +1034,7 @@ document.addEventListener('click', async (ev) => {
   }
 
   switch (d.action) {
+    case 'toggle-genres': ui.allGenres = !ui.allGenres; render(); break;
     case 'new-coll': ui.newColl = true; render(); setTimeout(() => $('#newCollName')?.focus(), 0); break;
     case 'add-game': { const n = await call('game:add'); if (n) toast(`${n} jeu${n > 1 ? 'x' : ''} ajouté${n > 1 ? 's' : ''}.`, 'ok'); break; }
     case 'rescan': toast('Recherche des jeux…'); await call('library:scan'); toast('Bibliothèque à jour.', 'ok'); break;
@@ -1061,10 +1071,10 @@ document.addEventListener('dragstart', (e) => {
   if (ui.view !== 'library') return;
   if (!S.collections.length) toast('Crée d\'abord une collection avec le + de « Mes collections ».', 'info', 3500);
 });
-document.addEventListener('dragend', (e) => { $$('.dragging').forEach((x) => x.classList.remove('dragging')); $$('.coll-item.drop').forEach((x) => x.classList.remove('drop')); dragId = null; });
+document.addEventListener('dragend', (e) => { $$('.dragging').forEach((x) => x.classList.remove('dragging')); $$('.drop').forEach((x) => x.classList.remove('drop')); dragId = null; });
 document.addEventListener('dragover', (e) => {
   const it = e.target.closest && e.target.closest('[data-collid]');
-  $$('.coll-item.drop').forEach((x) => { if (x !== it) x.classList.remove('drop'); });
+  $$('.drop').forEach((x) => { if (x !== it) x.classList.remove('drop'); });
   if (it && dragId) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; it.classList.add('drop'); }
 });
 document.addEventListener('drop', async (e) => {
