@@ -2,6 +2,10 @@
 // (Rich Presence). Rien ne passe par Internet : HMZ parle seulement à Discord ouvert sur le PC.
 const net = require('net');
 
+// Application Discord « HMZ » commune à tous (identifiant public, ce n'est pas un secret).
+// Vide tant qu'elle n'a pas été créée : chacun peut alors mettre la sienne dans les Paramètres.
+const DEFAULT_APP_ID = '';
+
 class DiscordPresence {
   constructor() { this.sock = null; this.ready = false; this.clientId = null; this.pending = null; this.buf = Buffer.alloc(0); }
 
@@ -67,4 +71,4 @@ class DiscordPresence {
   close() { try { if (this.sock) this.sock.destroy(); } catch {} this.sock = null; this.ready = false; }
 }
 
-module.exports = { DiscordPresence };
+module.exports = { DiscordPresence, DEFAULT_APP_ID };

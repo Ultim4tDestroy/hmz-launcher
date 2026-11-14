@@ -19,9 +19,11 @@ const PLAT = require('./src/platforms');
 const STORES = require('./src/stores');
 const EXTRAS = require('./src/extras');
 const HDR = require('./src/hdr');
+const PADCFG = require('./src/padconfig');
 const META = require('./src/meta');
 const CLIENTS = require('./src/clients');
-const { DiscordPresence } = require('./src/discord');
+const { DiscordPresence, DEFAULT_APP_ID: DISCORD_DEFAULT_ID } = require('./src/discord');
+const discordId = () => (/^\d{15,22}$/.test(db.data.settings.discordId || '') ? db.data.settings.discordId : DISCORD_DEFAULT_ID);
 const discord = new DiscordPresence();
 const PLATFORMS = PLAT.publicPlatforms();
 const { ROM_FOLDER_NAMES } = PLAT;
@@ -206,7 +208,7 @@ function publicState() {
       id: d.id, name: d.name, platforms: d.platforms, blurb: d.blurb, experimental: !!d.experimental, page: d.page,
       installed: ok, version: e.version || null, custom: !!e.custom, latest: e.latest || null,
       needsKeys: !!d.needsKeys, keys: ok ? EMU.keysStatus(d.id, e) : null, dir: e.dir || null,
-      needs: d.needs || '', tuned: TUNED.includes(d.id), isDefault: d.platforms.some((p) => EMU.DEFAULT_EMU[p] === d.id),
+      needs: d.needs || '', tuned: TUNED.includes(d.id), padAuto: TUNED.includes(d.id) || PADCFG.AUTO.includes(d.id) || !!PADCFG.BY_EMU[d.id], isDefault: d.platforms.some((p) => EMU.DEFAULT_EMU[p] === d.id),
     };
   });
   const since = Date.now() - 400 * 864e5;
@@ -215,13 +217,13 @@ function publicState() {
     builtinVersion: process.env.HMZ_BUILTIN_VERSION || CUR_VERSION,
     codeSource: process.env.HMZ_CODE_SOURCE || 'installée',
     updateReady,
-    settings: { ...db.data.settings, backupDirShown: backupRoot() },
+    settings: { ...db.data.settings, backupDirShown: backupRoot() }, discordDefault: !!DISCORD_DEFAULT_ID,
     padKinds,
     platforms: PLATFORMS,
     games, emulators,
     collections: db.data.collections,
     sessions: db.data.sessions.filter((s) => s.e > since),
-    firstRun: db.data.firstRun,
+    firstRun: db.data.firstRun, showWelcome: !db.data.welcomeSeen,
   };
 }
 
@@ -399,7 +401,7 @@ function endSession(id) {
 // Statut Discord : le jeu en cours (le plus récent s'il y en a plusieurs).
 function updateDiscord() {
   const s = db && db.data.settings;
-  if (!s || !s.discord || !/^\d{15,22}$/.test(s.discordId || '')) { discord.clear(); return; }
+  if (!s || !s.discord || !discordId()) { discord.clear(); return; }
   const cur = [...running.entries()].sort((a, b) => b[1].start - a[1].start)[0];
   if (!cur) { discord.clear(); return; }
   const g = db.data.games[cur[0]];
@@ -416,7 +418,7 @@ function updateDiscord() {
     assets: cover ? { large_image: cover, large_text: name.slice(0, 120) } : undefined,
     instance: false,
   };
-  discord.set(s.discordId, activity).catch(() => {});
+  discord.set(discordId(), activity).catch(() => {});
 }
 
 // --- Sauvegarde de la bibliothèque (collections, temps de jeu, notes, images choisies) -----
@@ -462,8 +464,8 @@ handle('library:import', async () => {
 handle('library:openBackups', () => { fs.mkdirSync(libraryBackupDir(), { recursive: true }); shell.openPath(libraryBackupDir()); });
 handle('discord:test', async () => {
   const s = db.data.settings;
-  if (!/^\d{15,22}$/.test(s.discordId || '')) throw new Error("Colle d'abord l'identifiant de ton application Discord (une suite de chiffres).");
-  const ok = await discord.set(s.discordId, { details: 'Dans la bibliothèque', state: 'HMZ Launcher', timestamps: { start: Date.now() }, instance: false });
+  if (!discordId()) throw new Error("Colle d'abord l'identifiant de ton application Discord (une suite de chiffres).");
+  const ok = await discord.set(discordId(), { details: 'Dans la bibliothèque', state: 'HMZ Launcher', timestamps: { start: Date.now() }, instance: false });
   if (!ok) throw new Error("Discord ne répond pas. Vérifie que l'application Discord est ouverte sur ce PC.");
   setTimeout(() => { if (!running.size) discord.clear(); }, 15000);
   return true;
@@ -571,6 +573,9 @@ async function launchGame(id, emuOverride) {
     if (!exists(g.path)) throw new Error('Le fichier du jeu est introuvable. Il a peut-être été déplacé.');
     cmd = emu.exe;
     args = [...splitArgs(g.launchArgs), ...EMU.EMULATORS[emuId].args(g.path, s.emuFullscreen)];
+    // Manette réglée dans l'émulateur si ce n'est pas déjà fait (jamais par-dessus un réglage existant).
+    const pc = PADCFG.ensure(emuId, path.dirname(emu.exe), EMUCFG.pickPadKind(padKinds));
+    if (pc.done) LOG.info(`Manette réglée automatiquement dans ${EMU.EMULATORS[emuId].name}`);
   } else if (g.launch && g.launch.type === 'exe') {
     cmd = g.launch.target; args = [...(g.launch.args || []), ...splitArgs(g.launchArgs)];
     if (!exists(cmd)) throw new Error('Le programme du jeu est introuvable.');
@@ -847,6 +852,8 @@ app.whenReady().then(() => {
   }
   // 2.6.0 : l'étagère devient la vue par défaut de la bibliothèque.
   if ((db.data.uiRev || 0) < 1) { db.data.settings.libView = 'shelf'; db.data.uiRev = 1; db.save(); }
+  // Guide de bienvenue : seulement pour une nouvelle installation (pas pour qui utilise déjà HMZ).
+  if (db.data.welcomeSeen === undefined) { db.data.welcomeSeen = db.data.sessions.length > 0 || Object.keys(db.data.emulators).length > 0; db.save(); }
   createWindow();
   startedOk = true;
   setTimeout(() => scanLibrary().catch(console.error), 600);
@@ -913,6 +920,39 @@ function handle(ch, fn) {
 }
 
 handle('state:get', () => publicState());
+// Diagnostic : un rapport texte de tout ce que HMZ voit sur ce PC, à copier pour signaler un souci.
+// Les chemins sont raccourcis (%USERPROFILE%) : pas de nom d'utilisateur dans le rapport.
+handle('diag:run', async () => {
+  const home = os.homedir();
+  const clean = (t) => String(t).split(home).join('%USERPROFILE%');
+  const L = [];
+  const add = (k, v) => L.push(`${k.padEnd(26)} ${clean(v)}`);
+  const s = db.data.settings;
+  L.push('== HMZ =='); add('Version', `${CUR_VERSION} (${process.env.HMZ_CODE_SOURCE || 'installée'})`); add('Windows', `${os.release()} ${os.arch()}`); add('Electron / Node', `${process.versions.electron} / ${process.versions.node}`);
+  L.push('', '== Jeux par source ==');
+  const bySrc = {};
+  for (const g of Object.values(db.data.games)) { const k = `${g.source}${g.notInstalled ? ' (à installer)' : ''}`; bySrc[k] = (bySrc[k] || 0) + 1; }
+  for (const [k, n] of Object.entries(bySrc).sort()) add(k, n);
+  L.push('', '== Boutiques ==');
+  for (const [src, c] of Object.entries(CLIENTS.CLIENTS)) { let open = '?'; try { open = (await CLIENTS.isOpen(src)) ? 'ouverte' : 'fermée'; } catch {} add(c.label, open); }
+  add('GOG Galaxy (base locale)', STORES.galaxyDb() ? 'trouvée' : 'absente');
+  try { const bs = SCAN.bluestacksInfo(); add('BlueStacks', bs.player ? `${bs.player} · instance ${bs.instance}` : 'non installé'); } catch (e) { add('BlueStacks', `erreur ${e.message}`); }
+  const nm = Object.values(db.data.games).filter((g) => g.source === 'netmarble');
+  for (const g of nm) add(`Netmarble · ${g.name}`.slice(0, 26), `${g.shortcut ? 'raccourci' : g.needsLauncher ? 'via launcher' : 'exe direct'}${g.launcherExe ? '' : ' · launcher introuvable'}`);
+  L.push('', '== Émulateurs installés ==');
+  for (const [id, e] of Object.entries(db.data.emulators)) {
+    const d = EMU.EMULATORS[id]; if (!d) continue;
+    add(d.name, `${e.exe && exists(e.exe) ? 'OK' : 'PROGRAMME INTROUVABLE'} · ${e.version || '?'}${e.custom ? ' · perso' : ''}${PADCFG.BY_EMU[id] ? ' · manette auto' : ''}`);
+  }
+  L.push('', '== Manette, écran, Discord ==');
+  add('Manettes (arrière-plan)', padKinds.join(', ') || 'aucune');
+  try { const st = await HDR.status(); add('Écrans HDR', st.map((d) => `${d.supported ? 'compatible' : 'non compatible'}${d.enabled ? ' (activé)' : ''}`).join(', ') || 'aucun lu'); } catch (e) { add('Écrans HDR', `erreur ${e.message.slice(0, 80)}`); }
+  add('Discord', !s.discord ? 'désactivé' : !discordId() ? 'pas d\'identifiant' : 'activé');
+  L.push('', '== Réglages ==');
+  for (const k of ['scanSteam', 'scanEpic', 'scanStores', 'showOwned', 'scanOthers', 'closeClients', 'minimizeOnPlay', 'emuFullscreen', 'globalSearch', 'padQuit', 'backups']) add(k, s[k] ? 'oui' : 'non');
+  L.push('', '== Dernières erreurs ==', ...(LOG.lastErrors(10).map(clean).length ? LOG.lastErrors(10).map(clean) : ['aucune']));
+  return L.join('\n');
+});
 handle('ui:ready', (info) => {
   if (info && info.ok) LOG.info(`Interface prête · HMZ ${CUR_VERSION} · ${info.games} jeux`);
   else LOG.write('PLANTAGE', ['Interface vide au démarrage', JSON.stringify(info || {})]);
@@ -928,6 +968,7 @@ handle('app:report', () => {
   shell.openExternal(`https://github.com/Ultim4tDestroy/hmz-launcher/issues/new?title=${encodeURIComponent('Problème : ')}&body=${encodeURIComponent(body)}`);
 });
 handle('state:seen', () => { db.data.firstRun = false; db.save(); });
+handle('welcome:done', () => { db.data.welcomeSeen = true; db.save(); notifyChange(); });
 handle('library:scan', () => scanLibrary());
 handle('art:refresh', (force) => { fetchArt(!!force); });
 

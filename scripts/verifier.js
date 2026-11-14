@@ -14,6 +14,7 @@ const steps = [
   ['Préparation de l\'interface de test', 'node', ['test/gen-catalog.js']],
   ['', 'node', ['test/make-dev.js']],
   ['Parcours complet de l\'interface dans un navigateur', process.platform === 'win32' ? 'python' : 'python3', ['test/flow.py']],
+  ['Grosse bibliothèque (1500 jeux) : vitesse de chaque page', process.platform === 'win32' ? 'python' : 'python3', ['test/perf.py']],
 ];
 
 let n = 0;

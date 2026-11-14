@@ -416,6 +416,10 @@ function render() {
 }
 function go(v) {
   const run = () => { ui.view = v; $('#view').scrollTop = 0; render(); };
-  if (document.startViewTransition && ui.view !== v && !matchMedia('(prefers-reduced-motion: reduce)').matches) document.startViewTransition(run);
+  if (document.startViewTransition && ui.view !== v && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    // Changer de page très vite annule l'animation précédente : ce n'est pas une erreur.
+    const t = document.startViewTransition(run);
+    for (const p of [t.ready, t.finished, t.updateCallbackDone]) if (p && p.catch) p.catch(() => {});
+  }
   else run();
 }

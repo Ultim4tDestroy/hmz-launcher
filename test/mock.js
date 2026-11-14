@@ -80,6 +80,7 @@
         return { version: 'build-83' };
       }
       if (ch === 'ui:ready') return true;
+      if (ch === 'diag:run') return '== HMZ ==\nVersion                    2.11.3 (installée)\n\n== Émulateurs installés ==\nPCSX2                      OK · v2.4.0 · manette auto';
       if (ch === 'game:meta') {
         const g = games.find((x) => x.id === a[0]);
         if (!g || g.platform === 'mobile') return { none: true };

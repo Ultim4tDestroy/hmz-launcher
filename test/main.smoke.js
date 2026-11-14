@@ -40,6 +40,10 @@ try { readyCb(); } catch (e) { console.error('ÉCHEC au démarrage :', e); proce
   await call('settings:set', {emuFullscreen:false});
   console.log('dossiers créés:', fs.readdirSync(path.join(tmp,'HMZ','Jeux')).join(', '), '|', fs.existsSync(path.join(tmp,'HMZ','Emulateurs')));
   await new Promise(r=>setTimeout(r,1500));
+  const diag = await call('diag:run');
+  if (!/== HMZ ==/.test(diag) || !/== Émulateurs installés ==/.test(diag)) { console.error('ÉCHEC : diagnostic incomplet', diag); process.exit(1); }
+  if (diag.includes(os.homedir()) && os.homedir().length > 3) { console.error('ÉCHEC : le diagnostic contient le dossier personnel'); process.exit(1); }
+  console.log('diagnostic OK,', diag.split('\n').length, 'lignes');
   console.log('événements envoyés:', [...new Set(sent)].join(', '));
   if (crashes().length) { console.error('ÉCHEC : plantage noté', crashes()); process.exit(1); }
   reachedEnd = true;

@@ -172,6 +172,15 @@ document.addEventListener('click', async (ev) => {
     case 'genre-menu': ui.genreOpen = !ui.genreOpen; render(); break;
     case 'genre-clear': ui.genre = null; ui.genreOpen = false; render(); break;
     case 'report': call('app:report'); break;
+    case 'diag': {
+      modal(`<div class="modal dialog diag"><h3>Diagnostic</h3><p>Analyse en cours…</p></div>`);
+      call('diag:run').then((txt) => {
+        modal(`<div class="modal dialog diag"><button class="x" data-close>${ICON.x}</button><h3>Diagnostic</h3><pre class="diag-out">${esc(txt)}</pre>
+          <div class="acts"><button class="btn ghost" data-close>Fermer</button><button class="btn primary" id="diagCopy">Copier le rapport</button></div></div>`);
+        $('#diagCopy').onclick = () => { navigator.clipboard.writeText(txt).then(() => toast('Rapport copié : colle-le dans ton message.', 'ok')); };
+      }).catch(() => closeModal());
+      break;
+    }
     case 'discord-test': call('discord:test').then(() => toast('Regarde ton profil Discord : HMZ y apparaît pendant 15 secondes.', 'ok', 5000)).catch(() => {}); break;
     case 'lib-export': call('library:export').then((f) => { if (f) toast('Bibliothèque sauvegardée.', 'ok'); }).catch(() => {}); break;
     case 'lib-backups': call('library:openBackups'); break;

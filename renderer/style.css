@@ -1147,3 +1147,35 @@ textarea.notes { width: 100%; min-height: 76px; resize: vertical; font: inherit;
 .lopt .input { width: 220px; flex: none; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 .d-body > div:first-child { min-width: 0; }
+.emu-pad { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--faint); }
+.emu-pad svg { width: 15px; height: 15px; flex: none; }
+.emu-pad.ok { color: color-mix(in srgb, #5fd38d 80%, var(--muted)); }
+.modal.dialog.diag { width: min(760px, 92vw); }
+.diag-out { max-height: 56vh; overflow: auto; margin: 6px 0 16px; padding: 14px 16px; border-radius: 12px; background: rgba(var(--fg-rgb), .05); font: 12px/1.55 ui-monospace, Consolas, monospace; white-space: pre; color: var(--muted); }
+
+/* Grosses bibliothèques : les rangées hors de l'écran ne sont pas dessinées tant qu'on n'y va pas */
+.lib-shelves .shelf-track { content-visibility: auto; contain-intrinsic-size: auto 300px; }
+.grid > .card { content-visibility: auto; contain-intrinsic-size: auto 280px; }
+.list > .lrow { content-visibility: auto; contain-intrinsic-size: auto 64px; }
+
+/* Guide de bienvenue */
+.modal.welcome { width: min(620px, 92vw); padding: 34px 36px 26px; }
+.modal.welcome h2 { margin: 14px 0 8px; font: 800 30px/1.1 var(--display); letter-spacing: -.03em; }
+.modal.welcome p { margin: 0 0 14px; color: var(--muted); font-size: 14.5px; line-height: 1.55; }
+.modal.welcome .wl-small { font-size: 12.5px; color: var(--faint); }
+.wl-dots { display: flex; gap: 6px; }
+.wl-dots i { width: 22px; height: 4px; border-radius: 9px; background: rgba(var(--fg-rgb), .14); }
+.wl-dots i.on { background: var(--cream); }
+.wl-found { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; margin: 18px 0 12px; }
+.wl-found div { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border-radius: 14px; background: rgba(var(--fg-rgb), .05); }
+.wl-found b { font: 800 24px var(--display); }
+.wl-found span { font-size: 12.5px; color: var(--muted); }
+.wl-consoles { display: flex; flex-wrap: wrap; gap: 7px; margin: 14px 0 16px; }
+.wl-consoles button { height: 36px; padding: 0 14px; border-radius: 99px; border: 0; background: rgba(var(--fg-rgb), .06); color: var(--text); font: 600 13px var(--ui); cursor: pointer; box-shadow: inset 0 0 0 1px rgba(var(--fg-rgb), .08); transition: background .15s; }
+.wl-consoles button.on { background: var(--cream); color: var(--cream-ink); box-shadow: none; }
+.wl-tips { display: flex; flex-direction: column; gap: 4px; margin: 16px 0 8px; }
+.wl-tips div { display: grid; grid-template-columns: 190px 1fr; gap: 12px; align-items: center; padding: 9px 12px; border-radius: 12px; background: rgba(var(--fg-rgb), .04); font-size: 13.5px; }
+.wl-tips span { color: var(--muted); }
+.modal.welcome .acts { display: flex; justify-content: space-between; margin-top: 18px; }
+.emu-page .emu .sys { display: flex; flex-wrap: wrap; gap: 8px; }
+.emu-page .emu .sys-item { flex: 1 1 210px; min-width: 0; }
