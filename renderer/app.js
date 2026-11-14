@@ -146,6 +146,17 @@ function metaParts(g) {
 function coverHTML(g, extra = '') {
   const p = plat(g.platform);
   const src = g.art.cover || g.art.header;
+  // Pas de jaquette mais un logo : carte avec le logo sur le fond du jeu.
+  if (!src && g.art.logo) {
+    const bg = g.art.hero;
+    return `<div class="cover logo-card" style="--c:${p.color}">
+      ${bg ? `<div class="lc-bg" style="background-image:url('${esc(bg)}')"></div>` : ''}<div class="lc-shade"></div>
+      <img class="lc-logo" src="${esc(g.art.logo)}" loading="lazy" draggable="false">
+      <div class="fb"><span class="fb-plat">${esc(p.label)}</span><span class="fb-name">${esc(g.name)}</span></div>
+      <span class="lc-plat">${esc(p.label)}</span>
+      ${extra}
+    </div>`;
+  }
   const contain = !g.art.cover && g.art.header ? ' contain' : '';
   return `<div class="cover${src ? '' : ' noimg'}${contain}" style="--c:${p.color}">
     ${src ? `<img src="${esc(src)}" loading="lazy" draggable="false">` : ''}
@@ -185,7 +196,7 @@ document.addEventListener('error', (e) => {
   const thumb = img.closest('.thumb');
   if (thumb) { thumb.classList.add('noimg'); $$('img', thumb).forEach((i) => i.remove()); $('.bgblur', thumb)?.remove(); return; }
   const cover = img.closest('.cover');
-  if (cover) { cover.classList.add('noimg'); img.remove(); return; }
+  if (cover) { cover.classList.add('noimg'); cover.classList.remove('logo-card'); img.remove(); return; }
   const big = img.closest('.hero-cover, .tv-cover');
   if (big) big.style.display = 'none';
 }, true);
@@ -591,8 +602,9 @@ function openDetail(id) {
       </div>
       <div class="side-list">
         <button data-rename="${esc(g.id)}">${ICON.edit}Renommer</button>
-        <button data-art="cover" data-id="${esc(g.id)}">${ICON.image}Changer la jaquette</button>
-        <button data-art="hero" data-id="${esc(g.id)}">${ICON.image}Changer l'image de fond</button>
+        <button data-pick="cover" data-id="${esc(g.id)}">${ICON.image}Choisir la jaquette</button>
+        <button data-pick="hero" data-id="${esc(g.id)}">${ICON.image}Choisir l'image de fond</button>
+        <button data-pick="logo" data-id="${esc(g.id)}">${ICON.image}Choisir le logo</button>
         <button data-resetart="${esc(g.id)}">${ICON.refresh}Images d'origine</button>
         <button data-openfolder="${esc(g.id)}">${ICON.folder}Ouvrir l'emplacement</button>
         <button data-hide="${esc(g.id)}">${ICON.eye}${g.hidden ? 'Afficher dans la bibliothèque' : 'Masquer ce jeu'}</button>
@@ -612,6 +624,28 @@ function modal(html, state = {}) {
 }
 function closeModal() { $('#modal-root').innerHTML = ''; modalState = null; }
 function refreshModal() { if (modalState && modalState.detail) { const st = $('.modal')?.scrollTop; openDetail(modalState.detail); if (st) $('.modal').scrollTop = st; } }
+
+async function openPicker(id, kind) {
+  const g = gameById(id);
+  const label = { cover: 'la jaquette', hero: "l'image de fond", logo: 'le logo' }[kind];
+  const ratio = { cover: '2/3', hero: '96/31', logo: '16/9' }[kind];
+  const cols = { cover: 'repeat(auto-fill, minmax(130px, 1fr))', hero: 'repeat(auto-fill, minmax(260px, 1fr))', logo: 'repeat(auto-fill, minmax(180px, 1fr))' }[kind];
+  modal(`<div class="modal picker"><button class="x" data-close>${ICON.x}</button>
+    <div style="padding:26px 30px 8px"><div class="kicker" style="color:var(--muted)">${esc(g.name)}</div><h2 style="margin:10px 0 4px;font:800 30px var(--display);letter-spacing:-.03em">Choisir ${label}</h2></div>
+    <div class="pick-tabs">${['cover', 'hero', 'logo'].map((k) => `<button class="${k === kind ? 'on' : ''}" data-pick="${k}" data-id="${esc(id)}">${{ cover: 'Jaquette', hero: 'Fond', logo: 'Logo' }[k]}</button>`).join('')}
+      <span style="flex:1"></span><button class="btn sm ghost" data-art="${kind}" data-id="${esc(id)}">${ICON.folder}Depuis mon PC</button><button class="btn sm ghost" data-pickback="${esc(id)}">Retour</button></div>
+    <div class="pick-grid" id="pickGrid" style="grid-template-columns:${cols}"><div class="pick-msg"><div class="spin-s"></div>Recherche des propositions…</div></div>
+  </div>`, { picker: id });
+  try {
+    const opts = await api.call('art:options', id, kind);
+    if (!$('#pickGrid')) return;
+    $('#pickGrid').innerHTML = opts.length
+      ? opts.map((o) => `<button class="pick-it${kind === 'logo' ? ' lg' : ''}" data-pickurl="${esc(o.url)}" data-kind="${kind}" data-id="${esc(id)}" style="aspect-ratio:${ratio}"><img src="${esc(o.thumb)}" loading="lazy"></button>`).join('')
+      : '<div class="pick-msg">Aucune proposition trouvée pour ce jeu. Tu peux choisir une image depuis ton PC.</div>';
+  } catch (e) {
+    if ($('#pickGrid')) $('#pickGrid').innerHTML = `<div class="pick-msg">${esc(e.message.replace(/^Error invoking remote method[^:]*: (Error: )?/, ''))}<br><br><button class="btn sm" data-go="settings" data-close>Ouvrir les Paramètres</button></div>`;
+  }
+}
 
 function askText(title, text, value) {
   return new Promise((resolve) => {
@@ -671,8 +705,8 @@ function openCtx(id, x, y) {
       <div class="sub-menu">${S.collections.map((c) => `<button data-colltoggle="${esc(c.id)}" data-id="${esc(id)}"><span class="chk${c.games.includes(id) ? ' on' : ''}">${c.games.includes(id) ? ICON.check : ''}</span><span class="dot-c" style="--c:${c.color}"></span>${esc(c.name)}</button>`).join('')}${S.collections.length ? '<hr>' : ''}<button data-collnewfor="${esc(id)}">${ICON.plus}Nouvelle collection…</button></div></div>
     <hr>
     <button data-rename="${esc(id)}">${ICON.edit}Renommer</button>
-    <button data-art="cover" data-id="${esc(id)}">${ICON.image}Changer la jaquette</button>
-    <button data-art="hero" data-id="${esc(id)}">${ICON.image}Changer le fond</button>
+    <button data-pick="cover" data-id="${esc(id)}">${ICON.image}Choisir la jaquette</button>
+    <button data-pick="hero" data-id="${esc(id)}">${ICON.image}Choisir le fond</button>
     <button data-openfolder="${esc(id)}">${ICON.folder}Ouvrir l'emplacement</button>
     <button data-hide="${esc(id)}">${ICON.eye}${g.hidden ? 'Afficher' : 'Masquer'}</button>`;
   ctx.hidden = false;
@@ -764,7 +798,10 @@ document.addEventListener('click', async (ev) => {
   if (d.fav) { const g = gameById(d.fav); await call('game:update', d.fav, { favorite: !g.favorite }); return; }
   if (d.hide) { const g = gameById(d.hide); await call('game:update', d.hide, { hidden: !g.hidden }); if (!g.hidden) toast(`${g.name} est masqué. Tu peux l'afficher à nouveau dans Paramètres.`); return; }
   if (d.rename) { const g = gameById(d.rename); const v = await askText('Renommer', 'Laisse vide pour reprendre le nom d\'origine.', g.name); if (v !== null) await call('game:update', g.id, { customName: v === g.originalName ? '' : v }); return; }
-  if (d.art) return call('game:setArt', d.id, d.art);
+  if (d.art) { if (modalState && modalState.picker) { const back = modalState.picker; closeModal(); await call('game:setArt', d.id, d.art); openDetail(back); return; } return call('game:setArt', d.id, d.art); }
+  if (d.pick) return openPicker(d.id, d.pick);
+  if (d.pickurl) { await call('game:setArtUrl', d.id, d.kind, d.pickurl); const id = d.id; closeModal(); openDetail(id); toast('Image changée.', 'ok', 2000); return; }
+  if (d.pickback) { const id = d.pickback; closeModal(); return openDetail(id); }
   if (d.resetart) return call('game:resetArt', d.resetart);
   if (d.openfolder) return call('game:openFolder', d.openfolder);
   if (d.remove) { closeModal(); return call('game:remove', d.remove); }

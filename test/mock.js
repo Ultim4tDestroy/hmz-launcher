@@ -27,7 +27,7 @@
     mk('steam:1245620', 'ELDEN RING', 'pc', '#1c1a15', '#a68a4c', { source: 'steam', hero: 1, min: 7900, ses: 80, last: 2 }),
     mk('steam:730', 'Counter-Strike 2', 'pc', '#1a2533', '#e0a33a', { source: 'steam', hero: 1, min: 12000, ses: 300, last: 0.5 }),
     mk('epic:fortnite', 'Fortnite', 'pc', '#3b1e7a', '#2fc0f0', { source: 'epic', min: 600, ses: 20, last: 6 }),
-    mk('manual:pc:valorant', 'VALORANT', 'pc', '#ff4655', '#0f1923', { source: 'manual', noart: 1 }),
+    Object.assign(mk('manual:pc:valorant', 'VALORANT', 'pc', '#ff4655', '#0f1923', { source: 'manual', noart: 1 }), { art: { logo: 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="120"><text x="200" y="88" text-anchor="middle" font-family="Arial Black" font-size="78" fill="#ff4655">VALORANT</text></svg>'), hero: svg(1920, 620, '#ff4655', '#0f1923', '') } }),
   ];
   const sessions = [];
   for (let i = 0; i < 30; i++) {
@@ -68,6 +68,7 @@
         emit('state:changed', JSON.parse(JSON.stringify(state)));
         return { version: 'build-83' };
       }
+      if (ch === 'art:options') { await new Promise((r) => setTimeout(r, 300)); return Array.from({ length: 9 }, (_, i) => ({ url: 'x' + i, thumb: a[1] === 'cover' ? svg(600, 900, ['#ff4655','#2b6fd6','#3d9b4f','#f6c344'][i % 4], '#111', 'Cover ' + (i + 1), 60) : svg(1920, 620, '#333', ['#ff4655','#2b6fd6','#3d9b4f'][i % 3], 'Fond ' + (i + 1), 120) })); }
       return null;
     },
   };

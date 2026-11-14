@@ -1,0 +1,33 @@
+# Met à jour la base de jaquettes intégrée (data/covers.json) depuis SteamGridDB.
+# La clé est dans le secret SGDB_KEY du dépôt et n'est jamais publiée.
+name: Mettre à jour les jaquettes
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 4 * * 1'
+  push:
+    branches: [main]
+    paths: ['data/jeux-populaires.txt']
+
+permissions:
+  contents: write
+
+jobs:
+  jaquettes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Récupérer les images
+        env:
+          SGDB_KEY: ${{ secrets.SGDB_KEY }}
+        run: node scripts/build-covers.mjs
+      - name: Enregistrer
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/covers.json
+          git diff --cached --quiet || (git commit -m "Jaquettes : mise à jour automatique" && git push)

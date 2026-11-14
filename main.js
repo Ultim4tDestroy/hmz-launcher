@@ -443,9 +443,9 @@ app.whenReady().then(() => {
   art = new ArtFinder(path.join(app.getPath('userData'), 'cache'), () => db.data.settings.sgdbKey);
   ensureFolders();
   // 2.3.1 : les images des jeux hors Steam sont recherchées à nouveau avec des règles plus strictes.
-  if ((db.data.artRules || 1) < 2) {
+  if ((db.data.artRules || 1) < 3) {
     for (const g of Object.values(db.data.games)) if (g.source !== 'steam') { delete g.art; delete g.artTried; }
-    db.data.artRules = 2;
+    db.data.artRules = 3;
     db.save();
   }
   createWindow();
@@ -510,6 +510,17 @@ handle('game:setArt', async (id, kind) => {
   const dest = path.join(dir, `${slug(id)}-${kind}-${Date.now()}${path.extname(r.filePaths[0])}`);
   fs.copyFileSync(r.filePaths[0], dest);
   g.custom = { ...(g.custom || {}), [kind]: fileUrl(dest) };
+  db.save(); notifyChange();
+});
+handle('art:options', async (id, kind) => {
+  const g = db.data.games[id]; if (!g) return [];
+  const r = await art.options(g, kind);
+  if (r === null) throw new Error('Ajoute ta clé SteamGridDB dans Paramètres pour voir les propositions d\'images.');
+  return r;
+});
+handle('game:setArtUrl', (id, kind, url) => {
+  const g = db.data.games[id]; if (!g || !/^https:\/\//.test(url)) return;
+  g.custom = { ...(g.custom || {}), [kind]: url };
   db.save(); notifyChange();
 });
 handle('game:resetArt', (id) => { const g = db.data.games[id]; if (g) { delete g.custom; db.save(); notifyChange(); } });

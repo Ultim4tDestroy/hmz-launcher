@@ -1,0 +1,298 @@
+# Jeux dont les images sont récupérées à l'avance sur SteamGridDB.
+# Une ligne par jeu. Les lignes qui commencent par # sont ignorées.
+# Pour ajouter un jeu : ajoute son nom ici, la base se met à jour toute seule.
+
+# --- PC hors Steam et launchers ---
+League of Legends
+VALORANT
+Teamfight Tactics
+Legends of Runeterra
+2XKO
+Genshin Impact
+Honkai: Star Rail
+Zenless Zone Zero
+Honkai Impact 3rd
+Wuthering Waves
+Roblox
+Minecraft
+Minecraft Dungeons
+Minecraft Legends
+Fortnite
+Rocket League
+Fall Guys
+Overwatch 2
+Diablo IV
+Diablo III
+World of Warcraft
+Hearthstone
+StarCraft II
+Call of Duty
+Call of Duty: Warzone
+Apex Legends
+EA SPORTS FC 25
+EA SPORTS FC 26
+Battlefield 6
+Battlefield 2042
+The Sims 4
+Tom Clancy's Rainbow Six Siege
+Assassin's Creed Shadows
+Assassin's Creed Valhalla
+Grand Theft Auto V
+Red Dead Redemption 2
+Black Desert
+Lost Ark
+MapleStory
+Summoners War
+The Seven Deadly Sins: Grand Cross
+Tower of God: New World
+Marvel Rivals
+Destiny 2
+Counter-Strike 2
+Dota 2
+PUBG: BATTLEGROUNDS
+Albion Online
+Dead by Daylight
+Among Us
+Brawlhalla
+Palworld
+Elden Ring
+Cyberpunk 2077
+The Witcher 3: Wild Hunt
+Baldur's Gate 3
+Hogwarts Legacy
+Helldivers 2
+Lethal Company
+Terraria
+Stardew Valley
+Hollow Knight
+Hollow Knight: Silksong
+Hades
+Hades II
+Celeste
+Cuphead
+Undertale
+Slime Rancher 2
+It Takes Two
+Split Fiction
+Sea of Thieves
+Forza Horizon 5
+Euro Truck Simulator 2
+Rust
+ARK: Survival Ascended
+Path of Exile 2
+Warframe
+War Thunder
+World of Tanks
+Smite 2
+Paladins
+Clash of Clans
+Clash Royale
+Brawl Stars
+Arknights
+Blue Archive
+Punishing: Gray Raven
+Tower of Fantasy
+Throne and Liberty
+Monster Hunter Wilds
+Monster Hunter: World
+Street Fighter 6
+Tekken 8
+Mortal Kombat 1
+Dragon Ball Sparking! ZERO
+Naruto Shippuden: Ultimate Ninja Storm 4
+One Piece Odyssey
+Bleach: Brave Souls
+Sonic Frontiers
+Persona 5 Royal
+Final Fantasy XIV Online
+Final Fantasy VII Rebirth
+Black Myth: Wukong
+Ghost of Tsushima
+God of War Ragnarök
+Marvel's Spider-Man 2
+The Last of Us Part I
+Resident Evil 4
+Silent Hill 2
+Need for Speed Unbound
+The Crew Motorfest
+Rocket League Sideswipe
+Valheim
+Phasmophobia
+Satisfactory
+Subnautica
+Factorio
+Geometry Dash
+
+# --- Nintendo Switch 2 ---
+Mario Kart World
+Donkey Kong Bananza
+Pokémon Pokopia
+Kirby Air Riders
+Hyrule Warriors: Age of Imprisonment
+Drag x Drive
+Metroid Prime 4: Beyond
+Pokémon Legends: Z-A
+Super Mario Galaxy
+Super Mario Galaxy 2
+Splatoon Raiders
+The Duskbloods
+Mario Tennis Fever
+Yoshi and the Mysterious Book
+Pokémon Champions
+Fire Emblem: Fortune's Weave
+
+# --- Nintendo Switch ---
+Mario Kart 8 Deluxe
+The Legend of Zelda: Breath of the Wild
+The Legend of Zelda: Tears of the Kingdom
+The Legend of Zelda: Link's Awakening
+The Legend of Zelda: Echoes of Wisdom
+The Legend of Zelda: Skyward Sword HD
+Super Smash Bros. Ultimate
+Animal Crossing: New Horizons
+Pokémon Scarlet
+Pokémon Violet
+Pokémon Legends: Arceus
+Pokémon Sword
+Pokémon Shield
+Pokémon: Let's Go, Pikachu!
+Pokémon: Let's Go, Eevee!
+Pokémon Brilliant Diamond
+Pokémon Shining Pearl
+Pokémon Mystery Dungeon: Rescue Team DX
+New Pokémon Snap
+Pokémon Unite
+Splatoon 3
+Splatoon 2
+Super Mario Odyssey
+Super Mario Bros. Wonder
+Super Mario 3D World + Bowser's Fury
+Super Mario Party Jamboree
+Super Mario Party
+Mario Party Superstars
+Super Mario Maker 2
+Super Mario RPG
+Paper Mario: The Thousand-Year Door
+Paper Mario: The Origami King
+Princess Peach: Showtime!
+Luigi's Mansion 3
+Mario + Rabbids Sparks of Hope
+Mario Strikers: Battle League
+Kirby and the Forgotten Land
+Kirby's Return to Dream Land Deluxe
+Metroid Dread
+Metroid Prime Remastered
+Xenoblade Chronicles 3
+Xenoblade Chronicles: Definitive Edition
+Xenoblade Chronicles X: Definitive Edition
+Fire Emblem: Three Houses
+Fire Emblem Engage
+Pikmin 4
+Donkey Kong Country: Tropical Freeze
+Donkey Kong Country Returns HD
+Bayonetta 3
+Astral Chain
+Ring Fit Adventure
+Nintendo Switch Sports
+Mario Kart Live: Home Circuit
+Octopath Traveler II
+Monster Hunter Rise
+Monster Hunter Stories 2: Wings of Ruin
+Hollow Knight
+Minecraft
+Fortnite
+Hades
+Stardew Valley
+Ori and the Will of the Wisps
+Dragon Quest XI S: Echoes of an Elusive Age
+Persona 5 Royal
+Sonic Superstars
+Hyrule Warriors: Age of Calamity
+Captain Toad: Treasure Tracker
+Yoshi's Crafted World
+Kirby Star Allies
+Game Builder Garage
+Clubhouse Games: 51 Worldwide Classics
+Tomodachi Life: Living the Dream
+Professor Layton and the New World of Steam
+
+# --- Nintendo 3DS ---
+Pokémon X
+Pokémon Y
+Pokémon Omega Ruby
+Pokémon Alpha Sapphire
+Pokémon Sun
+Pokémon Moon
+Pokémon Ultra Sun
+Pokémon Ultra Moon
+Pokémon Mystery Dungeon: Gates to Infinity
+Pokémon Super Mystery Dungeon
+Mario Kart 7
+Super Mario 3D Land
+New Super Mario Bros. 2
+Luigi's Mansion: Dark Moon
+The Legend of Zelda: Ocarina of Time 3D
+The Legend of Zelda: Majora's Mask 3D
+The Legend of Zelda: A Link Between Worlds
+Animal Crossing: New Leaf
+Fire Emblem Awakening
+Fire Emblem Fates
+Fire Emblem Echoes: Shadows of Valentia
+Super Smash Bros. for Nintendo 3DS
+Monster Hunter 4 Ultimate
+Monster Hunter Generations
+Kid Icarus: Uprising
+Kirby: Planet Robobot
+Kirby: Triple Deluxe
+Bravely Default
+Tomodachi Life
+Xenoblade Chronicles 3D
+Metroid: Samus Returns
+Professor Layton vs. Phoenix Wright: Ace Attorney
+Yo-kai Watch
+Mario & Luigi: Dream Team
+Paper Mario: Sticker Star
+Donkey Kong Country Returns 3D
+Star Fox 64 3D
+Dragon Quest VIII: Journey of the Cursed King
+
+# --- Nintendo DS ---
+Pokémon HeartGold
+Pokémon SoulSilver
+Pokémon Platinum
+Pokémon Diamond
+Pokémon Pearl
+Pokémon Black
+Pokémon White
+Pokémon Black 2
+Pokémon White 2
+Pokémon Mystery Dungeon: Explorers of Sky
+Pokémon Ranger
+New Super Mario Bros.
+Mario Kart DS
+Super Mario 64 DS
+Mario & Luigi: Bowser's Inside Story
+Mario & Luigi: Partners in Time
+Yoshi's Island DS
+The Legend of Zelda: Phantom Hourglass
+The Legend of Zelda: Spirit Tracks
+Animal Crossing: Wild World
+Nintendogs
+Brain Age
+Professor Layton and the Curious Village
+Professor Layton and the Diabolical Box
+Professor Layton and the Unwound Future
+Phoenix Wright: Ace Attorney
+Kingdom Hearts 358/2 Days
+Chrono Trigger
+Dragon Quest IX: Sentinels of the Starry Skies
+The World Ends with You
+Metroid Prime Hunters
+Kirby Super Star Ultra
+Castlevania: Dawn of Sorrow
+Advance Wars: Dual Strike
+Final Fantasy III
+Final Fantasy IV
+Dragon Ball Z: Supersonic Warriors 2
+Naruto Shippuden: Ninja Council 4
+Inazuma Eleven

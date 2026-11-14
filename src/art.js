@@ -5,6 +5,8 @@ const fs = require('fs');
 const path = require('path');
 const { fetchJson, urlExists, normTitle, similarity, strictSimilarity, readText, exists } = require('./util');
 
+const COVERS_URL = 'https://raw.githubusercontent.com/Ultim4tDestroy/hmz-launcher/main/data/covers.json';
+const COVERS_BUNDLED = path.join(__dirname, '..', 'data', 'covers.json');
 const LIBRETRO = { ds: 'Nintendo_-_Nintendo_DS', '3ds': 'Nintendo_-_Nintendo_3DS' };
 const steamCdn = (id, f) => `https://cdn.cloudflare.steamstatic.com/steam/apps/${id}/${f}`;
 const { pathToFileURL } = require('url');
@@ -37,6 +39,12 @@ class ArtFinder {
       if (e) Object.entries(e).forEach(([k, v]) => set(k, v));
     }
 
+    // Base de jaquettes intégrée (préparée sur GitHub depuis SteamGridDB).
+    if (game.source !== 'steam' || !art.cover) {
+      const hit = await this.fromCoverDb(game.name);
+      if (hit) { set('cover', hit.cover); set('hero', hit.hero); set('logo', hit.logo); }
+    }
+
     if ((!art.cover || !art.hero) && this.getKey()) {
       try { Object.entries(await this.sgdb(game)).forEach(([k, v]) => set(k, v)); } catch (e) { if (e.status === 401) throw e; }
     }
@@ -57,9 +65,67 @@ class ArtFinder {
     }
 
     if (!art.cover) {
-      try { set('cover', await this.wikipedia(game)); } catch {}
+      try { const w = await this.wikipedia(game); if (w) Object.entries(w).forEach(([k, v]) => set(k, v)); } catch {}
     }
     return art;
+  }
+
+  async coverDb() {
+    if (this.covers && Date.now() - this.coversAt < 6 * 3600e3) return this.covers;
+    const cache = path.join(this.cacheDir, 'covers.json');
+    let data = null;
+    try {
+      const st = fs.statSync(cache);
+      if (Date.now() - st.mtimeMs < 24 * 3600e3) data = JSON.parse(fs.readFileSync(cache, 'utf8'));
+    } catch {}
+    if (!data) {
+      try {
+        data = await fetchJson(COVERS_URL, {}, 20000);
+        fs.mkdirSync(this.cacheDir, { recursive: true });
+        fs.writeFileSync(cache, JSON.stringify(data));
+      } catch {
+        try { data = JSON.parse(fs.readFileSync(cache, 'utf8')); } catch {}
+      }
+    }
+    if (!data || !data.games || !Object.keys(data.games).length) {
+      try { data = JSON.parse(fs.readFileSync(COVERS_BUNDLED, 'utf8')); } catch { data = { games: {} }; }
+    }
+    this.covers = data.games || {};
+    this.coversAt = Date.now();
+    return this.covers;
+  }
+
+  async fromCoverDb(name) {
+    const db = await this.coverDb();
+    const k = normTitle(name);
+    if (db[k]) return db[k];
+    let best = null, bs = 0;
+    for (const [key, v] of Object.entries(db)) {
+      const s = strictSimilarity(name, key);
+      if (s > bs) { bs = s; best = v; }
+    }
+    return bs >= 0.9 ? best : null;
+  }
+
+  // Propositions d'images (avec la clé SteamGridDB de l'utilisateur).
+  async options(game, kind) {
+    const key = this.getKey();
+    if (!key) return null;
+    const h = { headers: { Authorization: `Bearer ${key}` } };
+    const base = 'https://www.steamgriddb.com/api/v2';
+    let gid = null;
+    if (game.source === 'steam') { try { gid = (await fetchJson(`${base}/games/steam/${game.appid}`, h)).data.id; } catch {} }
+    if (!gid) {
+      const res = (await fetchJson(`${base}/search/autocomplete/${encodeURIComponent(game.name)}`, h)).data || [];
+      let best = null, bs = 0;
+      for (const r of res.slice(0, 8)) { const sc = strictSimilarity(game.name, r.name); if (sc > bs) { bs = sc; best = r; } }
+      if (!best) return [];
+      gid = best.id;
+    }
+    const ep = { cover: 'grids', hero: 'heroes', logo: 'logos' }[kind];
+    const q = kind === 'cover' ? 'dimensions=600x900,660x930,342x482&types=static&nsfw=false' : 'types=static&nsfw=false';
+    const d = (await fetchJson(`${base}/${ep}/game/${gid}?${q}`, h)).data || [];
+    return d.slice(0, 30).map((x) => ({ url: x.url, thumb: x.thumb || x.url }));
   }
 
   // Le launcher Epic garde en cache les images des jeux de ton compte.
@@ -181,7 +247,11 @@ class ArtFinder {
         const src = p.thumbnail.source;
         // Pas de logo vectoriel ni de photo d'entreprise ou de personne.
         if (/\.svg|headquarter|_hq|office|building|campus|ceo|founder|portrait|stadium|arena|tournament|champions|event|esports|logo/i.test(decodeURIComponent(src))) continue;
-        return src;
+        // Une jaquette est verticale ; une image horizontale (capture d'écran) sert de fond.
+        const { width: w, height: hgt } = p.thumbnail;
+        if (w && hgt && hgt / w >= 1.15) return { cover: src };
+        if (w && hgt && w / hgt >= 1.4) return { hero: src };
+        continue;
       }
     }
     return null;
