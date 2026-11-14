@@ -1,7 +1,6 @@
-// Fiche d'un jeu : succès Steam (lus sur le PC) et durée de vie (HowLongToBeat).
+// Fiche d'un jeu : succès Steam (lus sur le PC) et lien HowLongToBeat.
 const fs = require('fs');
 const path = require('path');
-const { fetchWithTimeout } = require('./util');
 
 // --- Format binaire « KeyValues » de Steam ------------------------------------------------
 function readKv(buf) {
@@ -74,61 +73,10 @@ function steamAchievements(steamRoot, appid) {
   return { total: list.length, unlocked: list.filter((a) => a.unlocked).length, list };
 }
 
-// --- HowLongToBeat --------------------------------------------------------------------------
-// Le site n'a pas d'API officielle : on reprend l'adresse de recherche que sa propre page
-// utilise (elle change de temps en temps, d'où la lecture de son code).
-const HLTB = 'https://howlongtobeat.com';
-const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36';
-let hltbEndpoint = null;
-
-async function findHltbEndpoint() {
-  if (hltbEndpoint && Date.now() - hltbEndpoint.at < 6 * 3600e3) return hltbEndpoint;
-  const home = await (await fetchWithTimeout(HLTB, { headers: { 'User-Agent': UA, Referer: HLTB + '/' } }, 15000)).text();
-  const scripts = [...home.matchAll(/src="(\/_next\/static\/chunks\/[^"]+\.js)"/g)].map((m) => m[1]);
-  scripts.sort((a, b) => (/_app-|pages\//.test(b) ? 1 : 0) - (/_app-|pages\//.test(a) ? 1 : 0));
-  for (const src of scripts.slice(0, 25)) {
-    let js = '';
-    try { js = await (await fetchWithTimeout(HLTB + src, { headers: { 'User-Agent': UA, Referer: HLTB + '/' } }, 15000)).text(); } catch { continue; }
-    // fetch("/api/xxx/".concat("abc").concat("def"), {method:"POST"…
-    let m = js.match(/["'`]\/api\/(\w+)\/["'`]\s*\.concat\(\s*["'`](\w+)["'`]\s*\)(?:\s*\.concat\(\s*["'`](\w+)["'`]\s*\))?/);
-    if (m) return (hltbEndpoint = { url: `${HLTB}/api/${m[1]}/${m[2]}${m[3] || ''}`, at: Date.now() });
-    m = js.match(/["'`]\/api\/(\w+)\/["'`]\s*\+\s*["'`](\w+)["'`](?:\s*\+\s*["'`](\w+)["'`])?/);
-    if (m) return (hltbEndpoint = { url: `${HLTB}/api/${m[1]}/${m[2]}${m[3] || ''}`, at: Date.now() });
-  }
-  throw new Error('adresse de recherche HowLongToBeat introuvable');
+// --- HowLongToBeat -----------------------------------------------------------------------
+// Le site n'a pas d'API publique : la fiche propose simplement un lien vers sa page de recherche.
+function hltbLink(name) {
+  return `https://howlongtobeat.com/?q=${encodeURIComponent(name.replace(/[™®©]/g, '').trim())}`;
 }
 
-function hltbBody(name) {
-  return {
-    searchType: 'games', searchTerms: name.split(/\s+/).filter(Boolean), searchPage: 1, size: 20,
-    searchOptions: {
-      games: { userId: 0, platform: '', sortCategory: 'popular', rangeCategory: 'main', rangeTime: { min: null, max: null }, gameplay: { perspective: '', flow: '', genre: '', difficulty: '' }, rangeYear: { min: '', max: '' }, modifier: '' },
-      users: { sortCategory: 'postcount' }, lists: { sortCategory: 'follows' }, filter: '', sort: 0, randomizer: 0,
-    },
-    useCache: true,
-  };
-}
-
-async function howLongToBeat(name, similarity) {
-  const clean = name.replace(/[™®©]/g, '').replace(/[:–—-]+/g, ' ').replace(/\s+/g, ' ').trim();
-  let ep = await findHltbEndpoint();
-  const post = (url) => fetchWithTimeout(url, {
-    method: 'POST',
-    headers: { 'User-Agent': UA, 'Content-Type': 'application/json', Accept: '*/*', Origin: HLTB, Referer: HLTB + '/' },
-    body: JSON.stringify(hltbBody(clean)),
-  }, 15000);
-  let r = await post(ep.url);
-  if (r.status === 404 || r.status === 403) { hltbEndpoint = null; ep = await findHltbEndpoint(); r = await post(ep.url); }
-  if (!r.ok) throw new Error(`HowLongToBeat : HTTP ${r.status}`);
-  const j = await r.json();
-  let best = null, bs = 0;
-  for (const g of j.data || []) {
-    const s = Math.max(similarity(name, g.game_name || ''), similarity(name, g.game_alias || ''));
-    if (s > bs) { bs = s; best = g; }
-  }
-  if (!best || bs < 0.72) return null;
-  const h = (sec) => (sec > 0 ? Math.round((sec / 3600) * 2) / 2 : null);
-  return { id: best.game_id, name: best.game_name, main: h(best.comp_main), plus: h(best.comp_plus), all: h(best.comp_100), url: `${HLTB}/game/${best.game_id}` };
-}
-
-module.exports = { readKv, steamAchievements, howLongToBeat, findHltbEndpoint };
+module.exports = { readKv, steamAchievements, hltbLink };

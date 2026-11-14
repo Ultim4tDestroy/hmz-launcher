@@ -6,7 +6,7 @@ const os = require('os');
 const { spawn } = require('child_process');
 
 const { Store } = require('./src/store');
-const { slug, run, exists, cleanRomTitle } = require('./src/util');
+const { slug, run, exists, cleanRomTitle, fetchWithTimeout } = require('./src/util');
 const EMU = require('./src/emulators');
 const SCAN = require('./src/scan');
 const { ArtFinder, fileUrl } = require('./src/art');
@@ -16,6 +16,8 @@ const BACKUP = require('./src/backup');
 const { normTitle } = require('./src/util');
 
 const PLAT = require('./src/platforms');
+const STORES = require('./src/stores');
+const EXTRAS = require('./src/extras');
 const PLATFORMS = PLAT.publicPlatforms();
 const { ROM_FOLDER_NAMES } = PLAT;
 // Émulateurs dont HMZ sait régler les graphismes et la manette.
@@ -87,7 +89,7 @@ function defaults() {
   return {
     settings: {
       root, romDirs, sgdbKey: '', startInTV: false, emuFullscreen: true, minimizeOnPlay: true,
-      scanSteam: true, scanEpic: true, scanOthers: true,
+      scanSteam: true, scanEpic: true, scanOthers: true, scanStores: true, showOwned: true,
       theme: 'foret', accent: '', cardSize: 168, libView: 'shelf',
       padQuit: true, padHome: true, backups: true, backupDir: '', autostart: false,
     },
@@ -158,6 +160,7 @@ function publicState() {
       running: running.has(g.id),
       extras: g.extras || [],
       genres: g.genresManual || g.genres || [],
+      notInstalled: !!g.notInstalled,
     };
   });
   const emulators = Object.values(EMU.EMULATORS).map((d) => {
@@ -197,6 +200,34 @@ function scanLibrary() {
   });
   return scanRun;
 }
+// Noms des jeux Steam pas installés : demandés à la boutique Steam, un par un et lentement
+// (limite de la boutique), puis gardés en mémoire.
+let namesBusy = false;
+async function resolveSteamNames(ids) {
+  if (namesBusy) return;
+  namesBusy = true;
+  const names = db.data.steamNames = db.data.steamNames || {};
+  let added = 0;
+  try {
+    for (const id of ids) {
+      if (names[id]) continue;
+      try {
+        const r = await fetchWithTimeout(`https://store.steampowered.com/api/appdetails?appids=${id}&filters=basic`, {}, 15000);
+        if (r.status === 429 || r.status === 403) break; // trop de demandes : on reprendra plus tard
+        const j = (await r.json())[id];
+        names[id] = j && j.success ? { n: j.data.name, t: j.data.type } : { t: 'gone' };
+        if (names[id].t === 'game') added++;
+      } catch { /* hors ligne : on reprendra plus tard */ break; }
+      if (added && added % 15 === 0) { db.save(); scanLibrary().catch(() => {}); }
+      await new Promise((res) => setTimeout(res, 1600));
+    }
+  } finally {
+    namesBusy = false;
+    db.save();
+    if (added) scanLibrary().catch(() => {});
+  }
+}
+
 async function scanLibraryNow() {
   const s = db.data.settings;
   ensureFolders();
@@ -205,6 +236,23 @@ async function scanLibraryNow() {
   if (process.platform === 'win32') {
     if (s.scanSteam) { try { found.push(...await SCAN.scanSteam()); } catch (e) { console.error(e); } }
     if (s.scanEpic) { try { found.push(...SCAN.scanEpic()); } catch (e) { console.error(e); } }
+    if (s.scanStores) {
+      for (const [label, fn] of [['GOG', STORES.scanGog], ['Ubisoft', STORES.scanUbisoft], ['Battle.net', STORES.scanBattleNet], ['Xbox', STORES.scanXbox]]) {
+        try { found.push(...await fn()); } catch (e) { console.error(label, e); }
+      }
+    }
+    // Jeux possédés mais pas installés.
+    if (s.showOwned) {
+      const ids = new Set(found.map((f) => f.id));
+      if (s.scanSteam) {
+        try {
+          const own = await SCAN.scanSteamOwned(new Set(found.filter((f) => f.source === 'steam').map((f) => String(f.appid))), db.data.steamNames || {});
+          for (const g of own.games) if (!ids.has(g.id)) { found.push(g); ids.add(g.id); }
+          if (own.unknown.length) setTimeout(() => resolveSteamNames(own.unknown), 2000);
+        } catch (e) { console.error(e); }
+      }
+      if (s.scanEpic) { try { for (const g of STORES.epicOwned()) if (!ids.has(g.id)) { found.push(g); ids.add(g.id); } } catch (e) { console.error(e); } }
+    }
     if (s.scanOthers) {
       const known = new Set(found.filter((f) => f.platform === 'pc').map((f) => normTitle(f.name)));
       const others = [];
@@ -253,7 +301,7 @@ async function fetchArt(force) {
   artBusy = true;
   try {
     const needArt = (g) => force || !g.art || (!g.art.cover && (!g.artTried || Date.now() - g.artTried > 3 * 864e5));
-    const needGenres = (g) => !g.genresManual && (!g.genresTried || (!(g.genres || []).length && Date.now() - g.genresTried > 7 * 864e5));
+    const needGenres = (g) => !g.notInstalled && !g.genresManual && (!g.genresTried || (!(g.genres || []).length && Date.now() - g.genresTried > 7 * 864e5));
     const todo = Object.values(db.data.games).filter((g) => needArt(g) || needGenres(g));
     let done = 0;
     const worker = async () => {
@@ -307,6 +355,11 @@ function endSession(id) {
 async function launchGame(id, emuOverride) {
   const g = db.data.games[id];
   if (!g) throw new Error('Jeu introuvable');
+  if (g.notInstalled) {
+    // Pas installé : la boutique ouvre son installation.
+    await shell.openExternal(g.install);
+    return { installing: true, store: g.source === 'epic' ? 'Epic Games' : 'Steam' };
+  }
   if (running.has(id) && running.get(id).kind === 'child') return { already: true };
   const s = db.data.settings;
   let cmd = null, args = [];
@@ -333,7 +386,7 @@ async function launchGame(id, emuOverride) {
     return { ok: true };
   }
 
-  const child = spawn(cmd, args, { cwd: path.dirname(cmd), detached: true, stdio: 'ignore', windowsHide: false });
+  const child = spawn(cmd, args, { cwd: (g.launch && g.launch.cwd && exists(g.launch.cwd)) ? g.launch.cwd : path.dirname(cmd), detached: true, stdio: 'ignore', windowsHide: false });
   if (g.noChildTracking) {
     // Ce programme lance le jeu puis se ferme : le temps est compté par la détection des jeux.
     child.on('error', (e) => toast(`Lancement impossible : ${e.message}`, 'error'));
@@ -778,6 +831,16 @@ function afterEmuChange() {
   db.save(); notifyChange();
   scanLibrary().catch((e) => console.error(e));
 }
+// Succès Steam (lus dans les fichiers de Steam) et lien HowLongToBeat d'un jeu.
+handle('game:extras', async (id) => {
+  const g = db.data.games[id];
+  if (!g) return null;
+  let achievements = null;
+  if (g.source === 'steam' && g.appid) {
+    try { const root = await SCAN.steamRoot(); if (root) achievements = EXTRAS.steamAchievements(root, g.appid); } catch (e) { console.error(e); }
+  }
+  return { achievements, hltb: g.platform === 'mobile' ? null : EXTRAS.hltbLink(g.customName || g.name) };
+});
 handle('emu:forget', (id) => { delete db.data.emulators[id]; db.save(); notifyChange(); });
 handle('emu:uninstall', async (id) => {
   const e = db.data.emulators[id];
@@ -822,6 +885,8 @@ handle('settings:set', (patch) => {
   db.save(); ensureFolders(); notifyChange();
   if ('autostart' in patch) applyAutostart();
   if (keyChanged && s.sgdbKey) fetchArt(true);
+  // Une source de jeux activée ou coupée : la bibliothèque est mise à jour.
+  if (['scanSteam', 'scanEpic', 'scanOthers', 'scanStores', 'showOwned'].some((k) => k in patch)) scanLibrary().catch(() => {});
 });
 handle('dir:add', async (platform) => {
   const r = await dialog.showOpenDialog(win, { title: `Dossier de jeux ${PLATFORMS[platform].label}`, properties: ['openDirectory'] });

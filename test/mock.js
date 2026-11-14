@@ -29,6 +29,12 @@
     mk('epic:fortnite', 'Fortnite', 'pc', '#3b1e7a', '#2fc0f0', { source: 'epic', min: 600, ses: 20, last: 6 }),
     mk('android:com.netmarble.sololv', 'Solo Leveling: ARISE', 'mobile', '#1b3a8a', '#7b5cff', { source: 'bluestacks', min: 240, ses: 9, last: 1 }),
     Object.assign(mk('manual:pc:valorant', 'VALORANT', 'pc', '#ff4655', '#0f1923', { source: 'manual', noart: 1 }), { art: { logo: 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="120"><text x="200" y="88" text-anchor="middle" font-family="Arial Black" font-size="78" fill="#ff4655">VALORANT</text></svg>'), hero: svg(1920, 620, '#ff4655', '#0f1923', '') } }),
+    mk('gog:1207658924', 'The Witcher 3: Wild Hunt', 'pc', '#5b1f1f', '#c9a24a', { source: 'gog', min: 640, ses: 9, last: 20 }),
+    mk('xbox:forza', 'Forza Horizon 5', 'pc', '#1d6fd1', '#f0a52b', { source: 'xbox', min: 220, ses: 5, last: 6 }),
+    mk('bnet:pro', 'Overwatch 2', 'pc', '#f99e1a', '#2a2f3a', { source: 'battlenet', min: 300, ses: 14, last: 4 }),
+    Object.assign(mk('steam:1091500', 'Cyberpunk 2077', 'pc', '#f4e400', '#13161c', { source: 'steam', min: 1200 }), { notInstalled: true }),
+    Object.assign(mk('steam:367520', 'Hollow Knight', 'pc', '#1a2233', '#a7b6d6', { source: 'steam', min: 0 }), { notInstalled: true }),
+    Object.assign(mk('epic:fn', 'Alan Wake 2', 'pc', '#11161b', '#c23b22', { source: 'epic' }), { notInstalled: true }),
   ];
   const sessions = [];
   for (let i = 0; i < 30; i++) {
@@ -71,6 +77,13 @@
         const e = emulators.find((x) => x.id === a[0]); e.installed = true; e.version = 'build-83'; e.latest = 'build-83'; e.keys = { keys: false, firmware: false };
         emit('state:changed', JSON.parse(JSON.stringify(state)));
         return { version: 'build-83' };
+      }
+      if (ch === 'game:extras') {
+        const names = ['Seigneur d\'Elden', 'Âge des étoiles', 'Porteur de fragment', 'Godrick le Greffé', 'Rennala', 'Radahn', 'Morgott', 'Mohg', 'Malenia', 'Rykard', 'Astel', 'Dragon de feu', 'Légendaire', 'Sorts', 'Incantations', 'Cendres', 'Armement', 'Talismans', 'Esprits', 'Bataille', 'Pièce', 'Clé', 'Roche'];
+        const ic = (i, on) => svg(64, 64, on ? ['#c9a24a', '#7a4a1f', '#2b6fd6', '#3d9b4f'][i % 4] : '#333', on ? '#1c1a15' : '#555', '');
+        const list = names.map((n, i) => ({ name: n, desc: 'Vaincre ' + n.toLowerCase(), hidden: i === 5, unlocked: i % 3 !== 2 && i < 18, time: i % 3 !== 2 && i < 18 ? now - i * 3 * D : null, icon: ic(i, i % 3 !== 2 && i < 18) }));
+        list.sort((a, b) => (b.unlocked - a.unlocked));
+        return { achievements: { total: list.length, unlocked: list.filter((x) => x.unlocked).length, list }, hltb: 'https://howlongtobeat.com/?q=x' };
       }
       if (ch === 'emu:uninstall') { const e = emulators.find((x) => x.id === a[0]); e.installed = false; e.version = null; emit('state:changed', JSON.parse(JSON.stringify(state))); return { removed: true }; }
       if (ch === 'bluestacks:candidates') { await new Promise((r) => setTimeout(r, 300)); return { installed: true, list: [{ pkg: 'com.netmarble.sololv', name: 'Solo Leveling:Arise' }, { pkg: 'com.com2us.smon.normal.freefull.google.kr.android.common', name: 'Summoners War' }] }; }

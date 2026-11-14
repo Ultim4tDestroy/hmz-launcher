@@ -232,6 +232,27 @@ async function scanSteam() {
   return games;
 }
 
+// Jeux Steam possédés mais pas installés (noms trouvés à part, voir main.js).
+async function scanSteamOwned(installed, names) {
+  const root = await steamRoot();
+  if (!root) return { games: [], unknown: [] };
+  const times = steamPlaytimes(root);
+  const games = [], unknown = [];
+  for (const id of require('./stores').steamOwnedIds(root)) {
+    if (installed.has(id) || NOT_A_GAME_APPID.has(id)) continue;
+    const n = names[id];
+    if (!n) { unknown.push(id); continue; }
+    if (n.t !== 'game' || !n.n || NOT_A_GAME.test(n.n)) continue;
+    games.push({
+      id: `steam:${id}`, name: n.n, platform: 'pc', source: 'steam', appid: id,
+      notInstalled: true, install: `steam://install/${id}`,
+      localArt: librarycacheArt(root, id),
+      steamMinutes: times[id] ? times[id].minutes : 0, steamLast: times[id] ? times[id].last : 0,
+    });
+  }
+  return { games, unknown };
+}
+
 function scanEpic() {
   const dir = path.join(process.env.ProgramData || 'C:\\ProgramData', 'Epic', 'EpicGamesLauncher', 'Data', 'Manifests');
   const games = [];
@@ -340,7 +361,8 @@ function scanLaunchers() {
 }
 
 // Jeux installés hors Steam/Epic, repérés par leur éditeur dans la liste des programmes de Windows.
-const PUBLISHERS = /netmarble|hoyoverse|mihoyo|cognosphere|kuro games|level infinite|nexon|smilegate|garena|ncsoft|pearl abyss|kakao games|grinding gear|sandbox interactive|wargaming|gameforge|blizzard|electronic arts|ubisoft|riot games|mojang|roblox|square enix|bandai namco|sega|capcom|krafton|hypergryph|yostar|nexters|playstation pc|rockstar games/i;
+const EA_PUB = /electronic arts|respawn|codemasters|criterion|bioware|maxis|motive studio|popcap|ea sports|ea swiss/i;
+const PUBLISHERS = /respawn|codemasters|criterion|bioware|maxis|motive studio|popcap|ea sports|ea swiss|netmarble|hoyoverse|mihoyo|cognosphere|kuro games|level infinite|nexon|smilegate|garena|ncsoft|pearl abyss|kakao games|grinding gear|sandbox interactive|wargaming|gameforge|blizzard|electronic arts|ubisoft|riot games|mojang|roblox|square enix|bandai namco|sega|capcom|krafton|hypergryph|yostar|nexters|playstation pc|rockstar games/i;
 const NOT_GAME_NAME = / for \S+$|roblox|minecraft|studio|hoyoplay|game center|gamecenter|^garena$|ubisoft connect|rockstar games|wargaming\.net|launcher|uninstall|redistributable|runtime|anti-?cheat|helper|update|driver|battle\.net|ea app|origin|connect|agent|client services|vanguard|toolkit|sdk|tool\b|server|editor|bootstrapper/i;
 
 async function scanRegistry() {
@@ -360,7 +382,8 @@ async function scanRegistry() {
   for (const e of entries) {
     const name = (e.DisplayName || '').trim();
     if (!name || !PUBLISHERS.test(e.Publisher || '') || NOT_GAME_NAME.test(name)) continue;
-    if (/steam:\/\/|steamapps|epicgames|com\.epicgames|riotclient/i.test(`${e.UninstallString || ''} ${e.InstallLocation || ''}`)) continue;
+    // Jeux déjà lus par leur boutique (Steam, Epic, Riot, Battle.net, Ubisoft, GOG).
+    if (/steam:\/\/|steamapps|epicgames|com\.epicgames|riotclient|battle\.net.*--uid|upc\.exe|uplay:|ubisoft game launcher|gog galaxy|goggalaxy/i.test(`${e.UninstallString || ''} ${e.InstallLocation || ''}`)) continue;
     if (e.SystemComponent === '0x1') continue;
     let exe = (e.DisplayIcon || '').replace(/^"|"?,\s*-?\d+$|"$/g, '').trim();
     if (!/\.exe$/i.test(exe) || !exists(exe) || BAD_EXE.test(path.basename(exe))) exe = null;
@@ -375,7 +398,7 @@ async function scanRegistry() {
     }
     if (!exe) continue;
     games.push({
-      id: `installed:${slugify(name)}`, name, platform: 'pc', source: 'installed', installDir: dir || path.dirname(exe),
+      id: `installed:${slugify(name)}`, name, platform: 'pc', source: EA_PUB.test(e.Publisher || '') ? 'ea' : 'installed', installDir: dir || path.dirname(exe),
       launch: { type: 'exe', target: exe, args: [] }, exeHints: [path.basename(exe).toLowerCase()],
     });
   }
@@ -572,4 +595,4 @@ function bluestacksInfo() {
   return { player, instance: instances.find((i) => /pie64|nougat64|rvc64|android/i.test(i)) || instances[0] || 'Pie64', packages: [...pkgs].sort() };
 }
 
-module.exports = { readSfo, sfoTitle, bluestacksInfo, scanNetmarble, scanBlueStacks, scanRiot, scanLaunchers, scanRegistry, parseRegQuery, scanSwitchExtras, ROM_EXT, PLATFORM_OF_EXT, scanRoms, scanSteam, scanEpic, parseVdf, getCI, exeHints, isSwitchExtra };
+module.exports = { scanSteamOwned, steamRoot, readSfo, sfoTitle, bluestacksInfo, scanNetmarble, scanBlueStacks, scanRiot, scanLaunchers, scanRegistry, parseRegQuery, scanSwitchExtras, ROM_EXT, PLATFORM_OF_EXT, scanRoms, scanSteam, scanEpic, parseVdf, getCI, exeHints, isSwitchExtra };

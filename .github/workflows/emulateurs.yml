@@ -16,6 +16,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Lecteurs de boutiques (GOG, Ubisoft, Battle.net, Xbox)
+        run: node scripts/verifier-boutiques.js
       - name: Télécharger et installer chaque émulateur
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

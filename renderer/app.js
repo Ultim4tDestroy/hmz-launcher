@@ -211,7 +211,7 @@ function fmtLast(t) {
 }
 function fmtSize(b) { if (!b) return '—'; const g = b / 1024 ** 3; return g >= 1 ? `${g.toFixed(g >= 10 ? 0 : 1)} Go` : `${Math.round(b / 1024 ** 2)} Mo`; }
 function sourceLabel(g) {
-  const SRC = { steam: 'Steam', epic: 'Epic Games', riot: 'Riot Games', netmarble: 'Netmarble', bluestacks: 'BlueStacks', launcher: 'Launcher', installed: 'Installé', manual: 'Ajouté à la main' };
+  const SRC = { steam: 'Steam', epic: 'Epic Games', gog: 'GOG', ubisoft: 'Ubisoft Connect', battlenet: 'Battle.net', xbox: 'Xbox', ea: 'EA', riot: 'Riot Games', netmarble: 'Netmarble', bluestacks: 'BlueStacks', launcher: 'Launcher', installed: 'Installé', manual: 'Ajouté à la main' };
   if (SRC[g.source]) return SRC[g.source];
   const e = S.emulators.find((x) => x.id === g.emu);
   return e ? `via ${e.name}` : 'Émulé';
@@ -254,8 +254,8 @@ function heroInfo(g) {
 }
 function cardHTML(g, { selected = false } = {}) {
   const extra = `${g.favorite ? `<span class="fav">${ICON.star}</span>` : ''}
-    ${g.running ? '<span class="live"><i class="dot"></i>En cours</span>' : (!g.emuReady ? '<span class="noemu">Émulateur à installer</span>' : '')}`;
-  return `<button class="card${selected ? ' selected' : ''}" data-game="${esc(g.id)}" draggable="true" style="--c:${plat(g.platform).color}">
+    ${g.running ? '<span class="live"><i class="dot"></i>En cours</span>' : g.notInstalled ? '<span class="noemu">Pas installé</span>' : (!g.emuReady ? '<span class="noemu">Émulateur à installer</span>' : '')}`;
+  return `<button class="card${selected ? ' selected' : ''}${g.notInstalled ? ' not-inst' : ''}" data-game="${esc(g.id)}" draggable="true" style="--c:${plat(g.platform).color}">
     ${coverHTML(g, extra)}
     <div class="card-name">${esc(g.name)}</div>
     <div class="card-sub"><i class="pdot"></i>${esc(plat(g.platform).label)}${g.minutes >= 1 ? ` · ${fmtTime(g.minutes)}` : ''}</div>
@@ -288,7 +288,7 @@ const BOX = {
   dc: { w: 182, h: 160, d: 12, band: 'Dreamcast' },
   md: { w: 150, h: 210, d: 18, band: 'MEGA DRIVE' },
 };
-const SRC_COLOR = { steam: '#66c0f4', epic: '#e8e8e8', riot: '#ff4655', netmarble: '#ffc93c', bluestacks: '#3ddc84', launcher: '#c084fc', installed: '#f6c344', manual: '#7fd1b9' };
+const SRC_COLOR = { steam: '#66c0f4', epic: '#e8e8e8', gog: '#b46cff', ubisoft: '#2f8cff', battlenet: '#148eff', xbox: '#3fbf4a', ea: '#ff4747', riot: '#ff4655', netmarble: '#ffc93c', bluestacks: '#3ddc84', launcher: '#c084fc', installed: '#f6c344', manual: '#7fd1b9' };
 function boxDims(g) {
   const b = BOX[g.platform] || BOX.pc;
   const k = (S.settings.cardSize || 168) / 168;
@@ -299,7 +299,7 @@ function boxHTML(g, { selected = false } = {}) {
   const kind = BOX[g.platform] ? g.platform : 'pc';
   const bg = g.art.cover || g.art.hero || g.art.header || '';
   const genres = (g.genres || []).slice(0, 3).join(', ');
-  return `<div class="slot k-${kind}${selected ? ' selected' : ''}" data-game="${esc(g.id)}" draggable="true" tabindex="0" role="button" aria-label="${esc(g.name)}"
+  return `<div class="slot k-${kind}${selected ? ' selected' : ''}${g.notInstalled ? ' not-inst' : ''}" data-game="${esc(g.id)}" draggable="true" tabindex="0" role="button" aria-label="${esc(g.name)}"
     style="--bw:${b.w}px;--bh:${b.h}px;--bd:${b.d}px;--src:${SRC_COLOR[g.source] || '#7aa2ff'};--c:${plat(g.platform).color}">
     <div class="box">
       <div class="face f-front">
@@ -307,13 +307,14 @@ function boxHTML(g, { selected = false } = {}) {
         <div class="art">${coverHTML(g)}</div>
         ${g.favorite ? `<span class="badge-fav">${ICON.star}</span>` : ''}
         ${g.running ? '<span class="badge-live"><i class="dot"></i>En cours</span>' : ''}
+        ${g.notInstalled ? `<span class="badge-own">${ICON.download}Pas installé</span>` : ''}
       </div>
       <div class="face f-back"><div class="back-in">
         ${bg ? `<div class="bg" style="background-image:url('${esc(bg)}')"></div>` : ''}
         <h4>${esc(g.name)}</h4>
         <dl><dt>Temps de jeu</dt><dd>${g.minutes >= 1 ? fmtTime(g.minutes) : '—'}</dd><dt>Dernière partie</dt><dd>${g.last ? esc(fmtLast(g.last)) : 'jamais'}</dd>${g.platform !== 'pc' ? `<dt>Émulateur</dt><dd>${esc((S.emulators.find((e) => e.id === g.emu) || {}).name || '—')}</dd>` : ''}</dl>
         ${genres ? `<div class="gl">${esc(genres)}</div>` : ''}
-        <div class="acts"><button class="go" data-play="${esc(g.id)}">${ICON.play}Jouer</button><button class="info" data-detail="${esc(g.id)}" title="Voir la fiche">${ICON.info}</button></div>
+        <div class="acts"><button class="go" data-play="${esc(g.id)}">${playIcon(g)}${playLabel(g)}</button><button class="info" data-detail="${esc(g.id)}" title="Voir la fiche">${ICON.info}</button></div>
       </div></div>
       <div class="face f-spine"><span class="sp-title">${esc(g.name)}</span><span class="sp-plat">${esc(plat(g.platform).label)}</span></div>
       <div class="face f-side"></div>
@@ -385,7 +386,10 @@ document.addEventListener('error', (e) => {
 }, true);
 
 // --- Données ---------------------------------------------------------------------------
-const visible = () => S.games.filter((g) => ui.showHidden || !g.hidden);
+const visible = () => S.games.filter((g) => (ui.showHidden || !g.hidden) && !g.notInstalled);
+const owned = () => S.games.filter((g) => (ui.showHidden || !g.hidden) && g.notInstalled);
+const playLabel = (g) => (g.notInstalled ? 'Installer' : g.emuReady ? 'Jouer' : 'Installer et jouer');
+const playIcon = (g) => (g.notInstalled ? ICON.download : ICON.play);
 const byRecent = (a, b) => (b.last || 0) - (a.last || 0) || (b.addedAt || 0) - (a.addedAt || 0) || a.name.localeCompare(b.name, 'fr');
 function gameById(id) { return S.games.find((g) => g.id === id); }
 function featured() {
@@ -426,7 +430,7 @@ function heroHTML(g) {
         ${g.art.logo ? `<img class="hero-logo" src="${esc(g.art.logo)}" alt="${esc(title)}" data-title="${esc(title)}">` : `<h1 class="hero-title${title.length > 22 ? ' long' : ''}">${esc(title)}</h1>`}
         <div class="hero-meta">${meta}</div>
         <div class="hero-actions">
-          <button class="btn primary play" data-play="${esc(g.id)}">${ICON.play}${g.emuReady ? 'Jouer' : 'Installer et jouer'}</button>
+          <button class="btn primary play" data-play="${esc(g.id)}">${playIcon(g)}${playLabel(g)}</button>
           <button class="btn round" data-detail="${esc(g.id)}" title="Voir la fiche">${ICON.info}</button>
           <button class="btn round" data-menu="${esc(g.id)}" title="Plus d'options">${ICON.dots}</button>
         </div>
@@ -484,8 +488,8 @@ function renderWelcome() {
 }
 
 // Bibliothèque ---------------------------------------------------------------------------------
-const SOURCES = { steam: 'Steam', epic: 'Epic Games', riot: 'Riot Games', netmarble: 'Netmarble', bluestacks: 'BlueStacks', launcher: 'Autres launchers', installed: 'Jeux installés', manual: 'Ajoutés à la main', rom: 'Émulés' };
-const SOURCE_COLORS = { steam: '#66c0f4', epic: '#d6d6d6', riot: '#ff4655', netmarble: '#ffc93c', bluestacks: '#3ddc84', launcher: '#c084fc', installed: '#f6c344', manual: '#7fd1b9', rom: '#ff7a59' };
+const SOURCES = { steam: 'Steam', epic: 'Epic Games', gog: 'GOG', ubisoft: 'Ubisoft Connect', battlenet: 'Battle.net', xbox: 'Xbox', ea: 'EA', riot: 'Riot Games', netmarble: 'Netmarble', bluestacks: 'BlueStacks', launcher: 'Autres launchers', installed: 'Jeux installés', manual: 'Ajoutés à la main', rom: 'Émulés' };
+const SOURCE_COLORS = { steam: '#66c0f4', epic: '#d6d6d6', gog: '#b46cff', ubisoft: '#2f8cff', battlenet: '#148eff', xbox: '#3fbf4a', ea: '#ff4747', riot: '#ff4655', netmarble: '#ffc93c', bluestacks: '#3ddc84', launcher: '#c084fc', installed: '#f6c344', manual: '#7fd1b9', rom: '#ff7a59' };
 
 function collFilter(c) {
   const now = Date.now();
@@ -493,6 +497,7 @@ function collFilter(c) {
     case 'fav': return (g) => g.favorite;
     case 'recent': return (g) => g.last && now - g.last < 30 * 864e5;
     case 'never': return (g) => !g.minutes && !g.last;
+    case 'owned': return () => true;
     case 'platform': return (g) => g.platform === c.key;
     case 'source': return (g) => g.source === c.key;
     case 'genre': return (g) => (g.genres || []).includes(c.key);
@@ -505,6 +510,7 @@ function collInfo(c) {
     case 'fav': return { label: 'Favoris', icon: ICON.star, color: '#f6c344' };
     case 'recent': return { label: 'Joués ces 30 jours', icon: ICON.clock, color: '#7aa2ff' };
     case 'never': return { label: 'Jamais joués', icon: ICON.sparkle, color: '#5ef0c6' };
+    case 'owned': return { label: 'À installer', icon: ICON.download, color: '#9aa4b2' };
     case 'platform': return { label: plat(c.key).label, icon: ICON.pad, color: plat(c.key).color };
     case 'source': return { label: SOURCES[c.key] || c.key, icon: ICON.layers, color: SOURCE_COLORS[c.key] };
     case 'genre': return { label: c.key, icon: ICON.tagic, color: '#c084fc' };
@@ -533,7 +539,8 @@ function collSection(key, title, body, addBtn = '') {
 
 function renderCollPanel(all) {
   const count = (c) => all.filter(collFilter(c)).length;
-  const quick = [{ type: 'all' }, { type: 'fav' }, { type: 'recent' }, { type: 'never' }].map((c) => { const n = count(c); return c.type === 'all' || n ? collItem(c, n) : ''; }).join('');
+  const nOwned = owned().length;
+  const quick = [{ type: 'all' }, { type: 'fav' }, { type: 'recent' }, { type: 'never' }].map((c) => { const n = ui.coll.type === 'owned' ? visible().filter(collFilter(c)).length : count(c); return c.type === 'all' || n ? collItem(c, n) : ''; }).join('') + (nOwned ? collItem({ type: 'owned' }, nOwned) : '');
   const plats = ORDER.map((p) => ({ type: 'platform', key: p })).map((c) => { const n = count(c); return n ? collPill(c, n) : ''; }).join('');
   const srcs = Object.keys(SOURCES).map((k) => ({ type: 'source', key: k })).map((c) => { const n = count(c); return n ? collPill(c, n) : ''; }).join('');
   const gcount = {};
@@ -565,12 +572,12 @@ function listRowHTML(g) {
     <span class="cell"><span class="tag" style="--c:${plat(g.platform).color}">${esc(plat(g.platform).label)}</span></span>
     <span class="cell">${g.last ? esc(fmtLast(g.last)) : '—'}</span>
     <span class="cell">${g.minutes >= 1 ? fmtTime(g.minutes) : '—'}</span>
-    <button class="play-ic" data-play="${esc(g.id)}" title="Jouer">${ICON.play}</button>
+    <button class="play-ic" data-play="${esc(g.id)}" title="${playLabel(g)}">${playIcon(g)}</button>
   </div>`;
 }
 
 function renderLibrary() {
-  const all = visible();
+  const all = ui.coll.type === 'owned' ? owned() : visible();
   let list = all.filter(collFilter(ui.coll));
   const inColl = list;
   if (ui.genre) list = list.filter((g) => (g.genres || []).includes(ui.genre));
@@ -828,6 +835,8 @@ function renderSettingsRaw() {
       <div class="set-group">Jeux PC</div>
       <div class="set"><div><div class="t">Jeux Steam</div><div class="d">Ajoute tes jeux Steam installés et reprend ton temps de jeu Steam.</div></div>${tg('scanSteam')}</div>
       <div class="set"><div><div class="t">Jeux Epic Games</div><div class="d">Ajoute tes jeux Epic installés.</div></div>${tg('scanEpic')}</div>
+      <div class="set"><div><div class="t">GOG, Ubisoft, Battle.net et Xbox</div><div class="d">Jeux installés avec GOG Galaxy, Ubisoft Connect, Battle.net et l'application Xbox (Game Pass compris). Les jeux EA sont repérés avec les autres jeux installés.</div></div>${tg('scanStores')}</div>
+      <div class="set"><div><div class="t">Jeux pas encore installés</div><div class="d">Tes jeux Steam et Epic que tu possèdes sans les avoir installés, rangés dans « À installer » avec un bouton pour lancer leur installation.</div></div>${tg('showOwned')}</div>
       <div class="set"><div><div class="t">Autres jeux et launchers</div><div class="d">Riot (League of Legends, VALORANT), Roblox, Minecraft (officiel, Lunar, Prism, Modrinth…) et les jeux installés d'éditeurs comme Netmarble, HoYoverse, Ubisoft ou EA.</div></div>${tg('scanOthers')}</div>
       <div class="set-group">Images</div>
       <div class="set"><div><div class="t">Clé SteamGridDB (conseillée)</div><div class="d">Donne de belles jaquettes, fonds et logos aux jeux Switch et Switch 2. Gratuite : crée un compte sur <a data-url="https://www.steamgriddb.com/profile/preferences/api">steamgriddb.com</a>, puis copie ta clé ici.</div></div><input class="input" id="sgdbKey" type="password" placeholder="Colle ta clé ici" value="${esc(s.sgdbKey)}"></div>
@@ -869,7 +878,7 @@ function openDetail(id) {
         <div class="row1"><span class="tag" style="--c:${plat(g.platform).color}">${esc(plat(g.platform).label)}</span><span style="color:var(--muted);font-size:13px">${esc(sourceLabel(g))}</span>${g.running ? '<span class="kicker live" style="font-size:11px"><i class="dot"></i>En cours</span>' : ''}</div>
         ${g.art.logo ? `<img class="d-logo" src="${esc(g.art.logo)}" alt="${esc(g.name)}" data-title="${esc(g.name)}">` : `<h2>${esc(g.name)}</h2>`}
         <div class="acts">
-          <button class="btn primary play" data-play="${esc(g.id)}">${ICON.play}${g.emuReady ? 'Jouer' : 'Installer et jouer'}</button>
+          <button class="btn primary play" data-play="${esc(g.id)}">${playIcon(g)}${playLabel(g)}</button>
           <button class="btn" data-fav="${esc(g.id)}">${ICON.star}${g.favorite ? 'Retirer des favoris' : 'Favori'}</button>
         </div>
       </div>
@@ -884,6 +893,7 @@ function openDetail(id) {
         </div>
         <div class="field-label">30 derniers jours</div>
         <div class="mini-chart">${per.map((m) => `<i class="${m < 1 ? 'z' : ''}" style="height:${Math.max(3, (m / pmax) * 100)}%" title="${fmtTime(m)}"></i>`).join('')}</div>
+        <div id="dAch">${achHTML(extrasCache[id])}</div>
         <div class="field-label">Genres</div>
         <div class="genre-chips">${(g.genres || []).map((x) => `<span class="genre-chip">${esc(x)}<button data-genre-rm="${esc(x)}" data-id="${esc(g.id)}" title="Retirer">×</button></span>`).join('')}<button class="genre-chip add" data-genre-add="${esc(g.id)}">${ICON.plus}Ajouter</button></div>
         ${S.collections.length ? `<div class="field-label">Collections</div><div class="genre-chips">${S.collections.map((c) => `<button class="genre-chip" data-colltoggle="${esc(c.id)}" data-id="${esc(g.id)}" style="${c.games.includes(g.id) ? `background:color-mix(in srgb, ${c.color} 25%, transparent);color:var(--text)` : ''}"><span class="dot-c" style="width:8px;height:8px;border-radius:50%;background:${c.color}"></span>${esc(c.name)}${c.games.includes(g.id) ? ' ✓' : ''}</button>`).join('')}</div>` : ''}
@@ -898,12 +908,45 @@ function openDetail(id) {
         <button data-pick="hero" data-id="${esc(g.id)}">${ICON.image}Choisir l'image de fond</button>
         <button data-pick="logo" data-id="${esc(g.id)}">${ICON.image}Choisir le logo</button>
         <button data-resetart="${esc(g.id)}">${ICON.refresh}Images d'origine</button>
-        <button data-openfolder="${esc(g.id)}">${ICON.folder}Ouvrir l'emplacement</button>
+        ${g.notInstalled ? '' : `<button data-openfolder="${esc(g.id)}">${ICON.folder}Ouvrir l'emplacement</button>`}
+        ${g.platform !== 'mobile' ? `<button data-hltb="${esc(g.id)}">${ICON.clock}Durée de vie (HowLongToBeat) ↗</button>` : ''}
         <button data-hide="${esc(g.id)}">${ICON.eye}${g.hidden ? 'Afficher dans la bibliothèque' : 'Masquer ce jeu'}</button>
         ${g.source === 'manual' ? `<button class="danger" data-remove="${esc(g.id)}">${ICON.trash}Retirer de HMZ</button>` : ''}
       </div>
     </div>
   </div>`, { detail: id });
+  loadExtras(id);
+}
+
+// Succès Steam de la fiche (chargés à part, gardés le temps de la session).
+const extrasCache = {};
+async function loadExtras(id) {
+  const g = gameById(id);
+  if (!g || g.source !== 'steam') return;
+  try {
+    extrasCache[id] = await api.call('game:extras', id);
+  } catch { return; }
+  const box = $('#dAch');
+  if (box && modalState && modalState.detail === id) box.innerHTML = achHTML(extrasCache[id]);
+}
+function achHTML(x) {
+  const a = x && x.achievements;
+  if (!a) return '';
+  const pct = Math.round((a.unlocked / a.total) * 100);
+  const open = ui.achOpen;
+  const shown = open ? a.list : a.list.slice(0, 18);
+  const item = (t) => {
+    const name = t.hidden && !t.unlocked ? 'Succès caché' : t.name;
+    const desc = t.hidden && !t.unlocked ? 'Continue à jouer pour le découvrir.' : t.desc;
+    const when = t.time ? new Date(t.time).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+    return open
+      ? `<div class="ach-row${t.unlocked ? ' on' : ''}">${t.icon ? `<img src="${esc(t.icon)}" alt="" loading="lazy">` : '<span class="ach-ph"></span>'}<div><div class="an">${esc(name)}</div><div class="ad">${esc(desc || '')}</div></div><span class="aw">${t.unlocked ? esc(when || 'Débloqué') : ''}</span></div>`
+      : `<span class="ach${t.unlocked ? ' on' : ''}" title="${esc(name + (desc ? ' — ' + desc : '') + (when ? ' · ' + when : ''))}">${t.icon ? `<img src="${esc(t.icon)}" alt="" loading="lazy">` : ''}</span>`;
+  };
+  return `<div class="field-label">Succès Steam</div>
+    <div class="ach-head"><div class="ach-bar"><i style="width:${pct}%"></i></div><b>${a.unlocked} / ${a.total}</b><span>${pct} %</span></div>
+    <div class="${open ? 'ach-list' : 'ach-grid'}">${shown.map(item).join('')}</div>
+    ${a.total > 18 || open ? `<button class="linkish ach-more" data-action="ach-toggle">${open ? 'Réduire' : `Voir les ${a.total} succès`}</button>` : ''}`;
 }
 
 let modalState = null;
@@ -1050,7 +1093,7 @@ function openCtx(id, x, y) {
   const g = gameById(id);
   if (!g) return;
   const ctx = $('#ctx');
-  ctx.innerHTML = `<button data-play="${esc(id)}">${ICON.play}Jouer</button>
+  ctx.innerHTML = `<button data-play="${esc(id)}">${playIcon(g)}${playLabel(g)}</button>
     <button data-detail="${esc(id)}">${ICON.info}Voir la fiche</button>
     <button data-fav="${esc(id)}">${ICON.star}${g.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}</button>
     <div class="sub-wrap"><button data-noop="1">${ICON.folder}Ajouter à une collection<span style="margin-left:auto;opacity:.5">›</span></button>
@@ -1117,6 +1160,7 @@ async function play(id, emu) {
     if (ok) { go('emulators'); installEmu(e.id); }
     return;
   }
+  if (res && res.installing) { toast(`Installation de ${g.name} ouverte dans ${res.store}.`, 'ok', 4000); return; }
   if (res && res.ok) {
     if (!$('#tv').hidden) tvLaunching(g);
     else toast(`Lancement de ${g.name}…`, 'ok', 2500);
@@ -1229,6 +1273,7 @@ document.addEventListener('click', async (ev) => {
     return;
   }
   if (d.emufam) { ui.emu.fam = d.emufam; return render(); }
+  if (d.hltb) { const x = extrasCache[d.hltb]; const g = gameById(d.hltb); return call('open:url', (x && x.hltb) || `https://howlongtobeat.com/?q=${encodeURIComponent(g.name)}`); }
   if (d.emust) { ui.emu.st = d.emust; return render(); }
   if (d.emureset) { ui.emu = { q: '', fam: 'all', st: 'all', sort: ui.emu.sort }; return render(); }
   if (d.emuopen) return call('emu:open', d.emuopen);
@@ -1266,6 +1311,7 @@ document.addEventListener('click', async (ev) => {
     case 'genre-menu': ui.genreOpen = !ui.genreOpen; render(); break;
     case 'genre-clear': ui.genre = null; ui.genreOpen = false; render(); break;
     case 'toggle-genres': ui.allGenres = !ui.allGenres; render(); break;
+    case 'ach-toggle': { ui.achOpen = !ui.achOpen; const box = $('#dAch'); if (box && modalState) box.innerHTML = achHTML(extrasCache[modalState.detail]); break; }
     case 'new-coll': ui.newColl = true; render(); setTimeout(() => $('#newCollName')?.focus(), 0); break;
     case 'add-game': {
       if (!t.dataset.direct) {

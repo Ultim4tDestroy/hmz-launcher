@@ -1085,3 +1085,30 @@ html, body { background: var(--bg); }
 .emu-bar { top: 6px; }
 /* Boîtes à l'italienne ou carrées : bandeau calé sur la largeur */
 .k-n64 .band, .k-snes .band, .k-gba .band, .k-gb .band, .k-ps1 .band, .k-dc .band { height: calc(var(--bw) * .075); font-size: calc(var(--bw) * .036); }
+
+/* 2.10 · jeux possédés mais pas installés */
+.slot.not-inst .f-front .art, .card.not-inst .cover { filter: grayscale(.85) brightness(.72); transition: filter .25s; }
+.slot.not-inst:hover .f-front .art, .card.not-inst:hover .cover { filter: grayscale(.2) brightness(.95); }
+.badge-own { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px 4px 7px; border-radius: 99px; font: 650 10.5px/1 var(--ui); color: #fff; background: rgba(10, 12, 18, .72); backdrop-filter: blur(8px); white-space: nowrap; box-shadow: inset 0 0 0 1px rgba(255,255,255,.12); }
+.badge-own svg { width: 12px; height: 12px; }
+
+/* 2.10 · succès Steam dans la fiche */
+.ach-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; font-size: 13px; color: var(--muted); }
+.ach-head b { color: var(--text); font-weight: 700; }
+.ach-bar { flex: 1; height: 7px; border-radius: 99px; background: rgba(var(--fg-rgb), .08); overflow: hidden; }
+.ach-bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--c), color-mix(in srgb, var(--c) 60%, #fff)); }
+.ach-grid { display: flex; flex-wrap: wrap; gap: 7px; }
+.ach { width: 42px; height: 42px; border-radius: 10px; overflow: hidden; background: rgba(var(--fg-rgb), .06); box-shadow: inset 0 0 0 1px rgba(var(--fg-rgb), .08); }
+.ach img { width: 100%; height: 100%; object-fit: cover; display: block; filter: grayscale(1) brightness(.55); }
+.ach.on img { filter: none; }
+.ach.on { box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--c) 70%, transparent); }
+.ach-list { display: flex; flex-direction: column; gap: 6px; max-height: 420px; overflow: auto; padding-right: 4px; }
+.ach-row { display: grid; grid-template-columns: 40px 1fr auto; gap: 12px; align-items: center; padding: 7px 10px 7px 7px; border-radius: 12px; background: rgba(var(--fg-rgb), .035); opacity: .62; }
+.ach-row.on { opacity: 1; }
+.ach-row img, .ach-row .ach-ph { width: 40px; height: 40px; border-radius: 9px; object-fit: cover; background: rgba(var(--fg-rgb), .06); }
+.ach-row:not(.on) img { filter: grayscale(1); }
+.ach-row .an { font-weight: 650; font-size: 13.5px; }
+.ach-row .ad { color: var(--muted); font-size: 12.5px; line-height: 1.35; }
+.ach-row .aw { color: var(--faint); font-size: 12px; white-space: nowrap; }
+.ach-more { margin-top: 10px; background: none; border: 0; font-size: 13px; cursor: pointer; }
+.badge-own { left: 10px; top: 10px; bottom: auto; transform: none; }
