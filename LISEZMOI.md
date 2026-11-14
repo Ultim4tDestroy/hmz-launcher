@@ -1,13 +1,10 @@
-# HMZ Launcher 2.0
+# HMZ Launcher
 
 Tous tes jeux au même endroit : jeux PC (Steam, Epic ou ajoutés à la main), DS, 3DS, Switch et Switch 2.
 
-## Lancer HMZ
+## Installer HMZ
 
-1. Installe **Node.js** (version LTS) depuis https://nodejs.org si tu ne l'as pas.
-2. Double-clique sur **Lancer.bat**. La première fois, l'installation prend 1 à 2 minutes.
-
-Pour avoir un vrai programme avec un raccourci sur le Bureau, double-clique sur **Creer-le-exe.bat**. Le dossier `dist` contiendra un installateur et une version portable.
+Télécharge `HMZ-Launcher-Setup-x.y.z.exe` depuis la page [Releases](../../releases/latest) et lance-le. HMZ se met ensuite à jour tout seul.
 
 ## Mise en route
 
@@ -33,6 +30,22 @@ Les jeux, les clés et le firmware ne sont pas fournis. Télécharge les émulat
 - **Statistiques** : aujourd'hui, 7 jours, 30 jours, série de jours, top du mois et temps par console.
 - **Mode TV** : plein écran à la manette, dans le style d'une console. Bouton **Mode TV**, touche **F11** ou bouton **Start** de la manette.
 - **Temps de jeu automatique** : compté pour les jeux émulés et pour les jeux Steam ou Epic, même lancés depuis leur launcher, tant que HMZ est ouvert. Le temps de jeu Steam existant est repris.
+
+## Manette
+
+Toutes les manettes marchent : Xbox, PlayStation (DualShock 4, DualSense), Switch Pro et manettes génériques.
+
+- **Quitter un jeu** : maintiens Select + Start 1 seconde (Xbox : View + Menu · PlayStation : Share/Create + Options · Switch : − et +). HMZ revient tout seul.
+- **Bouton Xbox / PS / Home** : quand aucun jeu ne tourne, ouvre HMZ en mode TV.
+- **Dans les émulateurs** : la manette est réglée automatiquement dans melonDS. Pour Eden, Lichii et Azahar, clique une fois sur « Configurer la manette » sur leur carte.
+
+## Réglages automatiques
+
+À l'installation, chaque émulateur reçoit des réglages adaptés à ta carte graphique (Vulkan, résolution), se ferme sans demander de confirmation, et Eden/Lichii connaissent tes dossiers de jeux (pour trouver les mises à jour et DLC rangés à côté). Bouton « Réglages conseillés » pour les réappliquer.
+
+## Sauvegardes
+
+Après chaque partie, tes sauvegardes sont copiées dans `HMZ\Sauvegardes` (15 dernières par émulateur). Tu peux choisir un dossier OneDrive dans Paramètres.
 
 ## Raccourcis
 

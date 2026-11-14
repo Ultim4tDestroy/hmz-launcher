@@ -142,14 +142,22 @@ class ArtFinder {
 
   async wikipedia(game) {
     const hint = { switch: 'Nintendo Switch', switch2: 'Nintendo Switch 2', '3ds': 'Nintendo 3DS', ds: 'Nintendo DS', pc: '' }[game.platform] || '';
-    const q = `${game.name} ${hint} video game`.trim();
-    const url = 'https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search'
-      + `&gsrsearch=${encodeURIComponent(q)}&gsrlimit=3&prop=pageimages&piprop=thumbnail&pithumbsize=600&pilicense=any`;
-    const d = await fetchJson(url);
-    const pages = Object.values((d.query && d.query.pages) || {}).sort((a, b) => a.index - b.index);
-    for (const p of pages) {
-      const title = p.title.replace(/\s*\([^)]*\)\s*$/, '');
-      if (similarity(game.name, title) >= 0.7 && p.thumbnail) return p.thumbnail.source;
+    // Wikipédia anglais d'abord (jaquettes plus souvent présentes), puis français.
+    const tries = [
+      ['en', `${game.name} ${hint} video game`],
+      ['en', `${game.name} video game`],
+      ['fr', `${game.name} jeu vidéo ${hint}`],
+    ];
+    for (const [lang, q] of tries) {
+      const url = `https://${lang}.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search`
+        + `&gsrsearch=${encodeURIComponent(q.trim())}&gsrlimit=4&prop=pageimages&piprop=thumbnail&pithumbsize=800&pilicense=any`;
+      let d;
+      try { d = await fetchJson(url); } catch { continue; }
+      const pages = Object.values((d.query && d.query.pages) || {}).sort((x, y) => x.index - y.index);
+      for (const p of pages) {
+        const title = p.title.replace(/\s*\([^)]*\)\s*$/, '');
+        if (similarity(game.name, title) >= 0.7 && p.thumbnail && !/\.svg/i.test(p.thumbnail.source)) return p.thumbnail.source;
+      }
     }
     return null;
   }

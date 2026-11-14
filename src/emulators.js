@@ -154,27 +154,41 @@ async function install(id, root, prev, onProgress) {
   try {
     onProgress({ step: `Téléchargement de ${def.name} ${rel.version}`, done: 0, total: rel.size });
     await download(rel.url, zip, (done, total) => onProgress({ step: `Téléchargement de ${def.name} ${rel.version}`, done, total }));
+    const res = await installFromZip(id, root, zip, onProgress);
+    return { ...res, version: rel.version, date: rel.date };
+  } finally {
+    fs.rm(tmpDir, { recursive: true, force: true }, () => {});
+  }
+}
+
+// Installe depuis un .zip déjà téléchargé (si le téléchargement automatique échoue).
+async function installFromZip(id, root, zip, onProgress = () => {}) {
+  const def = EMULATORS[id];
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hmz-zip-'));
+  try {
     onProgress({ step: 'Décompression…' });
     const staging = path.join(tmpDir, 'out');
     await extractZip(zip, staging);
     const exeInStaging = findFile(staging, def.exe, 4);
-    if (!exeInStaging) throw new Error(`${def.name} : fichier ${def.exe.source.replace(/[\\^$]/g, '')} introuvable dans l'archive`);
+    if (!exeInStaging) throw new Error(`${def.name} : fichier ${def.exe.source.replace(/[\\^$]/g, '')} introuvable dans l'archive. Vérifie que c'est bien la version Windows.`);
 
     const target = path.join(root, 'Emulateurs', def.name);
     fs.mkdirSync(target, { recursive: true });
-    // Les données (dossier user) sont gardées pendant une mise à jour.
+    // Les données (dossier user, réglages de melonDS) sont gardées pendant une mise à jour.
     const appRoot = path.dirname(exeInStaging);
     for (const e of fs.readdirSync(target)) {
-      if (e.toLowerCase() === 'user') continue;
+      if (/^(user|melonDS\.toml|melonDS\.ini)$/i.test(e)) continue;
       fs.rmSync(path.join(target, e), { recursive: true, force: true });
     }
     for (const e of fs.readdirSync(appRoot)) {
+      if (/^(user|melonDS\.toml)$/i.test(e) && exists(path.join(target, e))) continue;
       fs.cpSync(path.join(appRoot, e), path.join(target, e), { recursive: true, force: true });
     }
     if (def.portable) fs.mkdirSync(path.join(target, def.portable), { recursive: true });
     const exe = findFile(target, def.exe, 1);
     onProgress({ step: 'Terminé' });
-    return { installed: true, version: rel.version, exe, dir: target, date: rel.date, custom: false };
+    const ver = (path.basename(zip).match(/(\d+(?:\.\d+)+(?:-[\w.]+)?|build-\d+)/i) || [])[1] || 'perso';
+    return { installed: true, version: ver, exe, dir: target, custom: false };
   } finally {
     fs.rm(tmpDir, { recursive: true, force: true }, () => {});
   }
@@ -248,4 +262,4 @@ function keysStatus(id, emu) {
   return { keys: exists(path.join(dir, 'keys', 'prod.keys')), firmware };
 }
 
-module.exports = { EMULATORS, DEFAULT_EMU, pickAsset, latestRelease, install, checkUpdate, installKeys, installFirmware, keysStatus, userDir };
+module.exports = { EMULATORS, DEFAULT_EMU, pickAsset, latestRelease, install, installFromZip, checkUpdate, installKeys, installFirmware, keysStatus, userDir };

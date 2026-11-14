@@ -10,6 +10,10 @@ const { slug, run, exists, cleanRomTitle } = require('./src/util');
 const EMU = require('./src/emulators');
 const SCAN = require('./src/scan');
 const { ArtFinder, fileUrl } = require('./src/art');
+const { PadWatcher } = require('./src/gamepad');
+const EMUCFG = require('./src/emuconfig');
+const BACKUP = require('./src/backup');
+const { normTitle } = require('./src/util');
 
 const PLATFORMS = {
   pc: { label: 'PC', color: '#7aa2ff' },
@@ -86,7 +90,8 @@ function defaults() {
   return {
     settings: {
       root, romDirs, sgdbKey: '', startInTV: false, emuFullscreen: true, minimizeOnPlay: true,
-      scanSteam: true, scanEpic: true,
+      scanSteam: true, scanEpic: true, scanOthers: true,
+      padQuit: true, padHome: true, backups: true, backupDir: '', autostart: false,
     },
     emulators: {},
     games: {},
@@ -132,6 +137,7 @@ function publicState() {
       emu: emuId, emuReady: emuId ? !!(db.data.emulators[emuId] && exists(db.data.emulators[emuId].exe)) : true,
       path: g.path || g.installDir || (g.launch && g.launch.target) || '',
       running: running.has(g.id),
+      extras: g.extras || [],
     };
   });
   const emulators = Object.values(EMU.EMULATORS).map((d) => {
@@ -149,7 +155,8 @@ function publicState() {
     builtinVersion: process.env.HMZ_BUILTIN_VERSION || CUR_VERSION,
     codeSource: process.env.HMZ_CODE_SOURCE || 'installée',
     updateReady,
-    settings: db.data.settings,
+    settings: { ...db.data.settings, backupDirShown: backupRoot() },
+    padKinds,
     platforms: PLATFORMS,
     games, emulators,
     sessions: db.data.sessions.filter((s) => s.e > since),
@@ -166,7 +173,25 @@ async function scanLibrary() {
   if (process.platform === 'win32') {
     if (s.scanSteam) { try { found.push(...await SCAN.scanSteam()); } catch (e) { console.error(e); } }
     if (s.scanEpic) { try { found.push(...SCAN.scanEpic()); } catch (e) { console.error(e); } }
+    if (s.scanOthers) {
+      const known = new Set(found.filter((f) => f.platform === 'pc').map((f) => normTitle(f.name)));
+      const others = [];
+      try { others.push(...SCAN.scanRiot()); } catch (e) { console.error(e); }
+      try { others.push(...SCAN.scanLaunchers()); } catch (e) { console.error(e); }
+      try { others.push(...await SCAN.scanRegistry()); } catch (e) { console.error(e); }
+      for (const o of others) {
+        const k = normTitle(o.name);
+        if (known.has(k)) continue;
+        known.add(k);
+        found.push(o);
+      }
+    }
   }
+  // Mises à jour et DLC Switch rangés à côté des jeux.
+  try {
+    const extras = SCAN.scanSwitchExtras(s.romDirs);
+    for (const f of found) if (f.titleId) f.extras = (extras[f.titleId.slice(0, 12)] || []).map((x) => x.kind);
+  } catch (e) { console.error(e); }
   const games = db.data.games;
   const seen = new Set();
   for (const f of found) {
@@ -254,6 +279,11 @@ async function launchGame(id, emuOverride) {
   } else if (g.launch && g.launch.type === 'exe') {
     cmd = g.launch.target; args = g.launch.args || [];
     if (!exists(cmd)) throw new Error('Le programme du jeu est introuvable.');
+  } else if (g.launch && g.launch.type === 'shell') {
+    spawn('explorer.exe', [g.launch.target], { detached: true, stdio: 'ignore' }).unref();
+    g.lastLaunched = Date.now();
+    db.save(); notifyChange();
+    return { ok: true };
   } else if (g.launch && g.launch.type === 'uri') {
     await shell.openExternal(g.launch.target);
     g.lastLaunched = Date.now();
@@ -262,9 +292,19 @@ async function launchGame(id, emuOverride) {
   }
 
   const child = spawn(cmd, args, { cwd: path.dirname(cmd), detached: true, stdio: 'ignore', windowsHide: false });
+  if (g.noChildTracking) {
+    // Ce programme lance le jeu puis se ferme : le temps est compté par la détection des jeux.
+    child.on('error', (e) => toast(`Lancement impossible : ${e.message}`, 'error'));
+    child.unref();
+    g.lastLaunched = Date.now();
+    db.save(); notifyChange();
+    return { ok: true };
+  }
+  const emuUsed = g.source === 'rom' || (g.source === 'manual' && g.platform !== 'pc') ? (emuOverride || g.emu || EMU.DEFAULT_EMU[g.platform]) : null;
   child.on('error', (e) => { toast(`Lancement impossible : ${e.message}`, 'error'); endSession(id); });
   child.on('exit', () => {
     endSession(id);
+    if (emuUsed) backupSaves(emuUsed).catch((e) => console.error('Sauvegarde', e));
     if (minimizedForGame && win && ![...running.values()].some((r) => r.kind === 'child')) {
       minimizedForGame = false;
       win.restore(); win.focus();
@@ -272,8 +312,70 @@ async function launchGame(id, emuOverride) {
   });
   child.unref();
   startSession(id, 'child');
+  running.get(id).pid = child.pid;
   if (s.minimizeOnPlay && win) { minimizedForGame = true; setTimeout(() => win && win.minimize(), 1200); }
   return { ok: true };
+}
+
+// Quitter le jeu lancé par HMZ (Select + Start maintenus sur la manette).
+async function quitRunningGame() {
+  const kids = [...running.entries()].filter(([, r]) => r.kind === 'child' && r.pid);
+  if (!kids.length) return false;
+  for (const [, r] of kids) {
+    // D'abord une fermeture normale (le jeu peut finir d'écrire), puis forcée.
+    run('taskkill', ['/PID', String(r.pid), '/T']).catch(() => {});
+    setTimeout(() => {
+      try { process.kill(r.pid, 0); run('taskkill', ['/PID', String(r.pid), '/T', '/F']).catch(() => {}); } catch { /* déjà fermé */ }
+    }, 4000);
+  }
+  return true;
+}
+
+function bringToFront(tv) {
+  if (!win) return;
+  if (win.isMinimized()) win.restore();
+  win.show();
+  win.setAlwaysOnTop(true); win.focus(); win.setAlwaysOnTop(false);
+  if (tv) send('tv:enter');
+}
+
+let padKinds = [];
+function onPad(ev, data) {
+  const s = db.data.settings;
+  if (ev === 'PAD') { padKinds = data || []; send('pad:kinds', padKinds); return; }
+  if (ev === 'QUIT' && s.padQuit) {
+    quitRunningGame().then((did) => { if (did) setTimeout(() => bringToFront(false), 1500); });
+  }
+  if (ev === 'HOME' && s.padHome) {
+    const playing = [...running.values()].some((r) => r.kind === 'child');
+    if (!playing) bringToFront(true);
+  }
+}
+
+function backupRoot() { const s = db.data.settings; return s.backupDir || path.join(s.root, 'Sauvegardes'); }
+async function backupSaves(emuId, force) {
+  const s = db.data.settings;
+  if (!s.backups && !force) return null;
+  const emu = db.data.emulators[emuId];
+  if (!emu || !exists(emu.exe)) return null;
+  db.data.backupState = db.data.backupState || {};
+  const r = await BACKUP.backup(emuId, EMU.EMULATORS[emuId].name, emu, s.romDirs, backupRoot(), force ? 0 : db.data.backupState[emuId]);
+  db.data.backupState[emuId] = r.mtime;
+  db.save();
+  return r.file;
+}
+
+function applyAutostart() {
+  if (process.platform !== 'win32' || !app.isPackaged) return;
+  try { app.setLoginItemSettings({ openAtLogin: !!db.data.settings.autostart, args: ['--demarrage-windows'] }); } catch {}
+}
+
+async function configureEmu(id) {
+  const emu = db.data.emulators[id];
+  if (!emu || !exists(emu.exe)) throw new Error("Installe d'abord l'émulateur.");
+  const s = db.data.settings;
+  const gameDirs = id === 'eden' ? s.romDirs.switch : id === 'lichii' ? [...(s.romDirs.switch2 || []), ...(s.romDirs.switch || [])] : [];
+  return EMUCFG.apply(id, emu, { gameDirs, padKinds });
 }
 
 // Repère les jeux Steam/Epic en cours, même lancés hors du launcher.
@@ -334,9 +436,14 @@ app.whenReady().then(() => {
   setTimeout(() => checkEmuUpdates().catch(() => {}), 8000);
   setInterval(checkLocalUpdate, 15000);
   setupAutoUpdate();
+  applyAutostart();
+  pad = new PadWatcher(path.join(app.getPath('userData'), 'outils'), onPad);
+  pad.start();
 });
 
+let pad = null;
 app.on('before-quit', () => {
+  if (pad) pad.stop();
   for (const id of [...running.keys()]) endSession(id);
   db && db.save(true);
 });
@@ -428,9 +535,37 @@ handle('emu:install', async (id) => {
   const prev = db.data.emulators[id];
   const res = await EMU.install(id, db.data.settings.root, prev && !prev.custom ? prev : null, (p) => send('emu:progress', { id, ...p }));
   db.data.emulators[id] = { ...res, latest: res.version };
-  db.save(); notifyChange();
+  db.save();
+  if (!prev || prev.custom || !exists(prev.exe)) { try { await configureEmu(id); } catch (e) { console.error(e); } }
+  notifyChange();
   return res;
 });
+handle('emu:installZip', async (id) => {
+  const d = EMU.EMULATORS[id];
+  const r = await dialog.showOpenDialog(win, { title: `Choisis le .zip de ${d.name} pour Windows`, properties: ['openFile'], filters: [{ name: 'Archive', extensions: ['zip'] }] });
+  if (r.canceled || !r.filePaths[0]) return null;
+  const res = await EMU.installFromZip(id, db.data.settings.root, r.filePaths[0], (p) => send('emu:progress', { id, ...p }));
+  send('emu:progress', { id, step: null });
+  db.data.emulators[id] = { ...res };
+  db.save();
+  try { await configureEmu(id); } catch (e) { console.error(e); }
+  notifyChange();
+  return res;
+});
+handle('emu:configure', (id) => configureEmu(id));
+handle('backup:now', async () => {
+  const made = [];
+  for (const id of Object.keys(db.data.emulators)) { const f = await backupSaves(id, true); if (f) made.push(EMU.EMULATORS[id].name); }
+  return made;
+});
+handle('backup:open', () => { const d = backupRoot(); fs.mkdirSync(d, { recursive: true }); shell.openPath(d); });
+handle('backup:chooseDir', async () => {
+  const r = await dialog.showOpenDialog(win, { title: 'Où ranger les sauvegardes de tes parties ?', properties: ['openDirectory', 'createDirectory'] });
+  if (r.canceled || !r.filePaths[0]) return;
+  db.data.settings.backupDir = r.filePaths[0];
+  db.save(); notifyChange();
+});
+handle('pad:kinds', () => padKinds);
 handle('emu:checkUpdates', () => checkEmuUpdates());
 handle('emu:locate', async (id) => {
   const d = EMU.EMULATORS[id];
@@ -468,6 +603,7 @@ handle('settings:set', (patch) => {
   const keyChanged = 'sgdbKey' in patch && patch.sgdbKey !== s.sgdbKey;
   Object.assign(s, patch);
   db.save(); ensureFolders(); notifyChange();
+  if ('autostart' in patch) applyAutostart();
   if (keyChanged && s.sgdbKey) fetchArt(true);
 });
 handle('dir:add', async (platform) => {

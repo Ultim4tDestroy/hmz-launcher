@@ -223,4 +223,156 @@ function scanEpic() {
   return games;
 }
 
-module.exports = { ROM_EXT, PLATFORM_OF_EXT, scanRoms, scanSteam, scanEpic, parseVdf, getCI, exeHints, isSwitchExtra };
+// --- Autres launchers : Riot, Roblox, Minecraft et jeux installés ---------------------
+const RIOT_NAMES = { league_of_legends: 'League of Legends', valorant: 'VALORANT', bacon: 'Legends of Runeterra', lion: '2XKO' };
+const RIOT_HINTS = { league_of_legends: ['league of legends.exe'], valorant: ['valorant-win64-shipping.exe'], bacon: ['lor.exe'], lion: [] };
+
+function scanRiot() {
+  const pd = process.env.ProgramData || 'C:\\ProgramData';
+  let rc = null;
+  try {
+    const j = JSON.parse(readText(path.join(pd, 'Riot Games', 'RiotClientInstalls.json')) || '{}');
+    rc = [j.rc_default, j.rc_live, j.rc_beta].find((p) => p && exists(p)) || null;
+  } catch {}
+  if (!rc) return [];
+  const games = [];
+  const meta = path.join(pd, 'Riot Games', 'Metadata');
+  let dirs = [];
+  try { dirs = fs.readdirSync(meta).filter((d) => /\.live$/.test(d)); } catch {}
+  for (const d of dirs) {
+    const product = d.replace(/\.live$/, '');
+    if (product === 'riot_client') continue;
+    const yaml = readText(path.join(meta, d, `${d}.product_settings.yaml`)) || '';
+    const m = yaml.match(/product_install_full_path:\s*"?([^"\r\n]+)"?/);
+    const installDir = m ? path.normalize(m[1].trim()) : null;
+    if (installDir && !exists(installDir)) continue;
+    games.push({
+      id: `riot:${product}`,
+      name: RIOT_NAMES[product] || product.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+      platform: 'pc', source: 'riot', installDir,
+      launch: { type: 'exe', target: rc, args: [`--launch-product=${product}`, '--launch-patchline=live'] },
+      exeHints: RIOT_HINTS[product] || (installDir ? exeHints(installDir) : []),
+      noChildTracking: true,
+    });
+  }
+  return games;
+}
+
+function newestSubdirWith(dir, file) {
+  let best = null, bt = 0;
+  try {
+    for (const d of fs.readdirSync(dir)) {
+      const f = path.join(dir, d, file);
+      try { const t = fs.statSync(f).mtimeMs; if (t > bt) { bt = t; best = f; } } catch {}
+    }
+  } catch {}
+  return best;
+}
+
+function scanLaunchers() {
+  const L = process.env.LOCALAPPDATA || '';
+  const A = process.env.APPDATA || '';
+  const PF86 = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
+  const PF = process.env.ProgramFiles || 'C:\\Program Files';
+  const games = [];
+  const add = (id, name, target, hints, extra = {}) => {
+    if (!target) return;
+    games.push({ id, name, platform: 'pc', source: 'launcher', installDir: path.dirname(target), launch: { type: 'exe', target, args: [] }, exeHints: hints, ...extra });
+  };
+
+  // Roblox (le dossier de version change à chaque mise à jour de Roblox).
+  const bloxstrap = path.join(L, 'Bloxstrap', 'Bloxstrap.exe');
+  const roblox = newestSubdirWith(path.join(L, 'Roblox', 'Versions'), 'RobloxPlayerBeta.exe');
+  if (exists(bloxstrap)) add('launcher:roblox', 'Roblox', bloxstrap, ['robloxplayerbeta.exe'], { noChildTracking: true });
+  else if (roblox) add('launcher:roblox', 'Roblox', roblox, ['robloxplayerbeta.exe']);
+
+  // Minecraft : launcher officiel et launchers alternatifs.
+  const mcStore = path.join(L, 'Packages', 'Microsoft.4297127D64EC6_8wekyb3d8bbwe');
+  const mcExe = ['C:\\XboxGames\\Minecraft Launcher\\Content\\Minecraft.exe', path.join(PF86, 'Minecraft Launcher', 'MinecraftLauncher.exe'), path.join(PF86, 'Minecraft', 'MinecraftLauncher.exe')].find(exists);
+  if (mcExe) add('launcher:minecraft', 'Minecraft', mcExe, ['javaw.exe', 'minecraft.windows.exe']);
+  else if (exists(mcStore)) games.push({ id: 'launcher:minecraft', name: 'Minecraft', platform: 'pc', source: 'launcher', launch: { type: 'shell', target: 'shell:AppsFolder\\Microsoft.4297127D64EC6_8wekyb3d8bbwe!Minecraft' }, exeHints: ['javaw.exe'] });
+  const alt = [
+    ['lunar', 'Minecraft (Lunar Client)', path.join(L, 'Programs', 'lunarclient', 'Lunar Client.exe')],
+    ['prism', 'Minecraft (Prism Launcher)', path.join(L, 'Programs', 'PrismLauncher', 'prismlauncher.exe')],
+    ['modrinth', 'Minecraft (Modrinth)', [path.join(L, 'Programs', 'Modrinth App', 'Modrinth App.exe'), path.join(PF, 'Modrinth App', 'Modrinth App.exe')].find(exists)],
+    ['tlauncher', 'Minecraft (TLauncher)', path.join(A, '.minecraft', 'TLauncher.exe')],
+    ['curseforge', 'CurseForge', [path.join(L, 'Programs', 'CurseForge Windows', 'CurseForge.exe'), path.join(PF, 'CurseForge Windows', 'CurseForge.exe')].find(exists)],
+  ];
+  for (const [k, name, exe] of alt) if (exe && exists(exe)) add(`launcher:${k}`, name, exe, ['javaw.exe']);
+  return games;
+}
+
+// Jeux installés hors Steam/Epic, repérés par leur éditeur dans la liste des programmes de Windows.
+const PUBLISHERS = /netmarble|hoyoverse|mihoyo|cognosphere|kuro games|level infinite|nexon|smilegate|garena|ncsoft|pearl abyss|kakao games|grinding gear|sandbox interactive|wargaming|gameforge|blizzard|electronic arts|ubisoft|riot games|mojang|roblox|square enix|bandai namco|sega|capcom|krafton|hypergryph|yostar|nexters|playstation pc|rockstar games/i;
+const NOT_GAME_NAME = /launcher|uninstall|redistributable|runtime|anti-?cheat|helper|update|driver|battle\.net|ea app|origin|connect|agent|client services|vanguard|toolkit|sdk|tool\b|server|editor|bootstrapper/i;
+
+async function scanRegistry() {
+  if (process.platform !== 'win32') return [];
+  const roots = [
+    'HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',
+    'HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall',
+    'HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',
+  ];
+  const entries = [];
+  for (const r of roots) {
+    let out = '';
+    try { out = await run('reg', ['query', r, '/s']); } catch { continue; }
+    entries.push(...parseRegQuery(out));
+  }
+  const games = [];
+  for (const e of entries) {
+    const name = (e.DisplayName || '').trim();
+    if (!name || !PUBLISHERS.test(e.Publisher || '') || NOT_GAME_NAME.test(name)) continue;
+    if (/steam:\/\/|steamapps|epicgames|com\.epicgames|riotclient/i.test(`${e.UninstallString || ''} ${e.InstallLocation || ''}`)) continue;
+    if (e.SystemComponent === '0x1') continue;
+    let exe = (e.DisplayIcon || '').replace(/^"|"?,\s*-?\d+$|"$/g, '').trim();
+    if (!/\.exe$/i.test(exe) || !exists(exe) || BAD_EXE.test(path.basename(exe))) exe = null;
+    const dir = e.InstallLocation && exists(e.InstallLocation) ? e.InstallLocation : (exe ? path.dirname(exe) : null);
+    if (!exe && dir) {
+      let best = null, size = 0;
+      walk(dir, 2, (full, n) => {
+        if (!/\.exe$/i.test(n) || BAD_EXE.test(n) || /launcher/i.test(n)) return;
+        try { const s = fs.statSync(full).size; if (s > size) { size = s; best = full; } } catch {}
+      });
+      exe = best;
+    }
+    if (!exe) continue;
+    games.push({
+      id: `installed:${slugify(name)}`, name, platform: 'pc', source: 'installed', installDir: dir || path.dirname(exe),
+      launch: { type: 'exe', target: exe, args: [] }, exeHints: [path.basename(exe).toLowerCase()],
+    });
+  }
+  return games;
+}
+
+function parseRegQuery(out) {
+  const res = [];
+  let cur = null;
+  for (const line of out.split(/\r?\n/)) {
+    if (/^HKEY_/.test(line)) { cur = {}; res.push(cur); continue; }
+    const m = line.match(/^\s{4}(\S[^\t]*?)\s{4}(REG_\w+)\s{4}(.*)$/);
+    if (m && cur) cur[m[1]] = m[3];
+  }
+  return res;
+}
+
+function slugify(s) { return String(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }
+
+// Mises à jour et DLC Switch rangés avec les jeux (pour les signaler sur la fiche).
+function scanSwitchExtras(romDirs) {
+  const extras = {};
+  for (const p of ['switch', 'switch2']) {
+    for (const dir of romDirs[p] || []) {
+      walk(dir, 3, (full, name) => {
+        if (!ROM_EXT[p].includes(path.extname(name).toLowerCase()) || !isSwitchExtra(full)) return;
+        const id = switchTitleId(name);
+        if (!id) return;
+        const key = id.slice(0, 12);
+        (extras[key] = extras[key] || []).push({ file: full, kind: /800$/.test(id) ? 'update' : 'dlc' });
+      });
+    }
+  }
+  return extras;
+}
+
+module.exports = { scanRiot, scanLaunchers, scanRegistry, parseRegQuery, scanSwitchExtras, ROM_EXT, PLATFORM_OF_EXT, scanRoms, scanSteam, scanEpic, parseVdf, getCI, exeHints, isSwitchExtra };

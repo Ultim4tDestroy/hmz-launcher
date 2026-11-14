@@ -9,6 +9,15 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 let S = null;                       // état reçu du processus principal
 const ui = { view: 'home', heroId: null, filter: 'all', sort: 'recent', q: '', showHidden: false };
 const emuProg = {};                 // progression des installations
+const emuErr = {};                  // dernière erreur d'installation par émulateur
+let padKinds = [];                  // manettes vues en arrière-plan
+const PAD_LABEL = { xbox: 'Xbox', playstation: 'PlayStation', switch: 'Switch Pro', generic: 'manette' };
+const PAD_HELP = {
+  eden: 'Dans Eden : Émulation › Configurer › Contrôles. Choisis ta manette dans « Périphérique d\'entrée », puis OK.',
+  lichii: 'Dans Lichii : Émulation › Configurer › Contrôles. Choisis ta manette dans « Périphérique d\'entrée », puis OK.',
+  azahar: 'Dans Azahar : Émulation › Configurer › Contrôles, puis « Configuration automatique » et appuie sur les boutons demandés.',
+  melonds: 'Dans melonDS : Config › Input and hotkeys, onglet DS keypad, puis clique sur chaque touche.',
+};
 const ORDER = ['switch2', 'switch', '3ds', 'ds', 'pc'];
 
 const ICON = {
@@ -26,6 +35,7 @@ const ICON = {
   download: '<svg viewBox="0 0 24 24"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14"/></svg>',
   ext: '<svg viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>',
   refresh: '<svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg>',
+  pad: '<svg viewBox="0 0 24 24"><rect x="2.5" y="7" width="19" height="11" rx="5.5"/><path d="M7 11v3M5.5 12.5h3"/><circle cx="16" cy="11.5" r=".8"/><circle cx="18" cy="13.5" r=".8"/></svg>',
   key: '<svg viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M17 6l3 3M15 8l2 2"/></svg>',
   chip: '<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></svg>',
   warn: '<svg viewBox="0 0 24 24"><path d="M12 3 2 20h20zM12 10v4M12 17h.01"/></svg>',
@@ -261,13 +271,19 @@ function emuCard(e) {
     body = `<div class="progress"><span>${esc(prog.step)}${pct !== null ? ` · ${pct} %` : ''}${prog.total ? ` · ${fmtSize(prog.done)} / ${fmtSize(prog.total)}` : ''}</span>
       <div class="bar${pct === null ? ' indet' : ''}"><i style="width:${pct ?? 35}%"></i></div></div>`;
   } else if (!e.installed) {
-    body = `<div class="emu-actions"><button class="btn primary" data-install="${e.id}">${ICON.download}Installer ${esc(e.name)}</button>
+    body = `${emuErr[e.id] ? `<div class="emu-err">${ICON.warn}<div><b>Le téléchargement automatique a échoué.</b> ${esc(emuErr[e.id])}<br>Télécharge la version Windows (.zip) depuis la <span class="linkish" data-url="${esc(e.page)}">page officielle</span>, puis clique sur « Installer depuis un .zip ».</div></div>` : ''}
+      <div class="emu-actions"><button class="btn primary" data-install="${e.id}">${ICON.download}${emuErr[e.id] ? 'Réessayer' : `Installer ${esc(e.name)}`}</button>
+      <button class="btn${emuErr[e.id] ? ' primary' : ' ghost'}" data-installzip="${e.id}">Installer depuis un .zip</button>
       <button class="btn ghost" data-locate="${e.id}">Je l'ai déjà</button></div>`;
   } else {
     body = `<div class="emu-actions">
       ${hasUpdate ? `<button class="btn primary" data-install="${e.id}">${ICON.download}Mettre à jour</button>` : ''}
       <button class="btn" data-emuopen="${e.id}">${ICON.ext}Ouvrir ${esc(e.name)}</button>
       <button class="btn ghost" data-emudir="${e.id}">${ICON.folder}Dossier</button>
+    </div>
+    <div class="emu-actions">
+      <button class="btn sm ghost" data-emucfg="${e.id}">${ICON.refresh}Réglages conseillés</button>
+      <button class="btn sm ghost" data-emupad="${e.id}">${ICON.pad}Configurer la manette</button>
     </div>`;
   }
   const sys = e.needsKeys && e.installed ? `<div class="sys">
@@ -279,7 +295,7 @@ function emuCard(e) {
     <p>${esc(e.blurb)}</p>
     ${body}
     ${sys}
-    <div class="links"><button data-url="${esc(e.page)}">Page officielle ↗</button>${e.installed ? `<button data-locate="${e.id}">Utiliser un autre .exe</button>` : ''}${e.installed && e.custom ? `<button data-forget="${e.id}">Oublier</button>` : ''}</div>
+    <div class="links"><button data-url="${esc(e.page)}">Page officielle ↗</button>${e.installed ? `<button data-installzip="${e.id}">Installer depuis un .zip</button><button data-locate="${e.id}">Utiliser un autre .exe</button>` : ''}${e.installed && e.custom ? `<button data-forget="${e.id}">Oublier</button>` : ''}</div>
   </article>`;
 }
 
@@ -356,10 +372,19 @@ function renderSettings() {
       <div class="set-group">Jeux PC</div>
       <div class="set"><div><div class="t">Jeux Steam</div><div class="d">Ajoute tes jeux Steam installés et reprend ton temps de jeu Steam.</div></div>${tg('scanSteam')}</div>
       <div class="set"><div><div class="t">Jeux Epic Games</div><div class="d">Ajoute tes jeux Epic installés.</div></div>${tg('scanEpic')}</div>
+      <div class="set"><div><div class="t">Autres jeux et launchers</div><div class="d">Riot (League of Legends, VALORANT), Roblox, Minecraft (officiel, Lunar, Prism, Modrinth…) et les jeux installés d'éditeurs comme Netmarble, HoYoverse, Ubisoft ou EA.</div></div>${tg('scanOthers')}</div>
       <div class="set-group">Images</div>
       <div class="set"><div><div class="t">Clé SteamGridDB (conseillée)</div><div class="d">Donne de belles jaquettes, fonds et logos aux jeux Switch et Switch 2. Gratuite : crée un compte sur <a data-url="https://www.steamgriddb.com/profile/preferences/api">steamgriddb.com</a>, puis copie ta clé ici.</div></div><input class="input" id="sgdbKey" type="password" placeholder="Colle ta clé ici" value="${esc(s.sgdbKey)}"></div>
       <div class="set"><div><div class="t">Recharger les images</div><div class="d">Cherche à nouveau les jaquettes de tous les jeux.</div></div><button class="btn" data-action="refresh-art">${ICON.image}Recharger</button></div>
+      <div class="set-group">Manette</div>
+      <div class="set"><div><div class="t">Manette détectée</div><div class="d">${padKinds.length ? `${padKinds.map((k) => PAD_LABEL[k] || k).join(', ')} : prête, même quand HMZ est en arrière-plan.` : 'Aucune pour l\'instant. Branche ou allume ta manette (Xbox, PlayStation, Switch Pro ou autre).'}</div></div>${padKinds.length ? '<span class="status ok">Connectée</span>' : '<span class="status">—</span>'}</div>
+      <div class="set"><div><div class="t">Quitter un jeu à la manette</div><div class="d">Maintiens <b>Select + Start</b> pendant 1 seconde (Xbox : View + Menu · PlayStation : Share/Create + Options · Switch : − et +). Le jeu se ferme et HMZ revient.</div></div>${tg('padQuit')}</div>
+      <div class="set"><div><div class="t">Bouton Xbox / PS / Home</div><div class="d">Quand aucun jeu ne tourne, il ouvre HMZ en mode TV.</div></div>${tg('padHome')}</div>
+      <div class="set-group">Sauvegardes de tes parties</div>
+      <div class="set"><div><div class="t">Sauvegarde automatique</div><div class="d">Après chaque partie, tes sauvegardes sont copiées dans <span class="linkish" data-action="open-backups">${esc(s.backupDirShown || '')}</span>. Les 15 dernières de chaque émulateur sont gardées. Choisis un dossier OneDrive pour les retrouver sur un autre PC.</div></div>${tg('backups')}</div>
+      <div class="set"><div><div class="t">Dossier des sauvegardes</div><div class="d">Tu peux aussi sauvegarder tout de suite.</div></div><div style="display:flex;gap:8px"><button class="btn ghost" data-action="backup-dir">Changer</button><button class="btn" data-action="backup-now">Sauvegarder maintenant</button></div></div>
       <div class="set-group">Jeu</div>
+      <div class="set"><div><div class="t">Lancer HMZ au démarrage de Windows</div><div class="d">Avec « Démarrer en mode TV », ton PC démarre comme une console.</div></div>${tg('autostart')}</div>
       <div class="set"><div><div class="t">Démarrer en mode TV</div><div class="d">HMZ s'ouvre en plein écran, prêt pour la manette. Touche F11 ou bouton Start pour basculer.</div></div>${tg('startInTV')}</div>
       <div class="set"><div><div class="t">Émulateurs en plein écran</div><div class="d">Les jeux DS, 3DS et Switch s'ouvrent directement en plein écran.</div></div>${tg('emuFullscreen')}</div>
       <div class="set"><div><div class="t">Réduire HMZ pendant que je joue</div><div class="d">HMZ revient tout seul quand tu quittes un jeu émulé.</div></div>${tg('minimizeOnPlay')}</div>
@@ -404,6 +429,7 @@ function openDetail(id) {
         <div class="mini-chart">${per.map((m) => `<i class="${m < 1 ? 'z' : ''}" style="height:${Math.max(3, (m / pmax) * 100)}%" title="${fmtTime(m)}"></i>`).join('')}</div>
         ${emus.length ? `<div class="field-label">Lancer avec</div><div class="seg">${emus.map((e) => `<button class="${g.emu === e.id ? 'on' : ''}" data-setemu="${e.id}" data-id="${esc(g.id)}">${esc(e.name)}${e.installed ? '' : ' (à installer)'}</button>`).join('')}</div>` : ''}
         ${g.source === 'manual' && g.platform !== 'pc' ? `<div class="field-label">Console</div><div class="seg">${['switch2', 'switch', '3ds', 'ds'].map((p) => `<button class="${g.platform === p ? 'on' : ''}" data-setplat="${p}" data-id="${esc(g.id)}">${esc(plat(p).label)}</button>`).join('')}</div>` : ''}
+        ${g.extras && g.extras.length ? `<div class="field-label">Contenu supplémentaire</div><div class="extras">${g.extras.filter((x) => x === 'update').length ? `<span class="tag" style="--c:#5fd38d">${g.extras.filter((x) => x === 'update').length} mise${g.extras.filter((x) => x === 'update').length > 1 ? 's' : ''} à jour</span>` : ''}${g.extras.filter((x) => x === 'dlc').length ? `<span class="tag" style="--c:#7aa2ff">${g.extras.filter((x) => x === 'dlc').length} DLC</span>` : ''}<span style="color:var(--muted);font-size:12.5px">Trouvés dans tes dossiers et signalés à l'émulateur. Si le jeu ne les voit pas : ouvre l'émulateur › Fichier › Installer des fichiers.</span></div>` : ''}
         <div class="path-box">${esc(g.path)}</div>
       </div>
       <div class="side-list">
@@ -532,11 +558,13 @@ async function installEmu(id) {
   emuProg[id] = { step: 'Préparation…' };
   render();
   try {
+    delete emuErr[id];
     const r = await api.call('emu:install', id);
     const e = S.emulators.find((x) => x.id === id);
     toast(r.upToDate ? `${e.name} est déjà à jour.` : `${e.name} ${r.version} est installé.`, 'ok');
     if (!r.upToDate && e.needsKeys) setTimeout(() => toast(`Ajoute maintenant tes clés et ton firmware pour ${e.name}.`, 'info', 6000), 600);
   } catch (err) {
+    emuErr[id] = err.message;
     toast(err.message, 'error', 9000);
   } finally {
     delete emuProg[id];
@@ -571,6 +599,18 @@ document.addEventListener('click', async (ev) => {
   if (d.seeall) { ui.filter = d.seeall; ui.q = ''; return go('library'); }
   if (d.install) return installEmu(d.install);
   if (d.locate) return call('emu:locate', d.locate);
+  if (d.installzip) {
+    try { const r = await call('emu:installZip', d.installzip); if (r) { delete emuErr[d.installzip]; toast(`${S.emulators.find((x) => x.id === d.installzip).name} est installé.`, 'ok'); render(); } } catch {}
+    return;
+  }
+  if (d.emucfg) { const r = await call('emu:configure', d.emucfg); toast(`Réglages appliqués : ${r.done.join(', ')}.`, 'ok'); return; }
+  if (d.emupad) {
+    const e = S.emulators.find((x) => x.id === d.emupad);
+    if (e.id === 'melonds') { const r = await call('emu:configure', e.id); toast(`Manette ${PAD_LABEL[(padKinds[0] || 'xbox')] || ''} configurée dans melonDS. Si un bouton ne répond pas : ${PAD_HELP.melonds}`, 'ok', 9000); return; }
+    await call('emu:open', e.id);
+    toast(PAD_HELP[e.id], 'info', 14000);
+    return;
+  }
   if (d.forget) return call('emu:forget', d.forget);
   if (d.emuopen) return call('emu:open', d.emuopen);
   if (d.emudir) return call('emu:openDir', d.emudir);
@@ -600,6 +640,9 @@ document.addEventListener('click', async (ev) => {
     case 'choose-root': await call('root:choose'); break;
     case 'open-root': await call('root:open'); break;
     case 'restart': await call('app:restart'); break;
+    case 'open-backups': await call('backup:open'); break;
+    case 'backup-dir': await call('backup:chooseDir'); break;
+    case 'backup-now': { const r = await call('backup:now'); toast(r.length ? `Sauvegardé : ${r.join(', ')}.` : 'Aucune sauvegarde à copier pour l\'instant.', 'ok'); break; }
     case 'check-app-update': {
       const r = await call('app:checkUpdate');
       if (r.dev) toast('Les mises à jour automatiques marchent seulement dans la version installée.');
@@ -724,7 +767,7 @@ function renderTV(keepShelf) {
       </div>
       <div class="tv-foot">
         <span><i class="k a">A</i>Jouer</span><span><i class="k">←→</i>Choisir</span><span><i class="k">LB RB</i>Catégorie</span><span><i class="k y">Y</i>Favori</span><span><i class="k">☰</i>Options</span>
-        <span class="grow"></span><span class="pad" id="tvPad"></span><span><i class="k b">B</i>Quitter</span>
+        <span class="grow"></span><span class="pad" id="tvPad"></span><span><i class="k">Select + Start</i>Quitter un jeu</span><span><i class="k b">B</i>Quitter</span>
       </div>`;
     tvBgShown = 'A'; tvBgUrl = null;
     tvClock();
@@ -879,7 +922,7 @@ function pollPad() {
   const pads = navigator.getGamepads ? [...navigator.getGamepads()].filter(Boolean) : [];
   const p = pads[0];
   const label = $('#tvPad');
-  if (label) label.textContent = p ? '● Manette connectée' : '';
+  if (label) label.textContent = p || padKinds.length ? '● Manette connectée' : '';
   if (p) {
     const b = (i) => !!(p.buttons[i] && p.buttons[i].pressed);
     const ax = p.axes || [];
@@ -920,6 +963,8 @@ api.on('state:changed', (st) => {
   const view = $('#view');
   if (!view.querySelector('input:focus')) render();
 });
+api.on('tv:enter', () => { if ($('#tv').hidden) enterTV(); });
+api.on('pad:kinds', (k) => { padKinds = k || []; if (ui.view === 'settings' && !modalState) render(); });
 api.on('scan:progress', (t) => { $('#scanStatus').textContent = t || ''; });
 api.on('emu:progress', (p) => {
   if (p.step === null) { delete emuProg[p.id]; } else emuProg[p.id] = p;
@@ -944,6 +989,7 @@ api.on('window:state', (s) => {
 
 (async function init() {
   S = await api.call('state:get');
+  padKinds = S.padKinds || [];
   render();
   if (S.settings.startInTV) enterTV();
 })();

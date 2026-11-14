@@ -14,7 +14,7 @@
     emuReady: o.ready !== false, path: o.path || `C:\\Users\\Hamza\\HMZ\\Jeux\\${platform}\\${name}.nsp`, running: !!o.running,
   });
   const games = [
-    mk('switch2:pokemon-pokopia', 'Pokémon Pokopia', 'switch2', '#3d9b4f', '#f2d24b', { hero: 1, min: 132, ses: 4, last: 8, fav: 1 }),
+    Object.assign(mk('switch2:pokemon-pokopia', 'Pokémon Pokopia', 'switch2', '#3d9b4f', '#f2d24b', { hero: 1, min: 132, ses: 4, last: 8, fav: 1 }), { extras: ['update', 'dlc', 'dlc'] }),
     mk('switch2:mario-kart-world', 'Mario Kart World', 'switch2', '#d8342c', '#2b6fd6', { hero: 1, min: 410, ses: 12, last: 1 }),
     mk('switch2:donkey-kong-bananza', 'Donkey Kong Bananza', 'switch2', '#7a4a1f', '#e8a93a', { min: 55, ses: 2, last: 3, ready: false }),
     mk('switch:zelda-totk', 'The Legend of Zelda: Tears of the Kingdom', 'switch', '#2c5d48', '#c9b56a', { hero: 1, min: 3600, ses: 40, last: 0.1, running: true }),
@@ -44,9 +44,9 @@
   ];
   const state = {
     version: '2.0.0',
-    settings: { root: 'C:\\Users\\Hamza\\HMZ', romDirs: { ds: ['C:\\Users\\Hamza\\HMZ\\Jeux\\DS'], '3ds': ['C:\\Users\\Hamza\\HMZ\\Jeux\\3DS'], switch: ['C:\\Users\\Hamza\\HMZ\\Jeux\\Switch', 'D:\\Jeux Switch'], switch2: ['C:\\Users\\Hamza\\HMZ\\Jeux\\Switch 2'] }, sgdbKey: '', startInTV: false, emuFullscreen: true, minimizeOnPlay: true, scanSteam: true, scanEpic: true },
+    settings: { root: 'C:\\Users\\Hamza\\HMZ', romDirs: { ds: ['C:\\Users\\Hamza\\HMZ\\Jeux\\DS'], '3ds': ['C:\\Users\\Hamza\\HMZ\\Jeux\\3DS'], switch: ['C:\\Users\\Hamza\\HMZ\\Jeux\\Switch', 'D:\\Jeux Switch'], switch2: ['C:\\Users\\Hamza\\HMZ\\Jeux\\Switch 2'] }, sgdbKey: '', backups: true, backupDirShown: 'C:\\Users\\Hamza\\HMZ\\Sauvegardes', padQuit: true, padHome: true, scanOthers: true, autostart: false, startInTV: false, emuFullscreen: true, minimizeOnPlay: true, scanSteam: true, scanEpic: true },
     platforms: { pc: { label: 'PC', color: '#7aa2ff' }, switch2: { label: 'Switch 2', color: '#ff5a4e' }, switch: { label: 'Switch', color: '#ff7a59' }, '3ds': { label: '3DS', color: '#f6c344' }, ds: { label: 'DS', color: '#7fd1b9' } },
-    games, emulators, sessions,
+    games, emulators, sessions, padKinds: ['playstation'],
   };
   if (location.hash === '#empty') state.games = [];
   const listeners = {};
@@ -59,6 +59,7 @@
       if (ch === 'game:update') { Object.assign(games.find((g) => g.id === a[0]), a[1]); emit('state:changed', JSON.parse(JSON.stringify(state))); }
       if (ch === 'game:launch') { const g = games.find((x) => x.id === a[0]); return g.emuReady ? { ok: true } : { needEmu: g.emu }; }
       if (ch === 'settings:set') { Object.assign(state.settings, a[0]); emit('state:changed', JSON.parse(JSON.stringify(state))); }
+      if (ch === 'emu:install' && a[0] === 'eden') { throw new Error('git.eden-emu.dev : HTTP 503'); }
       if (ch === 'emu:install') {
         for (let i = 0; i <= 10; i++) { emit('emu:progress', { id: a[0], step: 'Téléchargement de Lichii build-83', done: i * 4e7, total: 4e8 }); await new Promise((r) => setTimeout(r, 150)); }
         const e = emulators.find((x) => x.id === a[0]); e.installed = true; e.version = 'build-83'; e.latest = 'build-83'; e.keys = { keys: false, firmware: false };
