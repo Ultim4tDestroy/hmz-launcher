@@ -327,6 +327,25 @@ function newestSubdirWith(dir, file) {
   return best;
 }
 
+// Instances Prism Launcher (dossier de données normal, ou version portable).
+function prismInstances(exe) {
+  const roots = [path.join(process.env.APPDATA || '', 'PrismLauncher'), path.dirname(exe)];
+  for (const r of roots) {
+    const dir = path.join(r, 'instances');
+    let list = [];
+    try { list = fs.readdirSync(dir, { withFileTypes: true }).filter((d) => d.isDirectory() && !d.name.startsWith('_') && !d.name.startsWith('.')); } catch { continue; }
+    const out = [];
+    for (const d of list) {
+      const cfg = readText(path.join(dir, d.name, 'instance.cfg'));
+      if (!cfg) continue;
+      const name = ((cfg.match(/^name=(.*)$/m) || [])[1] || d.name).trim();
+      out.push({ id: d.name, name });
+    }
+    if (out.length) return out;
+  }
+  return [];
+}
+
 function scanLaunchers() {
   const L = process.env.LOCALAPPDATA || '';
   const A = process.env.APPDATA || '';
@@ -356,7 +375,19 @@ function scanLaunchers() {
     ['tlauncher', 'Minecraft (TLauncher)', path.join(A, '.minecraft', 'TLauncher.exe')],
     ['curseforge', 'CurseForge', [path.join(L, 'Programs', 'CurseForge Windows', 'CurseForge.exe'), path.join(PF, 'CurseForge Windows', 'CurseForge.exe')].find(exists)],
   ];
-  for (const [k, name, exe] of alt) if (exe && exists(exe)) add(`launcher:${k}`, name, exe, ['javaw.exe']);
+  for (const [k, name, exe] of alt) {
+    if (!exe || !exists(exe)) continue;
+    // Prism Launcher sait lancer une instance directement (prismlauncher -l <instance>) :
+    // chaque instance devient un jeu à part, qui démarre sans passer par le bouton « Lancer ».
+    if (k === 'prism') {
+      const inst = prismInstances(exe);
+      if (inst.length) {
+        for (const i of inst) add(`launcher:prism:${slug(i.id)}`, inst.length > 1 ? `Minecraft – ${i.name}` : 'Minecraft', exe, ['javaw.exe'], { launch: { type: 'exe', target: exe, args: ['-l', i.id] }, noChildTracking: true });
+        continue;
+      }
+    }
+    add(`launcher:${k}`, name, exe, ['javaw.exe']);
+  }
   return games;
 }
 

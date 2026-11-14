@@ -380,6 +380,28 @@ async function launchGame(id, emuOverride) {
     db.save(); notifyChange(); minimizeForGame();
     return { ok: true, viaLauncher: 'Netmarble' };
   }
+  // Battle.net : s'il n'est pas déjà ouvert, la commande « launch » ne fait que l'ouvrir.
+  // On la renvoie donc une fois Battle.net prêt (comme les raccourcis qui fonctionnent).
+  if (g.source === 'battlenet' && g.launch && exists(g.launch.target)) {
+    const bnet = g.launch.target, args = g.launch.args;
+    const open = await isProcessRunning('Battle.net.exe');
+    spawn(bnet, args, { cwd: path.dirname(bnet), detached: true, stdio: 'ignore' }).unref();
+    if (!open) {
+      (async () => {
+        for (let i = 0; i < 20; i++) {
+          await new Promise((r) => setTimeout(r, 3000));
+          if (await isProcessRunning('Battle.net.exe')) {
+            await new Promise((r) => setTimeout(r, 8000)); // le temps que Battle.net se connecte
+            spawn(bnet, args, { cwd: path.dirname(bnet), detached: true, stdio: 'ignore' }).unref();
+            return;
+          }
+        }
+      })().catch(() => {});
+    }
+    g.lastLaunched = Date.now();
+    db.save(); notifyChange(); minimizeForGame();
+    return { ok: true };
+  }
   // Jeu BlueStacks ajouté depuis HMZ : la bonne instance et la commande des raccourcis BlueStacks.
   if (g.source === 'bluestacks' && g.manualMobile && g.package) {
     const info = SCAN.bluestacksInfo();
@@ -437,6 +459,11 @@ async function launchGame(id, emuOverride) {
   running.get(id).pid = child.pid;
   minimizeForGame();
   return { ok: true };
+}
+
+async function isProcessRunning(name) {
+  if (process.platform !== 'win32') return false;
+  try { return new RegExp(`^"${name.replace(/\./g, '\\.')}"`, 'im').test(await run('tasklist', ['/FI', `IMAGENAME eq ${name}`, '/FO', 'CSV', '/NH'])); } catch { return false; }
 }
 
 // Retour de HMZ après la partie. Beaucoup de jeux démarrent en plusieurs étapes
