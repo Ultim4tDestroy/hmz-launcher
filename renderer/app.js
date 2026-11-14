@@ -106,6 +106,86 @@ function toggleThemePop() {
   document.body.appendChild(el);
 }
 
+// --- Ambiance : image floutée et couleur du jeu sélectionné ------------------------------
+const colorCache = new Map(Object.entries((() => { try { return JSON.parse(localStorage.getItem('hmzColors') || '{}'); } catch { return {}; } })()));
+function hexToRgb(h) { const n = parseInt(String(h).replace('#', ''), 16); return `${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}`; }
+function rgbToHsl(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2;
+  if (mx === mn) return [0, 0, l];
+  const d = mx - mn, s = l > .5 ? d / (2 - mx - mn) : d / (mx + mn);
+  const h = mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return [h / 6, s, l];
+}
+function hslToRgb(h, s, l) {
+  const f = (n) => { const k = (n + h * 12) % 12, a = s * Math.min(l, 1 - l); return Math.round(255 * (l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)))); };
+  return [f(0), f(8), f(4)];
+}
+async function colorFor(url) {
+  if (!url) return null;
+  if (colorCache.has(url)) return colorCache.get(url);
+  let src = null;
+  try { src = await api.call('art:dataurl', url); } catch {}
+  if (!src) return null;
+  const img = new Image();
+  img.src = src;
+  try { await img.decode(); } catch { return null; }
+  const c = document.createElement('canvas'); c.width = c.height = 36;
+  const x = c.getContext('2d', { willReadFrequently: true });
+  x.drawImage(img, 0, 0, 36, 36);
+  const d = x.getImageData(0, 0, 36, 36).data;
+  let R = 0, G = 0, B = 0, W = 0;
+  for (let i = 0; i < d.length; i += 4) {
+    const [, sat, lig] = rgbToHsl(d[i], d[i + 1], d[i + 2]);
+    const w = sat * sat * (1 - Math.abs(lig - .5) * 1.8) + .002;
+    if (w <= 0) continue;
+    R += d[i] * w; G += d[i + 1] * w; B += d[i + 2] * w; W += w;
+  }
+  if (!W) return null;
+  let [h, sat, lig] = rgbToHsl(R / W, G / W, B / W);
+  sat = Math.min(.85, Math.max(.5, sat * 1.25)); lig = Math.min(.62, Math.max(.48, lig));
+  const rgb = hslToRgb(h, sat, lig).join(', ');
+  colorCache.set(url, rgb);
+  try { localStorage.setItem('hmzColors', JSON.stringify(Object.fromEntries([...colorCache].slice(-400)))); } catch {}
+  return rgb;
+}
+let ambUrl = null, ambSide = 'A', ambGame = null;
+function setAmbientFor(g) {
+  if (!g || !$('#ambA')) return;
+  ambGame = g.id;
+  const url = g.art.hero || g.art.cover || g.art.header || null;
+  if (url !== ambUrl) {
+    ambUrl = url;
+    const next = ambSide === 'A' ? 'B' : 'A';
+    const a = $('#amb' + ambSide), b = $('#amb' + next);
+    b.style.backgroundImage = url ? `url("${url.replace(/"/g, '%22')}")` : 'none';
+    b.classList.toggle('on', !!url);
+    a.classList.remove('on');
+    ambSide = next;
+  }
+  const fallback = hexToRgb(plat(g.platform).color);
+  const key = g.art.cover || g.art.hero || g.art.header;
+  const cached = key && colorCache.get(key);
+  document.documentElement.style.setProperty('--amb', cached || fallback);
+  if (key && !cached) colorFor(key).then((rgb) => { if (rgb && ambGame === g.id) document.documentElement.style.setProperty('--amb', rgb); });
+}
+function moveNavInd() {
+  const ind = $('#navInd'), on = $('.topnav button.active');
+  if (!ind) return;
+  if (!on) { ind.style.width = '0px'; ind.style.opacity = '0'; return; }
+  ind.style.opacity = '1';
+  ind.style.left = on.offsetLeft + 'px';
+  ind.style.width = on.offsetWidth + 'px';
+}
+addEventListener('resize', () => moveNavInd());
+let hoverT = null;
+document.addEventListener('mouseover', (e) => {
+  const sl = e.target.closest && e.target.closest('.slot[data-game]');
+  if (!sl) return;
+  clearTimeout(hoverT);
+  hoverT = setTimeout(() => { const g = gameById(sl.dataset.game); if (g) setAmbientFor(g); }, 280);
+});
+
 // --- Formats ------------------------------------------------------------------------
 const plat = (p) => (S && S.platforms[p]) || { label: p, color: '#888' };
 function fmtTime(min) {
@@ -270,7 +350,7 @@ document.addEventListener('error', (e) => {
   if (!img || img.tagName !== 'IMG') return;
   if (img.dataset.title) {
     const h = document.createElement('h1');
-    h.className = img.classList.contains('tv-logo') ? 'tv-title' : 'hero-title';
+    h.className = img.classList.contains('tv-logo') ? 'tv-title' : img.classList.contains('d-logo') ? 'd-title' : 'hero-title';
     if (img.dataset.title.length > 20) h.classList.add('long');
     h.textContent = img.dataset.title;
     img.replaceWith(h);
@@ -297,7 +377,9 @@ function featured() {
 const VIEWS = { home: renderHome, library: renderLibrary, emulators: renderEmulators, stats: renderStats, settings: renderSettings };
 function render() {
   if (!S) return;
-  $$('#side button').forEach((b) => b.classList.toggle('active', b.dataset.view === ui.view));
+  $$('.titlebar [data-view]').forEach((b) => b.classList.toggle('active', b.dataset.view === ui.view));
+  moveNavInd();
+  if (!modalState || !modalState.detail) setAmbientFor(featured());
   const view = $('#view');
   const st = view.scrollTop;
   view.innerHTML = VIEWS[ui.view]();
@@ -338,6 +420,7 @@ function renderHero() {
   const tmp = document.createElement('div');
   tmp.innerHTML = heroHTML(g);
   el.replaceWith(tmp.firstElementChild);
+  setAmbientFor(g);
   $$('.slot.selected').forEach((x) => x.classList.remove('selected'));
   $$(`.slot[data-game="${CSS.escape(g.id)}"]`).forEach((x) => x.classList.add('selected'));
 }
@@ -714,14 +797,15 @@ function openDetail(id) {
   const pmax = Math.max(20, ...per);
   const isSwitchRom = (g.platform === 'switch' || g.platform === 'switch2') && g.source !== 'steam';
   const emus = isSwitchRom ? S.emulators.filter((e) => e.platforms.includes(g.platform) || e.id === 'eden' || e.id === 'lichii') : [];
-  modal(`<div class="modal" style="--c:${plat(g.platform).color}">
+  setAmbientFor(g);
+  modal(`<div class="modal dpage" style="--c:${plat(g.platform).color}">
     <button class="x" data-close>${ICON.x}</button>
     <div class="d-hero">${h ? `<div class="hero-bg${h.blur ? ' blur' : ''}" style="background-image:url('${esc(h.url)}')"></div>` : `<div class="hero-bg" style="background:radial-gradient(80% 100% at 30% 0%, ${plat(g.platform).color}66, transparent 70%)"></div>`}</div>
     <div class="d-head">
       ${coverHTML(g)}
       <div class="info">
         <div class="row1"><span class="tag" style="--c:${plat(g.platform).color}">${esc(plat(g.platform).label)}</span><span style="color:var(--muted);font-size:13px">${esc(sourceLabel(g))}</span>${g.running ? '<span class="kicker live" style="font-size:11px"><i class="dot"></i>En cours</span>' : ''}</div>
-        <h2>${esc(g.name)}</h2>
+        ${g.art.logo ? `<img class="d-logo" src="${esc(g.art.logo)}" alt="${esc(g.name)}" data-title="${esc(g.name)}">` : `<h2>${esc(g.name)}</h2>`}
         <div class="acts">
           <button class="btn primary play" data-play="${esc(g.id)}">${ICON.play}${g.emuReady ? 'Jouer' : 'Installer et jouer'}</button>
           <button class="btn" data-fav="${esc(g.id)}">${ICON.star}${g.favorite ? 'Retirer des favoris' : 'Favori'}</button>
@@ -768,7 +852,7 @@ function modal(html, state = {}) {
   const bg = root.firstElementChild;
   bg.addEventListener('mousedown', (e) => { if (e.target === bg) closeModal(); });
 }
-function closeModal() { $('#modal-root').innerHTML = ''; modalState = null; }
+function closeModal() { const wasDetail = modalState && modalState.detail; $('#modal-root').innerHTML = ''; modalState = null; if (wasDetail) setAmbientFor(featured()); }
 function refreshModal() { if (modalState && modalState.detail) { const st = $('.modal')?.scrollTop; openDetail(modalState.detail); if (st) $('.modal').scrollTop = st; } }
 
 async function openPicker(id, kind) {

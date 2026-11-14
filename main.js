@@ -523,6 +523,24 @@ handle('game:setArt', async (id, kind) => {
   g.custom = { ...(g.custom || {}), [kind]: fileUrl(dest) };
   db.save(); notifyChange();
 });
+// Image en data URL pour que l'interface puisse lire sa couleur dominante.
+handle('art:dataurl', async (url) => {
+  if (!url) return null;
+  let buf, type = 'image/jpeg';
+  if (url.startsWith('file:')) {
+    const p = require('url').fileURLToPath(url);
+    buf = fs.readFileSync(p);
+    if (/\.png$/i.test(p)) type = 'image/png';
+    if (/\.webp$/i.test(p)) type = 'image/webp';
+  } else if (/^https:/.test(url)) {
+    const r = await require('./src/util').fetchWithTimeout(url, {}, 10000);
+    if (!r.ok) return null;
+    type = (r.headers.get('content-type') || type).split(';')[0];
+    buf = Buffer.from(await r.arrayBuffer());
+  } else return null;
+  if (!buf || buf.length > 8e6) return null;
+  return `data:${type};base64,${buf.toString('base64')}`;
+});
 handle('art:options', async (id, kind) => {
   const g = db.data.games[id]; if (!g) return [];
   const r = await art.options(g, kind);
