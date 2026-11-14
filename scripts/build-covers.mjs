@@ -11,16 +11,33 @@ if (!KEY) { console.error('Secret SGDB_KEY absent : rien à faire.'); process.ex
 const API = 'https://www.steamgriddb.com/api/v2';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+let netErrors = 0;
 async function get(path) {
-  for (let attempt = 0; attempt < 4; attempt++) {
-    const r = await fetch(API + path, { headers: { Authorization: `Bearer ${KEY}` } });
+  for (let attempt = 0; attempt < 5; attempt++) {
+    let r;
+    try {
+      r = await fetch(API + path, { headers: { Authorization: `Bearer ${KEY}`, 'User-Agent': 'HMZ-Launcher-covers/1.0 (+https://github.com/Ultim4tDestroy/hmz-launcher)', Accept: 'application/json' }, signal: AbortSignal.timeout(20000) });
+    } catch (e) {
+      netErrors++;
+      console.error(`Réseau (${path.slice(0, 60)}) : ${e.message}${e.cause ? ' · ' + (e.cause.code || e.cause.message) : ''}`);
+      if (netErrors > 40) throw new Error('Trop d\'erreurs réseau, arrêt.');
+      await sleep(1500 * (attempt + 1));
+      continue;
+    }
     if (r.status === 429) { await sleep(2000 * (attempt + 1)); continue; }
     if (r.status === 401) throw new Error('Clé SteamGridDB refusée (401).');
-    if (!r.ok) return null;
-    const j = await r.json();
+    if (!r.ok) { if (attempt === 0 && r.status >= 500) { await sleep(1500); continue; } return null; }
+    const j = await r.json().catch(() => null);
+    if (!j) return null;
     return j.success ? j.data : null;
   }
   return null;
+}
+
+// Vérification de la connexion et de la clé avant de commencer.
+{
+  const t = await get('/search/autocomplete/Minecraft');
+  console.log(t ? `Connexion OK (${t.length} résultats pour Minecraft).` : 'Connexion OK mais aucune réponse exploitable.');
 }
 
 const names = [...new Set(fs.readFileSync('data/jeux-populaires.txt', 'utf8').split(/\r?\n/).map((l) => l.trim()).filter((l) => l && !l.startsWith('#')))];
