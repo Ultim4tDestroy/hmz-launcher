@@ -524,6 +524,11 @@ function renderEmulators() {
       <button class="btn ghost" data-action="check-updates">${ICON.refresh}Vérifier les mises à jour</button></div>
     <div class="note">${ICON.warn}<div><b>Les jeux, les clés et le firmware ne sont pas fournis.</b> Aucun émulateur ne les inclut : ils doivent venir de ta propre console (et de tes propres cartouches). Évite les sites qui proposent de télécharger « Lichii » ou « Eden » ailleurs que sur leur page officielle : de faux sites ont déjà distribué des virus.</div></div>
     <div class="emu-grid">${S.emulators.map(emuCard).join('')}</div>
+    <h2 class="section-title">Jeux mobiles</h2>
+    <p class="section-sub">Tes jeux installés dans BlueStacks, rangés dans la catégorie Mobile et lancés directement dans BlueStacks.</p>
+    <div class="frow" style="grid-template-columns:120px 1fr auto"><div><span class="tag" style="--c:#3ddc84">BlueStacks</span></div>
+      <div class="paths"><div class="path" style="font-family:var(--ui)">HMZ cherche les jeux installés dans BlueStacks et retrouve leur nom sur Google Play.</div></div>
+      <div class="acts"><button class="btn sm primary" data-action="bluestacks-add">${ICON.plus}Ajouter mes jeux BlueStacks</button></div></div>
     <h2 class="section-title">Dossiers de jeux</h2>
     <p class="section-sub">Dépose tes jeux dans ces dossiers. HMZ cherche aussi dans les sous-dossiers.</p>
     <div class="folders-table">
@@ -788,6 +793,23 @@ async function openPicker(id, kind) {
   }
 }
 
+async function openBlueStacks() {
+  modal(`<div class="modal dialog" style="width:min(560px,92vw)"><button class="x" data-close>${ICON.x}</button>
+    <h3>Ajouter mes jeux BlueStacks</h3><p>Coche les jeux à ajouter dans la catégorie Mobile.</p>
+    <div id="bsList" class="bs-list"><div class="pick-msg" style="padding:30px"><div class="spin-s"></div>Recherche des jeux installés dans BlueStacks…</div></div>
+    <div class="field-label">Un jeu manque ? Colle son lien Google Play</div>
+    <input class="input" id="bsManual" placeholder="https://play.google.com/store/apps/details?id=…">
+    <div class="acts"><button class="btn ghost" data-close>Annuler</button><button class="btn primary" data-action="bs-confirm">Ajouter</button></div></div>`);
+  try {
+    const r = await api.call('bluestacks:candidates');
+    const el = $('#bsList'); if (!el) return;
+    if (!r.installed) { el.innerHTML = '<p class="chint" style="padding:10px 0">BlueStacks n\'est pas installé sur ce PC (ou pas dans son dossier habituel).</p>'; return; }
+    el.innerHTML = r.list.length
+      ? r.list.map((x) => `<label class="bs-it"><input type="checkbox" value="${esc(x.pkg)}" data-name="${esc(x.name)}" checked><span class="nm">${esc(x.name)}</span><span class="pk">${esc(x.pkg)}</span></label>`).join('')
+      : '<p class="chint" style="padding:10px 0">Aucun jeu trouvé automatiquement. Colle le lien Google Play de chaque jeu ci-dessous : tu le trouves en cherchant le jeu sur play.google.com.</p>';
+  } catch (e) { const el = $('#bsList'); if (el) el.innerHTML = `<p class="chint">${esc(e.message)}</p>`; }
+}
+
 function askText(title, text, value) {
   return new Promise((resolve) => {
     modal(`<div class="modal dialog"><h3>${esc(title)}</h3><p>${esc(text)}</p><input class="input" id="askInput" value="${esc(value)}">
@@ -826,6 +848,7 @@ function paletteActions() {
     { label: 'Afficher en étagère', icon: ICON.shelf, run: () => { setAppearance({ libView: 'shelf' }); go('library'); render(); } },
     { label: 'Afficher en grille', icon: ICON.grid, run: () => { setAppearance({ libView: 'grid' }); go('library'); render(); } },
     { label: 'Afficher en liste', icon: ICON.list, run: () => { setAppearance({ libView: 'list' }); go('library'); render(); } },
+    { label: 'Ajouter mes jeux BlueStacks', icon: ICON.plus, run: () => openBlueStacks() },
     { label: 'Raccourcis clavier', icon: ICON.info, kbd: '?', run: () => openKeys() },
     ...THEMES.map((t) => ({ label: `Thème ${t.label}`, icon: ICON.palette, run: () => setAppearance({ theme: t.id }) })),
   ];
@@ -1071,6 +1094,17 @@ document.addEventListener('click', async (ev) => {
   }
 
   switch (d.action) {
+    case 'bluestacks-add': openBlueStacks(); break;
+    case 'bs-confirm': {
+      const items = $$('.bs-it input:checked').map((c) => ({ pkg: c.value, name: c.dataset.name }));
+      const extra = ($('#bsManual') || {}).value;
+      if (extra && extra.trim()) items.push({ pkg: extra.trim() });
+      if (!items.length) { toast('Coche au moins un jeu, ou colle un lien Play Store.'); break; }
+      const n = await call('bluestacks:add', items);
+      closeModal();
+      toast(n ? `${n} jeu${n > 1 ? 'x' : ''} BlueStacks ajouté${n > 1 ? 's' : ''} dans Mobile.` : 'Lien ou nom de paquet non reconnu.', n ? 'ok' : 'error');
+      break;
+    }
     case 'genre-menu': ui.genreOpen = !ui.genreOpen; render(); break;
     case 'genre-clear': ui.genre = null; ui.genreOpen = false; render(); break;
     case 'toggle-genres': ui.allGenres = !ui.allGenres; render(); break;

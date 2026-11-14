@@ -820,3 +820,10 @@ body { background: var(--bg); }
 .scard .set .d { max-width: 560px; }
 .page:has(.swrap) { max-width: 1240px; }
 @media (max-width: 1100px) { .swrap { grid-template-columns: 1fr; } .snav { display: none; } }
+
+.bs-list { display: flex; flex-direction: column; gap: 4px; max-height: 320px; overflow: auto; margin: 4px 0 8px; }
+.bs-it { display: grid; grid-template-columns: 20px 1fr; gap: 2px 12px; align-items: center; padding: 10px 12px; border-radius: 10px; background: var(--panel); cursor: pointer; }
+.bs-it:hover { background: var(--panel-2); }
+.bs-it input { accent-color: var(--cream); width: 16px; height: 16px; grid-row: span 2; }
+.bs-it .nm { font-weight: 650; }
+.bs-it .pk { grid-column: 2; font: 11.5px ui-monospace, Consolas, monospace; color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

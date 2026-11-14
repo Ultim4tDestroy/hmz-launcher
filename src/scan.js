@@ -380,7 +380,7 @@ function scanSwitchExtras(romDirs) {
 // --- Netmarble -----------------------------------------------------------------------------
 // Les jeux Netmarble sont installés à côté du launcher Netmarble, un dossier par jeu.
 const NETMARBLE_NAMES = {
-  '7dsgc': 'The Seven Deadly Sins: Grand Cross', nanatsunotaizai: 'The Seven Deadly Sins: Grand Cross',
+  '7dsgc': 'The Seven Deadly Sins: Grand Cross', '7dsgb': 'The Seven Deadly Sins: Grand Cross', sevendeadlysinsglobal: 'The Seven Deadly Sins: Grand Cross', solelevelingarise: 'Solo Leveling: ARISE', nanatsunotaizai: 'The Seven Deadly Sins: Grand Cross',
   tog: 'Tower of God: New World', towerofgod: 'Tower of God: New World',
   sololv: 'Solo Leveling: ARISE', sololevelingarise: 'Solo Leveling: ARISE', sla: 'Solo Leveling: ARISE',
   sevenknightsrebirth: 'Seven Knights Re:BIRTH', skr: 'Seven Knights Re:BIRTH',
@@ -398,6 +398,24 @@ function netmarbleRoots() {
   return roots;
 }
 
+// Programme principal d'un dossier de jeu : jeu Unity (dossier « X_Data » → X.exe),
+// sinon le plus gros .exe.
+function mainExe(dir) {
+  let subs = [];
+  try { subs = fs.readdirSync(dir, { withFileTypes: true }); } catch { return null; }
+  for (const d of subs) {
+    if (!d.isDirectory() || !/_Data$/i.test(d.name)) continue;
+    const exe = path.join(dir, d.name.replace(/_Data$/i, '') + '.exe');
+    if (exists(exe)) return { exe, unity: d.name.replace(/_Data$/i, '') };
+  }
+  let best = null, size = 0;
+  walk(dir, 4, (full, n) => {
+    if (!/\.exe$/i.test(n) || BAD_EXE.test(n) || /launcher|elevate|unitycrash|crashpad|crashsight|wesight|nmss/i.test(n)) return;
+    try { const sz = fs.statSync(full).size; if (sz > size) { size = sz; best = full; } } catch {}
+  });
+  return best && size > 2 * 1024 * 1024 ? { exe: best } : null;
+}
+
 async function scanNetmarble() {
   if (process.platform !== 'win32') return [];
   const roots = netmarbleRoots();
@@ -412,29 +430,38 @@ async function scanNetmarble() {
       if (exists(dir)) { roots.add(dir); roots.add(path.dirname(dir)); }
     }
   }
+  // Les jeux sont souvent rangés dans un sous-dossier « Netmarble Game ».
+  for (const r of [...roots]) for (const sub of ['Netmarble Game', 'Netmarble Games', 'Games', 'Game']) { const d = path.join(r, sub); if (exists(d)) roots.add(d); }
+  // Launcher Netmarble, utilisé si un jeu refuse d'être lancé sans lui.
+  let launcherExe = null;
+  for (const r of roots) {
+    const ld = path.join(r, 'Netmarble Launcher');
+    if (!exists(ld)) continue;
+    let size = 0;
+    walk(ld, 1, (full, n) => { if (/\.exe$/i.test(n) && !/elevate|unins|update|crash/i.test(n)) { try { const sz = fs.statSync(full).size; if (sz > size) { size = sz; launcherExe = full; } } catch {} } });
+  }
   const games = [];
   const seen = new Set();
   for (const root of roots) {
     let subs = [];
     try { subs = fs.readdirSync(root, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name); } catch { continue; }
     for (const sub of subs) {
-      if (NETMARBLE_SKIP.test(sub)) continue;
+      if (NETMARBLE_SKIP.test(sub) || /^netmarble game/i.test(sub)) continue;
       const dir = path.join(root, sub);
-      let best = null, size = 0;
-      walk(dir, 3, (full, n) => {
-        if (!/\.exe$/i.test(n) || BAD_EXE.test(n) || /launcher|elevate|unitycrash|crashpad/i.test(n)) return;
-        try { const sz = fs.statSync(full).size; if (sz > size) { size = sz; best = full; } } catch {}
-      });
-      if (!best || size < 5 * 1024 * 1024 || seen.has(best.toLowerCase())) continue;
-      seen.add(best.toLowerCase());
+      const m = mainExe(dir);
+      if (!m || seen.has(m.exe.toLowerCase())) continue;
+      seen.add(m.exe.toLowerCase());
       const key = sub.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const ukey = (m.unity || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const hints = new Set([path.basename(m.exe).toLowerCase()]);
+      walk(dir, 3, (full, n) => { if (/shipping\.exe$/i.test(n)) hints.add(n.toLowerCase()); });
       games.push({
-        id: `netmarble:${key}`, name: NETMARBLE_NAMES[key] || null, folder: sub, platform: 'pc', source: 'netmarble',
-        installDir: dir, launch: { type: 'exe', target: best, args: [] }, exeHints: [path.basename(best).toLowerCase()],
+        id: `netmarble:${key}`, name: NETMARBLE_NAMES[key] || NETMARBLE_NAMES[ukey] || null, folder: m.unity || sub, platform: 'pc', source: 'netmarble',
+        installDir: dir, launch: { type: 'exe', target: m.exe, args: [] }, exeHints: [...hints], launcherExe,
       });
     }
   }
-  // Nom du jeu inscrit dans le .exe quand le dossier ne suffit pas (« 7dsgc » → vrai nom).
+  // Nom du jeu inscrit dans le .exe quand le dossier ne suffit pas.
   const unnamed = games.filter((g) => !g.name);
   if (unnamed.length) {
     try {
@@ -444,12 +471,12 @@ async function scanNetmarble() {
       out.split(/\r?\n/).filter(Boolean).forEach((line, i) => {
         const [prod, desc] = line.split('|').map((x) => (x || '').trim());
         const g = unnamed[i];
-        const n = [prod, desc].find((x) => x && x.length > 2 && !/unity|unreal|launcher|^game$|client/i.test(x));
+        const n = [prod, desc].find((x) => x && x.length > 2 && !/unity|unreal|launcher|^game$|client|player/i.test(x));
         if (g && n) g.name = n;
       });
     } catch {}
   }
-  for (const g of games) if (!g.name) g.name = g.folder.replace(/[_-]+/g, ' ');
+  for (const g of games) if (!g.name) g.name = g.folder.replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
   return games;
 }
 
@@ -489,4 +516,25 @@ function scanBlueStacks(readShortcut) {
   return [...games.values()];
 }
 
-module.exports = { scanNetmarble, scanBlueStacks, scanRiot, scanLaunchers, scanRegistry, parseRegQuery, scanSwitchExtras, ROM_EXT, PLATFORM_OF_EXT, scanRoms, scanSteam, scanEpic, parseVdf, getCI, exeHints, isSwitchExtra };
+// Jeux installés dans BlueStacks, d'après ses fichiers (sans raccourci).
+const PKG_RE = /^[a-z][a-z0-9_]*(\.[a-z0-9_]+){2,}$/i;
+function bluestacksInfo() {
+  const PF = process.env.ProgramFiles || 'C:\\Program Files';
+  const PD = process.env.ProgramData || 'C:\\ProgramData';
+  const player = [path.join(PF, 'BlueStacks_nxt', 'HD-Player.exe'), path.join(PF, 'BlueStacks', 'HD-Player.exe')].find(exists) || null;
+  const engine = [path.join(PD, 'BlueStacks_nxt', 'Engine'), path.join(PD, 'BlueStacks', 'Engine')].find(exists) || null;
+  const instances = [];
+  const pkgs = new Set();
+  if (engine) {
+    try { for (const d of fs.readdirSync(engine, { withFileTypes: true })) if (d.isDirectory() && !/^(manager|userdata)$/i.test(d.name)) instances.push(d.name); } catch {}
+    for (const sub of ['UserData', ...instances]) {
+      walk(path.join(engine, sub), 3, (full, name) => {
+        const base = name.replace(/\.(cfg|png|jpg|ico|json|xml|txt|webp)$/i, '');
+        if (PKG_RE.test(base) && !BLUESTACKS_SKIP.test(base)) pkgs.add(base);
+      });
+    }
+  }
+  return { player, instance: instances.find((i) => /pie64|nougat64|rvc64|android/i.test(i)) || instances[0] || 'Pie64', packages: [...pkgs].sort() };
+}
+
+module.exports = { bluestacksInfo, scanNetmarble, scanBlueStacks, scanRiot, scanLaunchers, scanRegistry, parseRegQuery, scanSwitchExtras, ROM_EXT, PLATFORM_OF_EXT, scanRoms, scanSteam, scanEpic, parseVdf, getCI, exeHints, isSwitchExtra };

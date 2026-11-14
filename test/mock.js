@@ -69,6 +69,7 @@
         emit('state:changed', JSON.parse(JSON.stringify(state)));
         return { version: 'build-83' };
       }
+      if (ch === 'bluestacks:candidates') { await new Promise((r) => setTimeout(r, 300)); return { installed: true, list: [{ pkg: 'com.netmarble.sololv', name: 'Solo Leveling:Arise' }, { pkg: 'com.com2us.smon.normal.freefull.google.kr.android.common', name: 'Summoners War' }] }; }
       if (ch === 'art:options') { await new Promise((r) => setTimeout(r, 300)); return Array.from({ length: 9 }, (_, i) => ({ url: 'x' + i, thumb: a[1] === 'cover' ? svg(600, 900, ['#ff4655','#2b6fd6','#3d9b4f','#f6c344'][i % 4], '#111', 'Cover ' + (i + 1), 60) : svg(1920, 620, '#333', ['#ff4655','#2b6fd6','#3d9b4f'][i % 3], 'Fond ' + (i + 1), 120) })); }
       return null;
     },

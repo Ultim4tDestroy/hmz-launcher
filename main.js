@@ -213,7 +213,7 @@ async function scanLibrary() {
     };
   }
   for (const id of Object.keys(games)) {
-    if (!seen.has(id) && games[id].source !== 'manual') delete games[id];
+    if (!seen.has(id) && games[id].source !== 'manual' && !games[id].manualMobile) delete games[id];
   }
   db.save();
   notifyChange();
@@ -317,8 +317,14 @@ async function launchGame(id, emuOverride) {
   }
   const emuUsed = g.source === 'rom' || (g.source === 'manual' && g.platform !== 'pc') ? (emuOverride || g.emu || EMU.DEFAULT_EMU[g.platform]) : null;
   child.on('error', (e) => { toast(`Lancement impossible : ${e.message}`, 'error'); endSession(id); });
+  const startedAt = Date.now();
   child.on('exit', () => {
     endSession(id);
+    // Un jeu Netmarble qui se ferme tout de suite veut être lancé par le launcher Netmarble.
+    if (g.source === 'netmarble' && Date.now() - startedAt < 20000 && g.launcherExe && exists(g.launcherExe)) {
+      spawn(g.launcherExe, [], { cwd: path.dirname(g.launcherExe), detached: true, stdio: 'ignore' }).unref();
+      toast(`${g.customName || g.name} doit être lancé depuis le launcher Netmarble : il vient de s'ouvrir.`);
+    }
     if (emuUsed) backupSaves(emuUsed).catch((e) => console.error('Sauvegarde', e));
     if (minimizedForGame && win && ![...running.values()].some((r) => r.kind === 'child')) {
       minimizedForGame = false;
@@ -600,6 +606,52 @@ handle('backup:chooseDir', async () => {
   db.save(); notifyChange();
 });
 handle('pad:kinds', () => padKinds);
+
+// --- Jeux BlueStacks --------------------------------------------------------------------------
+const playNames = {};
+async function playStoreName(pkg) {
+  if (playNames[pkg] !== undefined) return playNames[pkg];
+  try {
+    const r = await require('./src/util').fetchWithTimeout(`https://play.google.com/store/apps/details?id=${encodeURIComponent(pkg)}&hl=fr`, {}, 12000);
+    const html = r.ok ? await r.text() : '';
+    const m = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+    let n = m ? m[1].replace(/&amp;/g, '&').replace(/&#39;/g, "'").replace(/&quot;/g, '"') : '';
+    n = n.replace(/\s*[-–—]\s*(Applications|Apps) (sur|on) Google Play\s*$/i, '').trim();
+    playNames[pkg] = n && !/google play/i.test(n) ? n : null;
+  } catch { playNames[pkg] = null; }
+  return playNames[pkg];
+}
+handle('bluestacks:candidates', async () => {
+  const info = SCAN.bluestacksInfo();
+  if (!info.player) return { installed: false, list: [] };
+  const known = new Set(Object.values(db.data.games).filter((g) => g.package).map((g) => g.package));
+  const pkgs = info.packages.filter((p) => !known.has(p)).slice(0, 60);
+  const list = [];
+  const q = [...pkgs];
+  await Promise.all([0, 1, 2, 3].map(async () => { while (q.length) { const p = q.shift(); list.push({ pkg: p, name: await playStoreName(p) }); } }));
+  // On ne propose que ce qui existe sur Google Play (écarte les composants internes).
+  return { installed: true, list: list.filter((x) => x.name).sort((a, b) => a.name.localeCompare(b.name, 'fr')) };
+});
+handle('bluestacks:add', async (items) => {
+  const info = SCAN.bluestacksInfo();
+  if (!info.player) throw new Error("BlueStacks n'est pas installé sur ce PC.");
+  let n = 0;
+  for (const it of items || []) {
+    let pkg = String(it.pkg || '').trim();
+    const fromUrl = pkg.match(/[?&]id=([\w.]+)/);
+    if (fromUrl) pkg = fromUrl[1];
+    if (!/^[a-z][\w]*(\.[\w]+)+$/i.test(pkg)) continue;
+    const name = it.name || await playStoreName(pkg) || pkg;
+    db.data.games[`android:${pkg}`] = {
+      id: `android:${pkg}`, name, platform: 'mobile', source: 'bluestacks', package: pkg, manualMobile: true, addedAt: Date.now(),
+      launch: { type: 'exe', target: info.player, args: ['--instance', info.instance, '--cmd', 'launchApp', '--package', pkg] },
+      installDir: path.dirname(info.player), exeHints: [],
+    };
+    n++;
+  }
+  db.save(); notifyChange(); fetchArt(false);
+  return n;
+});
 
 // --- Collections personnelles ---------------------------------------------------------------
 const COLL_COLORS = ['#ff6b5e', '#f6c344', '#5fd38d', '#7aa2ff', '#c084fc', '#ff3ea5', '#5ef0c6', '#ff9f43'];
