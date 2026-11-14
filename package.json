@@ -1,7 +1,7 @@
 {
   "name": "hmz-launcher",
   "productName": "HMZ Launcher",
-  "version": "2.11.1",
+  "version": "2.11.2",
   "description": "Tous tes jeux au même endroit : PC, DS, 3DS, Switch et Switch 2.",
   "main": "boot.js",
   "author": "HMZ",
