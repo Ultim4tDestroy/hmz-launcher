@@ -188,4 +188,75 @@ class ArtFinder {
   }
 }
 
-module.exports = { ArtFinder, fileUrl };
+// --- Genres ------------------------------------------------------------------------------
+const GENRE_RULES = [
+  [/battle royale/i, 'Battle royale'],
+  [/multiplayer online battle arena|\bmoba\b/i, 'MOBA'],
+  [/shooter|shoot 'em up|first-person shooter/i, 'Tir'],
+  [/fighting|beat 'em up|brawler/i, 'Combat'],
+  [/racing|kart/i, 'Course'],
+  [/sports?\b|football|basketball|soccer|golf|tennis/i, 'Sport'],
+  [/role-playing|\brpg\b|gacha/i, 'RPG'],
+  [/roguelike|roguelite/i, 'Roguelike'],
+  [/metroidvania/i, 'Metroidvania'],
+  [/platform/i, 'Plateforme'],
+  [/adventure/i, 'Aventure'],
+  [/strategy|tactics\b|tower defense|auto battler|4x/i, 'Stratégie'],
+  [/simulat|life sim|farming|management|city-building|tycoon/i, 'Simulation'],
+  [/survival/i, 'Survie'],
+  [/horror/i, 'Horreur'],
+  [/puzzle|logic/i, 'Réflexion'],
+  [/sandbox|open world|crafting|nonlinear/i, 'Monde ouvert'],
+  [/party|social deduction/i, 'Party game'],
+  [/rhythm|music/i, 'Rythme'],
+  [/card|deck-building/i, 'Cartes'],
+  [/massively multiplayer|\bmmo/i, 'MMO'],
+  [/visual novel/i, 'Visual novel'],
+  [/action/i, 'Action'],
+];
+function mapGenres(labels) {
+  const out = [];
+  for (const l of labels) for (const [re, g] of GENRE_RULES) if (re.test(l) && !out.includes(g)) out.push(g);
+  // « Action » seulement s'il n'y a rien de plus précis.
+  const precise = out.filter((g) => g !== 'Action');
+  return (precise.length ? precise : out).slice(0, 4);
+}
+
+ArtFinder.prototype.genres = async function genres(game) {
+  // Jeux Steam : genres de la boutique Steam.
+  if (game.source === 'steam' && game.appid) {
+    try {
+      const d = await fetchJson(`https://store.steampowered.com/api/appdetails?appids=${game.appid}&filters=genres&l=english`);
+      const g = d && d[game.appid] && d[game.appid].data && d[game.appid].data.genres;
+      if (g && g.length) {
+        const m = mapGenres(g.map((x) => x.description).filter((x) => !/indie|free to play|casual|early access/i.test(x)));
+        if (m.length) return m;
+      }
+    } catch {}
+  }
+  // Tous les autres (et Steam en secours) : Wikidata, via la page Wikipédia du jeu.
+  const name = game.name.replace(/\s*\([^)]*\)\s*$/, '');
+  const hint = { switch: 'Nintendo Switch', switch2: 'Nintendo Switch 2', '3ds': 'Nintendo 3DS', ds: 'Nintendo DS' }[game.platform] || '';
+  for (const q of [`${name} ${hint} video game`, `${name} video game`]) {
+    let d;
+    try {
+      d = await fetchJson('https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search'
+        + `&gsrsearch=${encodeURIComponent(q.trim())}&gsrlimit=4&prop=pageprops&ppprop=wikibase_item`);
+    } catch { continue; }
+    const pages = Object.values((d.query && d.query.pages) || {}).sort((a, b) => a.index - b.index);
+    const page = pages.find((p) => strictSimilarity(name, p.title.replace(/\s*\([^)]*\)\s*$/, '')) >= 0.9 && p.pageprops && p.pageprops.wikibase_item);
+    if (!page) continue;
+    try {
+      const qid = page.pageprops.wikibase_item;
+      const ent = await fetchJson(`https://www.wikidata.org/w/api.php?action=wbgetentities&format=json&origin=*&props=claims&ids=${qid}`);
+      const claims = (ent.entities[qid].claims || {}).P136 || [];
+      const ids = claims.map((c) => c.mainsnak && c.mainsnak.datavalue && c.mainsnak.datavalue.value.id).filter(Boolean).slice(0, 12);
+      if (!ids.length) return [];
+      const lab = await fetchJson(`https://www.wikidata.org/w/api.php?action=wbgetentities&format=json&origin=*&props=labels&languages=en&ids=${ids.join('|')}`);
+      return mapGenres(ids.map((id) => lab.entities[id] && lab.entities[id].labels.en && lab.entities[id].labels.en.value).filter(Boolean));
+    } catch { return []; }
+  }
+  return [];
+};
+
+module.exports = { ArtFinder, fileUrl, mapGenres };

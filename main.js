@@ -91,10 +91,12 @@ function defaults() {
     settings: {
       root, romDirs, sgdbKey: '', startInTV: false, emuFullscreen: true, minimizeOnPlay: true,
       scanSteam: true, scanEpic: true, scanOthers: true,
+      theme: 'foret', accent: '', cardSize: 168, libView: 'grid',
       padQuit: true, padHome: true, backups: true, backupDir: '', autostart: false,
     },
     emulators: {},
     games: {},
+    collections: [],
     sessions: [],
     firstRun: true,
   };
@@ -138,6 +140,7 @@ function publicState() {
       path: g.path || g.installDir || (g.launch && g.launch.target) || '',
       running: running.has(g.id),
       extras: g.extras || [],
+      genres: g.genresManual || g.genres || [],
     };
   });
   const emulators = Object.values(EMU.EMULATORS).map((d) => {
@@ -159,6 +162,7 @@ function publicState() {
     padKinds,
     platforms: PLATFORMS,
     games, emulators,
+    collections: db.data.collections,
     sessions: db.data.sessions.filter((s) => s.e > since),
     firstRun: db.data.firstRun,
   };
@@ -202,6 +206,7 @@ async function scanLibrary() {
       addedAt: old.addedAt || Date.now(),
       favorite: old.favorite, hidden: old.hidden, customName: old.customName, custom: old.custom,
       art: old.art, artTried: old.artTried, emu: old.emu, lastLaunched: old.lastLaunched,
+      genres: old.genres, genresTried: old.genresTried, genresManual: old.genresManual,
     };
   }
   for (const id of Object.keys(games)) {
@@ -217,18 +222,25 @@ async function fetchArt(force) {
   if (artBusy) return;
   artBusy = true;
   try {
-    const todo = Object.values(db.data.games).filter((g) =>
-      force || !g.art || (!g.art.cover && (!g.artTried || Date.now() - g.artTried > 3 * 864e5)));
+    const needArt = (g) => force || !g.art || (!g.art.cover && (!g.artTried || Date.now() - g.artTried > 3 * 864e5));
+    const needGenres = (g) => !g.genresManual && (!g.genresTried || (!(g.genres || []).length && Date.now() - g.genresTried > 7 * 864e5));
+    const todo = Object.values(db.data.games).filter((g) => needArt(g) || needGenres(g));
     let done = 0;
     const worker = async () => {
       while (todo.length) {
         const g = todo.shift();
-        try {
-          g.art = { ...(force ? {} : g.art || {}), ...await art.find(g) };
-        } catch (e) {
-          if (e.status === 401) { toast('Clé SteamGridDB refusée : vérifie-la dans Paramètres.', 'error'); todo.length = 0; }
+        if (needArt(g)) {
+          try {
+            g.art = { ...(force ? {} : g.art || {}), ...await art.find(g) };
+          } catch (e) {
+            if (e.status === 401) { toast('Clé SteamGridDB refusée : vérifie-la dans Paramètres.', 'error'); todo.length = 0; }
+          }
+          g.artTried = Date.now();
         }
-        g.artTried = Date.now();
+        if (needGenres(g)) {
+          try { g.genres = await art.genres(g); } catch {}
+          g.genresTried = Date.now();
+        }
         done++;
         if (done % 4 === 0) { send('scan:progress', `Images : ${done} jeux traités`); notifyChange(); }
       }
@@ -572,6 +584,42 @@ handle('backup:chooseDir', async () => {
   db.save(); notifyChange();
 });
 handle('pad:kinds', () => padKinds);
+
+// --- Collections personnelles ---------------------------------------------------------------
+const COLL_COLORS = ['#ff6b5e', '#f6c344', '#5fd38d', '#7aa2ff', '#c084fc', '#ff3ea5', '#5ef0c6', '#ff9f43'];
+handle('collection:create', (name, gameId) => {
+  const list = db.data.collections;
+  const c = { id: 'c' + Date.now().toString(36), name: String(name || 'Nouvelle collection').slice(0, 60), color: COLL_COLORS[list.length % COLL_COLORS.length], games: gameId ? [gameId] : [] };
+  list.push(c); db.save(); notifyChange();
+  return c;
+});
+handle('collection:update', (id, patch) => {
+  const c = db.data.collections.find((x) => x.id === id); if (!c) return;
+  if (patch.name) c.name = String(patch.name).slice(0, 60);
+  if (patch.color) c.color = patch.color;
+  db.save(); notifyChange();
+});
+handle('collection:delete', (id) => { db.data.collections = db.data.collections.filter((x) => x.id !== id); db.save(); notifyChange(); });
+handle('collection:toggle', (id, gameId, on) => {
+  const c = db.data.collections.find((x) => x.id === id); if (!c) return;
+  const has = c.games.includes(gameId);
+  const want = on === undefined ? !has : !!on;
+  if (want && !has) c.games.push(gameId);
+  if (!want && has) c.games = c.games.filter((g) => g !== gameId);
+  db.save(); notifyChange();
+  return want;
+});
+handle('collection:move', (id, dir) => {
+  const l = db.data.collections, i = l.findIndex((x) => x.id === id), j = i + dir;
+  if (i < 0 || j < 0 || j >= l.length) return;
+  [l[i], l[j]] = [l[j], l[i]]; db.save(); notifyChange();
+});
+handle('game:setGenres', (id, list) => {
+  const g = db.data.games[id]; if (!g) return;
+  g.genresManual = Array.isArray(list) ? list.map((x) => String(x).trim()).filter(Boolean).slice(0, 8) : null;
+  if (!g.genresManual || !g.genresManual.length) delete g.genresManual;
+  db.save(); notifyChange();
+});
 handle('emu:checkUpdates', () => checkEmuUpdates());
 handle('emu:locate', async (id) => {
   const d = EMU.EMULATORS[id];

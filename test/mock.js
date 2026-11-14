@@ -11,7 +11,7 @@
     size: o.size || 4e9, minutes: o.min || 0, sessions: o.ses || 0, last: o.last ? now - o.last * D : 0,
     art: o.noart ? {} : { cover: svg(600, 900, c1, c2, name.split(' ')[0], 70), ...(o.hero ? { hero: svg(1920, 620, c2, c1, '') } : {}) },
     emu: { switch: 'eden', switch2: 'lichii', '3ds': 'azahar', ds: 'melonds' }[platform] || null,
-    emuReady: o.ready !== false, path: o.path || `C:\\Users\\Hamza\\HMZ\\Jeux\\${platform}\\${name}.nsp`, running: !!o.running,
+    emuReady: o.ready !== false, genres: o.genres || ({ switch2: ['Course'], switch: ['Aventure', 'Monde ouvert'], '3ds': ['RPG'], ds: ['Plateforme'], pc: ['Action', 'Tir'] }[platform]), path: o.path || `C:\\Users\\Hamza\\HMZ\\Jeux\\${platform}\\${name}.nsp`, running: !!o.running,
   });
   const games = [
     Object.assign(mk('switch2:pokemon-pokopia', 'Pokémon Pokopia', 'switch2', '#3d9b4f', '#f2d24b', { hero: 1, min: 132, ses: 4, last: 8, fav: 1 }), { extras: ['update', 'dlc', 'dlc'] }),
@@ -46,7 +46,7 @@
     version: '2.0.0',
     settings: { root: 'C:\\Users\\Hamza\\HMZ', romDirs: { ds: ['C:\\Users\\Hamza\\HMZ\\Jeux\\DS'], '3ds': ['C:\\Users\\Hamza\\HMZ\\Jeux\\3DS'], switch: ['C:\\Users\\Hamza\\HMZ\\Jeux\\Switch', 'D:\\Jeux Switch'], switch2: ['C:\\Users\\Hamza\\HMZ\\Jeux\\Switch 2'] }, sgdbKey: '', backups: true, backupDirShown: 'C:\\Users\\Hamza\\HMZ\\Sauvegardes', padQuit: true, padHome: true, scanOthers: true, autostart: false, startInTV: false, emuFullscreen: true, minimizeOnPlay: true, scanSteam: true, scanEpic: true },
     platforms: { pc: { label: 'PC', color: '#7aa2ff' }, switch2: { label: 'Switch 2', color: '#ff5a4e' }, switch: { label: 'Switch', color: '#ff7a59' }, '3ds': { label: '3DS', color: '#f6c344' }, ds: { label: 'DS', color: '#7fd1b9' } },
-    games, emulators, sessions, padKinds: ['playstation'],
+    games, emulators, sessions, padKinds: ['playstation'], collections: [{ id: 'c1', name: 'À finir', color: '#ff6b5e', games: ['switch:zelda-totk', 'ds:pokemon-heartgold'] }, { id: 'c2', name: 'Soirées entre potes', color: '#7aa2ff', games: ['switch2:mario-kart-world', 'switch:smash', 'steam:730'] }],
   };
   if (location.hash === '#empty') state.games = [];
   const listeners = {};
@@ -58,6 +58,8 @@
       if (ch === 'state:get') return JSON.parse(JSON.stringify(state));
       if (ch === 'game:update') { Object.assign(games.find((g) => g.id === a[0]), a[1]); emit('state:changed', JSON.parse(JSON.stringify(state))); }
       if (ch === 'game:launch') { const g = games.find((x) => x.id === a[0]); return g.emuReady ? { ok: true } : { needEmu: g.emu }; }
+      if (ch === 'collection:toggle') { const c = state.collections.find((x) => x.id === a[0]); const has = c.games.includes(a[1]); const want = a[2] === undefined ? !has : a[2]; if (want && !has) c.games.push(a[1]); if (!want && has) c.games = c.games.filter((x) => x !== a[1]); emit('state:changed', JSON.parse(JSON.stringify(state))); return want; }
+      if (ch === 'collection:create') { const c = { id: 'c' + Date.now(), name: a[0], color: '#c084fc', games: a[1] ? [a[1]] : [] }; state.collections.push(c); emit('state:changed', JSON.parse(JSON.stringify(state))); return c; }
       if (ch === 'settings:set') { Object.assign(state.settings, a[0]); emit('state:changed', JSON.parse(JSON.stringify(state))); }
       if (ch === 'emu:install' && a[0] === 'eden') { throw new Error('git.eden-emu.dev : HTTP 503'); }
       if (ch === 'emu:install') {

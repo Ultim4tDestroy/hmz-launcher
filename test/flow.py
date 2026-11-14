@@ -1,0 +1,27 @@
+import asyncio
+from playwright.async_api import async_playwright
+async def main():
+    async with async_playwright() as p:
+        b = await p.chromium.launch(executable_path='/usr/bin/google-chrome')
+        pg = await b.new_page(viewport={'width':1440,'height':880})
+        errs=[]; pg.on('pageerror', lambda e: errs.append(str(e)))
+        await pg.goto('file:///home/claude/hmz/renderer/dev.html'); await pg.wait_for_timeout(600)
+        await pg.click('[data-view=library]')
+        await pg.click('[data-action=new-coll]')
+        await pg.fill('#newCollName', 'Mes RPG')
+        await pg.press('#newCollName', 'Enter'); await pg.wait_for_timeout(400)
+        title = await pg.inner_text('.lib-head h1')
+        await pg.click('[data-coll*=all]'); await pg.wait_for_timeout(200)
+        src = pg.locator('.grid .card[data-game="3ds:pokemon-ultra-sun"]')
+        dst = pg.locator('.coll-item', has_text='Mes RPG')
+        await src.drag_to(dst); await pg.wait_for_timeout(500)
+        await dst.click(); await pg.wait_for_timeout(300)
+        n = await pg.locator('.grid .card[data-game]').count()
+        names = await pg.locator('.grid .card-name').all_inner_texts()
+        await pg.click('[data-coll*=genre]'); await pg.wait_for_timeout(200)
+        g = await pg.inner_text('.lib-head h1')
+        await pg.fill('#libSearch', 'mario'); await pg.wait_for_timeout(300)
+        await pg.screenshot(path='test/flow.png')
+        print('titre après création:', title, '| jeux dans Mes RPG:', n, names, '| genre:', g, '| erreurs:', errs)
+        await b.close()
+asyncio.run(main())

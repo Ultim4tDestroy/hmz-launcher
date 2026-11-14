@@ -7,7 +7,7 @@ const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 let S = null;                       // état reçu du processus principal
-const ui = { view: 'home', heroId: null, filter: 'all', sort: 'recent', q: '', showHidden: false };
+const ui = { view: 'home', heroId: null, coll: { type: 'all' }, sort: 'recent', q: '', showHidden: false, closed: { genres: false }, openColl: {} };
 const emuProg = {};                 // progression des installations
 const emuErr = {};                  // dernière erreur d'installation par émulateur
 let padKinds = [];                  // manettes vues en arrière-plan
@@ -38,9 +38,72 @@ const ICON = {
   pad: '<svg viewBox="0 0 24 24"><rect x="2.5" y="7" width="19" height="11" rx="5.5"/><path d="M7 11v3M5.5 12.5h3"/><circle cx="16" cy="11.5" r=".8"/><circle cx="18" cy="13.5" r=".8"/></svg>',
   key: '<svg viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M17 6l3 3M15 8l2 2"/></svg>',
   chip: '<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></svg>',
+  palette: '<svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.6-.8 1.6-1.6 0-.5-.2-.8-.5-1.2-.3-.3-.4-.7-.4-1.1 0-.9.7-1.6 1.6-1.6H16a5 5 0 0 0 5-5c0-4-4-7.5-9-7.5z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10.5" cy="7" r="1"/><circle cx="15.5" cy="7.5" r="1"/></svg>',
+  grid: '<svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>',
+  list: '<svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/></svg>',
+  chev: '<svg class="chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>',
+  clock: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+  sparkle: '<svg viewBox="0 0 24 24"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/></svg>',
+  layers: '<svg viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/></svg>',
+  tagic: '<svg viewBox="0 0 24 24"><path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z"/><circle cx="7.5" cy="7.5" r="1.3"/></svg>',
   warn: '<svg viewBox="0 0 24 24"><path d="M12 3 2 20h20zM12 10v4M12 17h.01"/></svg>',
   x: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>',
 };
+
+// --- Thèmes ----------------------------------------------------------------------------
+const THEMES = [
+  { id: 'foret', label: 'Forêt', sub: 'Par défaut', c: ['#0a0d0b', '#101512', '#f5ead0', '#5fd38d'] },
+  { id: 'minuit', label: 'Minuit', sub: 'Bleu nuit', c: ['#060912', '#0f1729', '#8fb4ff', '#5fd3c0'] },
+  { id: 'neon', label: 'Néon', sub: 'Cyberpunk', c: ['#06050a', '#120f1e', '#ff3ea5', '#3ef0ff'] },
+  { id: 'sakura', label: 'Sakura', sub: 'Rose doux', c: ['#120a10', '#21131d', '#ffb3cf', '#9be3b5'] },
+  { id: 'lave', label: 'Lave', sub: 'Orange chaud', c: ['#0d0907', '#1c1410', '#ff7a3d', '#ffcb5c'] },
+  { id: 'aurore', label: 'Aurore', sub: 'Vert polaire', c: ['#041110', '#0c2220', '#5ef0c6', '#b4f25e'] },
+  { id: 'retro', label: 'Rétro', sub: 'Console portable', c: ['#0f1a0f', '#1a2c1a', '#9bbc0f', '#c8e86a'] },
+  { id: 'oled', label: 'OLED', sub: 'Noir pur', c: ['#000000', '#0a0a0a', '#ffffff', '#4ade80'] },
+  { id: 'glace', label: 'Glace', sub: 'Clair', c: ['#e9eef3', '#ffffff', '#1f6feb', '#16a34a'] },
+];
+const ACCENTS = ['#f5ead0', '#8fb4ff', '#ff3ea5', '#ffb3cf', '#ff7a3d', '#5ef0c6', '#9bbc0f', '#c084fc', '#f6c344', '#ff5a4e', '#ffffff'];
+
+function inkFor(hex) {
+  const n = parseInt(hex.replace('#', ''), 16);
+  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  return (0.299 * r + 0.587 * g + 0.114 * b) > 150 ? '#141414' : '#ffffff';
+}
+function applyAppearance(st = S && S.settings) {
+  if (!st) return;
+  const root = document.documentElement;
+  if (st.theme && st.theme !== 'foret') root.dataset.theme = st.theme; else delete root.dataset.theme;
+  if (st.accent) { root.style.setProperty('--cream', st.accent); root.style.setProperty('--cream-ink', inkFor(st.accent)); }
+  else { root.style.removeProperty('--cream'); root.style.removeProperty('--cream-ink'); }
+  root.style.setProperty('--card-min', `${st.cardSize || 168}px`);
+}
+function setAppearance(patch) {
+  Object.assign(S.settings, patch);
+  applyAppearance();
+  api.call('settings:set', patch).catch(() => {});
+}
+function themeCards() {
+  const cur = S.settings.theme || 'foret';
+  return `<div class="theme-grid">${THEMES.map((t) => `<button class="theme-card${cur === t.id ? ' on' : ''}" data-theme-pick="${t.id}">
+    <div class="theme-prev" style="background:linear-gradient(135deg, ${t.c[0]}, ${t.c[1]})">
+      <i class="tp-bar" style="background:${t.id === 'glace' ? '#111821' : '#f4f0e6'}"></i><i class="tp-line" style="background:${t.id === 'glace' ? '#111821' : '#f4f0e6'}"></i>
+      <i class="tp-btn" style="background:${t.c[2]}"></i>
+      <span class="tp-cards"><i style="background:${t.c[2]}"></i><i style="background:${t.c[3]}"></i><i style="background:${t.id === 'glace' ? '#c9d3de' : '#ffffff33'}"></i></span>
+    </div>
+    <div class="theme-name">${esc(t.label)}<small>${esc(t.sub)}</small></div></button>`).join('')}</div>`;
+}
+function accentSwatches() {
+  const cur = S.settings.accent || '';
+  return `<div class="swatches"><button class="swatch auto${!cur ? ' on' : ''}" data-accent="" title="Couleur du thème"></button>${ACCENTS.map((c) => `<button class="swatch${cur === c ? ' on' : ''}" data-accent="${c}" style="background:${c}" title="${c}"></button>`).join('')}</div>`;
+}
+function toggleThemePop() {
+  const old = $('.theme-pop');
+  if (old) { old.remove(); return; }
+  const el = document.createElement('div');
+  el.className = 'theme-pop';
+  el.innerHTML = `<h4>Thème</h4>${themeCards()}<h4 style="margin-top:14px">Couleur d'accent</h4>${accentSwatches()}`;
+  document.body.appendChild(el);
+}
 
 // --- Formats ------------------------------------------------------------------------
 const plat = (p) => (S && S.platforms[p]) || { label: p, color: '#888' };
@@ -99,7 +162,7 @@ function heroInfo(g) {
 function cardHTML(g, { selected = false } = {}) {
   const extra = `${g.favorite ? `<span class="fav">${ICON.star}</span>` : ''}
     ${g.running ? '<span class="live"><i class="dot"></i>En cours</span>' : (!g.emuReady ? '<span class="noemu">Émulateur à installer</span>' : '')}`;
-  return `<button class="card${selected ? ' selected' : ''}" data-game="${esc(g.id)}" style="--c:${plat(g.platform).color}">
+  return `<button class="card${selected ? ' selected' : ''}" data-game="${esc(g.id)}" draggable="true" style="--c:${plat(g.platform).color}">
     ${coverHTML(g, extra)}
     <div class="card-name">${esc(g.name)}</div>
     <div class="card-sub"><i class="pdot"></i>${esc(plat(g.platform).label)}${g.minutes >= 1 ? ` · ${fmtTime(g.minutes)}` : ''}</div>
@@ -207,12 +270,87 @@ function renderWelcome() {
   </div>`;
 }
 
-// Bibliothèque -------------------------------------------------------------------------------
+// Bibliothèque ---------------------------------------------------------------------------------
+const SOURCES = { steam: 'Steam', epic: 'Epic Games', riot: 'Riot Games', launcher: 'Autres launchers', installed: 'Jeux installés', manual: 'Ajoutés à la main', rom: 'Émulés' };
+const SOURCE_COLORS = { steam: '#66c0f4', epic: '#d6d6d6', riot: '#ff4655', launcher: '#c084fc', installed: '#f6c344', manual: '#7fd1b9', rom: '#ff7a59' };
+
+function collFilter(c) {
+  const now = Date.now();
+  switch (c.type) {
+    case 'fav': return (g) => g.favorite;
+    case 'recent': return (g) => g.last && now - g.last < 30 * 864e5;
+    case 'never': return (g) => !g.minutes && !g.last;
+    case 'platform': return (g) => g.platform === c.key;
+    case 'source': return (g) => g.source === c.key;
+    case 'genre': return (g) => (g.genres || []).includes(c.key);
+    case 'user': { const col = S.collections.find((x) => x.id === c.key); const set = new Set(col ? col.games : []); return (g) => set.has(g.id); }
+    default: return () => true;
+  }
+}
+function collInfo(c) {
+  switch (c.type) {
+    case 'fav': return { label: 'Favoris', icon: ICON.star, color: '#f6c344' };
+    case 'recent': return { label: 'Joués ces 30 jours', icon: ICON.clock, color: '#7aa2ff' };
+    case 'never': return { label: 'Jamais joués', icon: ICON.sparkle, color: '#5ef0c6' };
+    case 'platform': return { label: plat(c.key).label, icon: ICON.pad, color: plat(c.key).color };
+    case 'source': return { label: SOURCES[c.key] || c.key, icon: ICON.layers, color: SOURCE_COLORS[c.key] };
+    case 'genre': return { label: c.key, icon: ICON.tagic, color: '#c084fc' };
+    case 'user': { const col = S.collections.find((x) => x.id === c.key); return { label: col ? col.name : 'Collection', icon: ICON.folder, color: col ? col.color : '#888' }; }
+    default: return { label: 'Tous les jeux', icon: ICON.grid, color: 'var(--cream)' };
+  }
+}
+const sameColl = (a, b) => a.type === b.type && (a.key || '') === (b.key || '');
+
+function collItem(c, n, extra = '') {
+  const info = collInfo(c);
+  const on = sameColl(ui.coll, c);
+  return `<button class="coll-item${on ? ' on' : ''}" data-coll="${esc(JSON.stringify(c))}"${c.type === 'user' ? ` data-collid="${esc(c.key)}"` : ''} style="--c:${info.color}">
+    <span class="ic">${info.icon}</span><span class="nm">${esc(info.label)}</span>${extra}<span class="n">${n}</span></button>`;
+}
+function collSection(key, title, body, addBtn = '') {
+  const closed = ui.closed[key];
+  return `<div class="coll-sec${closed ? ' closed' : ''}"><div class="coll-title"><button data-collsec="${key}" style="display:flex;align-items:center;gap:6px">${ICON.chev}${esc(title)}</button>${addBtn}</div><div class="coll-items">${body}</div></div>`;
+}
+
+function renderCollPanel(all) {
+  const count = (c) => all.filter(collFilter(c)).length;
+  const quick = [{ type: 'all' }, { type: 'fav' }, { type: 'recent' }, { type: 'never' }].map((c) => { const n = count(c); return c.type === 'all' || n ? collItem(c, n) : ''; }).join('');
+  const plats = ORDER.map((p) => ({ type: 'platform', key: p })).map((c) => { const n = count(c); return n ? collItem(c, n) : ''; }).join('');
+  const srcs = Object.keys(SOURCES).map((k) => ({ type: 'source', key: k })).map((c) => { const n = count(c); return n ? collItem(c, n) : ''; }).join('');
+  const gcount = {};
+  for (const g of all) for (const x of g.genres || []) gcount[x] = (gcount[x] || 0) + 1;
+  const genres = Object.entries(gcount).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'fr')).map(([k, n]) => collItem({ type: 'genre', key: k }, n)).join('');
+  const user = S.collections.map((col) => {
+    const games = col.games.map(gameById).filter(Boolean);
+    const open = ui.openColl[col.id];
+    return collItem({ type: 'user', key: col.id }, games.length, `<span class="icon-btn" data-collopen="${esc(col.id)}" style="width:20px;height:20px;transform:rotate(${open ? 0 : -90}deg)">${ICON.chev}</span>`)
+      + (open && games.length ? `<div class="coll-games">${games.map((g) => `<button class="coll-game" data-detail="${esc(g.id)}" data-game-ctx="${esc(g.id)}"><span class="mini">${coverHTML(g)}</span><span>${esc(g.name)}</span></button>`).join('')}</div>` : '');
+  }).join('');
+  const newRow = ui.newColl ? `<div class="coll-new"><input id="newCollName" placeholder="Nom de la collection" maxlength="60"></div>` : '';
+  return `<aside class="coll-panel">
+    <div class="coll-search">${'<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>'}<input id="libSearch" placeholder="Rechercher dans la bibliothèque" value="${esc(ui.q)}"></div>
+    ${collSection('quick', 'Bibliothèque', quick)}
+    ${collSection('user', 'Mes collections', (user || (ui.newColl ? '' : '<div style="padding:4px 10px 8px;color:var(--faint);font-size:12.5px">Crée une collection, puis glisse des jeux dessus.</div>')) + newRow, `<button class="add" data-action="new-coll" title="Nouvelle collection">${ICON.plus}</button>`)}
+    ${plats ? collSection('plats', 'Consoles', plats) : ''}
+    ${srcs ? collSection('srcs', 'Launchers', srcs) : ''}
+    ${genres ? collSection('genres', 'Genres', genres) : ''}
+  </aside>`;
+}
+
+function listRowHTML(g) {
+  return `<div class="lrow" data-game="${esc(g.id)}" draggable="true" role="button" tabindex="0" style="--c:${plat(g.platform).color}">
+    <span class="mini">${coverHTML(g)}</span>
+    <div style="min-width:0"><div class="nm">${esc(g.name)}${g.running ? ' <span class="kicker live" style="display:inline-flex;font-size:10px;margin-left:8px"><i class="dot"></i>En cours</span>' : ''}</div><div class="sub">${esc([sourceLabel(g), ...(g.genres || []).slice(0, 3)].join(' · '))}</div></div>
+    <span class="cell"><span class="tag" style="--c:${plat(g.platform).color}">${esc(plat(g.platform).label)}</span></span>
+    <span class="cell">${g.last ? esc(fmtLast(g.last)) : '—'}</span>
+    <span class="cell">${g.minutes >= 1 ? fmtTime(g.minutes) : '—'}</span>
+    <button class="play-ic" data-play="${esc(g.id)}" title="Jouer">${ICON.play}</button>
+  </div>`;
+}
+
 function renderLibrary() {
   const all = visible();
-  const counts = { all: all.length, fav: all.filter((g) => g.favorite).length };
-  for (const p of ORDER) counts[p] = all.filter((g) => g.platform === p).length;
-  let list = all.filter((g) => ui.filter === 'all' || (ui.filter === 'fav' ? g.favorite : g.platform === ui.filter));
+  let list = all.filter(collFilter(ui.coll));
   if (ui.q) { const q = ui.q.toLowerCase(); list = list.filter((g) => g.name.toLowerCase().includes(q)); }
   const sorts = {
     recent: byRecent,
@@ -221,21 +359,33 @@ function renderLibrary() {
     added: (a, b) => (b.addedAt || 0) - (a.addedAt || 0),
   };
   list.sort(sorts[ui.sort]);
-  const chip = (k, label) => (counts[k] || k === 'all' ? `<button class="chip${ui.filter === k ? ' on' : ''}" data-filter="${k}">${esc(label)}<span class="n">${counts[k] || 0}</span></button>` : '');
-  return `<div class="page">
-    <div class="page-head"><div><h1>Bibliothèque</h1><p>${all.length} jeu${all.length > 1 ? 'x' : ''} · clic droit sur un jeu pour plus d'options</p></div>
-      <button class="btn primary" data-action="add-game">${ICON.plus}Ajouter un jeu</button></div>
-    <div class="toolbar">
-      <div class="chips">${chip('all', 'Tous')}${chip('fav', 'Favoris')}${ORDER.map((p) => chip(p, plat(p).label)).join('')}</div>
-      <div class="grow"></div>
-      <input class="input" id="libSearch" placeholder="Filtrer…" value="${esc(ui.q)}" style="width:200px;height:34px">
-      <select class="select" id="libSort">
-        ${[['recent', 'Joués récemment'], ['name', 'Nom'], ['time', 'Temps de jeu'], ['added', 'Ajoutés récemment']].map(([k, l]) => `<option value="${k}"${ui.sort === k ? ' selected' : ''}>${l}</option>`).join('')}
-      </select>
-    </div>
-    ${list.length ? `<div class="grid">${list.map((g) => cardHTML(g)).join('')}${ui.filter === 'all' && !ui.q ? addCardHTML() : ''}</div>`
-      : `<div class="empty"><h3>Aucun jeu ici</h3><p>${ui.filter !== 'all' && ui.filter !== 'fav' && ui.filter !== 'pc' ? `Dépose tes jeux ${esc(plat(ui.filter).label)} dans leur dossier, puis relance la recherche.` : 'Essaie un autre filtre.'}</p>
-        ${ui.filter !== 'all' && ui.filter !== 'fav' && ui.filter !== 'pc' ? `<button class="btn" data-opendir="${ui.filter}">${ICON.folder}Ouvrir le dossier</button>` : ''}</div>`}
+  const info = collInfo(ui.coll);
+  const view = S.settings.libView || 'grid';
+  const isUser = ui.coll.type === 'user';
+  const emptyMsg = isUser ? 'Glisse des jeux sur cette collection dans le panneau de gauche, ou fais un clic droit sur un jeu › Ajouter à une collection.'
+    : ui.coll.type === 'platform' && ui.coll.key !== 'pc' ? `Dépose tes jeux ${esc(plat(ui.coll.key).label)} dans leur dossier, puis relance la recherche.` : 'Essaie une autre collection ou une autre recherche.';
+  return `<div class="lib">
+    ${renderCollPanel(all)}
+    <div class="lib-main"><div class="page">
+      <div class="page-head">
+        <div class="lib-head"><span class="big-ic" style="--c:${info.color}">${info.icon}</span><div><h1>${esc(info.label)}</h1><p style="margin-top:4px">${list.length} jeu${list.length > 1 ? 'x' : ''}${ui.q ? ` pour « ${esc(ui.q)} »` : ''}</p></div></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          ${isUser ? `<button class="btn ghost sm" data-collmenu="${esc(ui.coll.key)}">${ICON.dots}</button>` : ''}
+          <button class="btn primary" data-action="add-game">${ICON.plus}Ajouter un jeu</button>
+        </div>
+      </div>
+      <div class="toolbar">
+        <div class="viewsw"><button class="${view === 'grid' ? 'on' : ''}" data-libview="grid" title="Grille">${ICON.grid}</button><button class="${view === 'list' ? 'on' : ''}" data-libview="list" title="Liste">${ICON.list}</button></div>
+        ${view === 'grid' ? `<input type="range" class="range" id="cardSize" min="120" max="260" step="4" value="${S.settings.cardSize || 168}" title="Taille des jaquettes" style="width:150px">` : ''}
+        <div class="grow"></div>
+        <select class="select" id="libSort">
+          ${[['recent', 'Joués récemment'], ['name', 'Nom'], ['time', 'Temps de jeu'], ['added', 'Ajoutés récemment']].map(([k, l]) => `<option value="${k}"${ui.sort === k ? ' selected' : ''}>${l}</option>`).join('')}
+        </select>
+      </div>
+      ${!list.length ? `<div class="empty"><h3>Aucun jeu ici</h3><p>${emptyMsg}</p>${ui.coll.type === 'platform' && ui.coll.key !== 'pc' ? `<button class="btn" data-opendir="${ui.coll.key}">${ICON.folder}Ouvrir le dossier</button>` : ''}</div>`
+        : view === 'list' ? `<div class="list"><div class="list-head"><span></span><span>Jeu</span><span>Console</span><span>Dernière partie</span><span>Temps</span><span></span></div>${list.map(listRowHTML).join('')}</div>`
+        : `<div class="grid">${list.map((g) => cardHTML(g)).join('')}${ui.coll.type === 'all' && !ui.q ? addCardHTML() : ''}</div>`}
+    </div></div>
   </div>`;
 }
 
@@ -362,6 +512,10 @@ function renderSettings() {
   return `<div class="page">
     <div class="page-head"><div><h1>Paramètres</h1><p>HMZ Launcher ${esc(S.version)}</p></div></div>
     <div class="settings">
+      <div class="set-group">Apparence</div>
+      <div class="set" style="display:block"><div class="t" style="margin-bottom:12px">Thème</div>${themeCards()}</div>
+      <div class="set"><div><div class="t">Couleur d'accent</div><div class="d">Boutons, sélection et graphiques. Le multicolore reprend la couleur du thème.</div></div>${accentSwatches()}</div>
+      <div class="set"><div><div class="t">Taille des jaquettes</div><div class="d">Dans la bibliothèque. Aussi réglable directement depuis la bibliothèque.</div></div><input type="range" class="range" id="cardSize" min="120" max="260" step="4" value="${S.settings.cardSize || 168}"></div>
       <div class="set-group">Version</div>
       <div class="set"><div><div class="t">HMZ Launcher ${esc(S.version)}${S.codeSource === 'mise à jour' ? ' · mise à jour locale' : ''}</div>
         <div class="d">HMZ se met à jour tout seul : il vérifie au démarrage puis toutes les 2 heures, et installe la nouvelle version quand tu le fermes.</div></div>
@@ -427,6 +581,9 @@ function openDetail(id) {
         </div>
         <div class="field-label">30 derniers jours</div>
         <div class="mini-chart">${per.map((m) => `<i class="${m < 1 ? 'z' : ''}" style="height:${Math.max(3, (m / pmax) * 100)}%" title="${fmtTime(m)}"></i>`).join('')}</div>
+        <div class="field-label">Genres</div>
+        <div class="genre-chips">${(g.genres || []).map((x) => `<span class="genre-chip">${esc(x)}<button data-genre-rm="${esc(x)}" data-id="${esc(g.id)}" title="Retirer">×</button></span>`).join('')}<button class="genre-chip add" data-genre-add="${esc(g.id)}">${ICON.plus}Ajouter</button></div>
+        ${S.collections.length ? `<div class="field-label">Collections</div><div class="genre-chips">${S.collections.map((c) => `<button class="genre-chip" data-colltoggle="${esc(c.id)}" data-id="${esc(g.id)}" style="${c.games.includes(g.id) ? `background:color-mix(in srgb, ${c.color} 25%, transparent);color:var(--text)` : ''}"><span class="dot-c" style="width:8px;height:8px;border-radius:50%;background:${c.color}"></span>${esc(c.name)}${c.games.includes(g.id) ? ' ✓' : ''}</button>`).join('')}</div>` : ''}
         ${emus.length ? `<div class="field-label">Lancer avec</div><div class="seg">${emus.map((e) => `<button class="${g.emu === e.id ? 'on' : ''}" data-setemu="${e.id}" data-id="${esc(g.id)}">${esc(e.name)}${e.installed ? '' : ' (à installer)'}</button>`).join('')}</div>` : ''}
         ${g.source === 'manual' && g.platform !== 'pc' ? `<div class="field-label">Console</div><div class="seg">${['switch2', 'switch', '3ds', 'ds'].map((p) => `<button class="${g.platform === p ? 'on' : ''}" data-setplat="${p}" data-id="${esc(g.id)}">${esc(plat(p).label)}</button>`).join('')}</div>` : ''}
         ${g.extras && g.extras.length ? `<div class="field-label">Contenu supplémentaire</div><div class="extras">${g.extras.filter((x) => x === 'update').length ? `<span class="tag" style="--c:#5fd38d">${g.extras.filter((x) => x === 'update').length} mise${g.extras.filter((x) => x === 'update').length > 1 ? 's' : ''} à jour</span>` : ''}${g.extras.filter((x) => x === 'dlc').length ? `<span class="tag" style="--c:#7aa2ff">${g.extras.filter((x) => x === 'dlc').length} DLC</span>` : ''}<span style="color:var(--muted);font-size:12.5px">Trouvés dans tes dossiers et signalés à l'émulateur. Si le jeu ne les voit pas : ouvre l'émulateur › Fichier › Installer des fichiers.</span></div>` : ''}
@@ -510,6 +667,8 @@ function openCtx(id, x, y) {
   ctx.innerHTML = `<button data-play="${esc(id)}">${ICON.play}Jouer</button>
     <button data-detail="${esc(id)}">${ICON.info}Voir la fiche</button>
     <button data-fav="${esc(id)}">${ICON.star}${g.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}</button>
+    <div class="sub-wrap"><button data-noop="1">${ICON.folder}Ajouter à une collection<span style="margin-left:auto;opacity:.5">›</span></button>
+      <div class="sub-menu">${S.collections.map((c) => `<button data-colltoggle="${esc(c.id)}" data-id="${esc(id)}"><span class="chk${c.games.includes(id) ? ' on' : ''}">${c.games.includes(id) ? ICON.check : ''}</span><span class="dot-c" style="--c:${c.color}"></span>${esc(c.name)}</button>`).join('')}${S.collections.length ? '<hr>' : ''}<button data-collnewfor="${esc(id)}">${ICON.plus}Nouvelle collection…</button></div></div>
     <hr>
     <button data-rename="${esc(id)}">${ICON.edit}Renommer</button>
     <button data-art="cover" data-id="${esc(id)}">${ICON.image}Changer la jaquette</button>
@@ -522,6 +681,20 @@ function openCtx(id, x, y) {
   ctx.style.top = Math.min(y, innerHeight - r.height - 10) + 'px';
 }
 const closeCtx = () => { $('#ctx').hidden = true; };
+function openCollCtx(id, x, y) {
+  const c = S.collections.find((k) => k.id === id);
+  if (!c) return;
+  const COLORS = ['#ff6b5e', '#f6c344', '#5fd38d', '#7aa2ff', '#c084fc', '#ff3ea5', '#5ef0c6', '#ff9f43'];
+  const ctx = $('#ctx');
+  ctx.innerHTML = `<button data-collrename="${esc(id)}">${ICON.edit}Renommer</button>
+    <div style="display:flex;gap:6px;padding:8px 10px">${COLORS.map((k) => `<button class="swatch${c.color === k ? ' on' : ''}" data-collcolor="${k}" data-id="${esc(id)}" style="width:20px;height:20px;background:${k};padding:0"></button>`).join('')}</div>
+    <button data-collmove="-1" data-id="${esc(id)}">↑ Monter</button><button data-collmove="1" data-id="${esc(id)}">↓ Descendre</button>
+    <hr><button class="danger" data-colldelete="${esc(id)}" style="color:var(--red)">${ICON.trash}Supprimer la collection</button>`;
+  ctx.hidden = false;
+  const r = ctx.getBoundingClientRect();
+  ctx.style.left = Math.min(x, innerWidth - r.width - 10) + 'px';
+  ctx.style.top = Math.min(y, innerHeight - r.height - 10) + 'px';
+}
 
 // --- Notifications -----------------------------------------------------------------------
 function toast(text, kind = 'info', ms = 4200) {
@@ -573,11 +746,13 @@ async function installEmu(id) {
 }
 
 document.addEventListener('click', async (ev) => {
-  const t = ev.target.closest('button, [data-url], .linkish, a');
+  const t = ev.target.closest('button, [data-url], .linkish, a, .lrow');
+  if (!ev.target.closest('.theme-pop, #themeBtn')) $('.theme-pop')?.remove();
   if (!$('#ctx').hidden && !ev.target.closest('#ctx')) closeCtx();
   if (!t) return;
   const d = t.dataset;
-  if (t.closest('#ctx')) closeCtx();
+  if (d.noop) return;
+  if (t.closest('#ctx') && !d.colltoggle && !d.collnewfor) closeCtx();
 
   if (d.view) return go(d.view);
   if (d.go) return go(d.go);
@@ -595,8 +770,23 @@ document.addEventListener('click', async (ev) => {
   if (d.remove) { closeModal(); return call('game:remove', d.remove); }
   if (d.setemu) return call('game:update', d.id, { emu: d.setemu });
   if (d.setplat) return call('game:setPlatform', d.id, d.setplat);
-  if (d.filter) { ui.filter = d.filter; return render(); }
-  if (d.seeall) { ui.filter = d.seeall; ui.q = ''; return go('library'); }
+  if (d.seeall) { ui.coll = d.seeall === 'fav' ? { type: 'fav' } : { type: 'platform', key: d.seeall }; ui.q = ''; return go('library'); }
+  const co = ev.target.closest('[data-collopen]');
+  if (co) { ui.openColl[co.dataset.collopen] = !ui.openColl[co.dataset.collopen]; return render(); }
+  if (d.coll) { ui.coll = JSON.parse(d.coll); $('#view').scrollTop = 0; return render(); }
+  if (d.collsec) { ui.closed[d.collsec] = !ui.closed[d.collsec]; return render(); }
+  if (d.libview) { setAppearance({ libView: d.libview }); return render(); }
+  if (d.themePick) { setAppearance({ theme: d.themePick }); $$('[data-theme-pick]').forEach((b) => b.classList.toggle('on', b.dataset.themePick === d.themePick)); return; }
+  if (d.accent !== undefined) { setAppearance({ accent: d.accent }); $$('[data-accent]').forEach((b) => b.classList.toggle('on', b.dataset.accent === d.accent)); return; }
+  if (d.collmenu) { const r = t.getBoundingClientRect(); return openCollCtx(d.collmenu, r.left, r.bottom + 8); }
+  if (d.colltoggle) { const on = await call('collection:toggle', d.colltoggle, d.id); const c = S.collections.find((x) => x.id === d.colltoggle); toast(on ? `Ajouté à « ${c.name} ».` : `Retiré de « ${c.name} ».`, 'ok', 2200); closeCtx(); return; }
+  if (d.collnewfor) { closeCtx(); const name = await askText('Nouvelle collection', 'Donne un nom à ta collection.', ''); if (name) { await call('collection:create', name, d.collnewfor); toast(`Collection « ${name} » créée.`, 'ok'); } return; }
+  if (d.collrename) { closeCtx(); const c = S.collections.find((x) => x.id === d.collrename); const v = await askText('Renommer la collection', '', c.name); if (v) await call('collection:update', c.id, { name: v }); return; }
+  if (d.collcolor) { closeCtx(); return call('collection:update', d.id, { color: d.collcolor }); }
+  if (d.collmove) { closeCtx(); return call('collection:move', d.id, Number(d.collmove)); }
+  if (d.colldelete) { closeCtx(); const c = S.collections.find((x) => x.id === d.colldelete); if (await confirmBox('Supprimer la collection ?', `« ${esc(c.name)} » sera supprimée. Les jeux restent dans ta bibliothèque.`, 'Supprimer')) { await call('collection:delete', c.id); if (ui.coll.type === 'user' && ui.coll.key === c.id) { ui.coll = { type: 'all' }; render(); } } return; }
+  if (d.genreRm) { const g = gameById(d.id); await call('game:setGenres', d.id, (g.genres || []).filter((x) => x !== d.genreRm)); return; }
+  if (d.genreAdd) { const g = gameById(d.genreAdd); const v = await askText('Ajouter un genre', 'Par exemple : RPG, Course, Plateforme, Combat…', ''); if (v) await call('game:setGenres', g.id, [...(g.genres || []), v]); openDetail(g.id); return; }
   if (d.install) return installEmu(d.install);
   if (d.locate) return call('emu:locate', d.locate);
   if (d.installzip) {
@@ -622,7 +812,7 @@ document.addEventListener('click', async (ev) => {
   if (d.url) return call('open:url', d.url);
   if (d.toggle) return call('settings:set', { [d.toggle]: !S.settings[d.toggle] });
 
-  const card = t.closest('.card[data-game]');
+  const card = t.closest('.card[data-game], .lrow[data-game]');
   if (card) {
     if (ui.view === 'home' && card.closest('.rows')) {
       ui.heroId = card.dataset.game;
@@ -633,6 +823,7 @@ document.addEventListener('click', async (ev) => {
   }
 
   switch (d.action) {
+    case 'new-coll': ui.newColl = true; render(); setTimeout(() => $('#newCollName')?.focus(), 0); break;
     case 'add-game': { const n = await call('game:add'); if (n) toast(`${n} jeu${n > 1 ? 'x' : ''} ajouté${n > 1 ? 's' : ''}.`, 'ok'); break; }
     case 'rescan': toast('Recherche des jeux…'); await call('library:scan'); toast('Bibliothèque à jour.', 'ok'); break;
     case 'refresh-art': await call('art:refresh', true); toast('Recherche des images en cours…'); break;
@@ -655,15 +846,53 @@ document.addEventListener('click', async (ev) => {
   }
 });
 
+// Glisser un jeu sur une collection.
+let dragId = null;
+document.addEventListener('dragstart', (e) => {
+  const c = e.target.closest && e.target.closest('[data-game][draggable="true"]');
+  if (!c) return;
+  dragId = c.dataset.game;
+  c.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'copy';
+  e.dataTransfer.setData('text/plain', dragId);
+  if (ui.view !== 'library') return;
+  if (!S.collections.length) toast('Crée d\'abord une collection avec le + de « Mes collections ».', 'info', 3500);
+});
+document.addEventListener('dragend', (e) => { $$('.dragging').forEach((x) => x.classList.remove('dragging')); $$('.coll-item.drop').forEach((x) => x.classList.remove('drop')); dragId = null; });
+document.addEventListener('dragover', (e) => {
+  const it = e.target.closest && e.target.closest('[data-collid]');
+  $$('.coll-item.drop').forEach((x) => { if (x !== it) x.classList.remove('drop'); });
+  if (it && dragId) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; it.classList.add('drop'); }
+});
+document.addEventListener('drop', async (e) => {
+  const it = e.target.closest && e.target.closest('[data-collid]');
+  if (!it || !dragId) return;
+  e.preventDefault();
+  const id = dragId; dragId = null;
+  const c = S.collections.find((x) => x.id === it.dataset.collid);
+  await call('collection:toggle', c.id, id, true);
+  toast(`${gameById(id).name} ajouté à « ${c.name} ».`, 'ok', 2200);
+});
+
 document.addEventListener('dblclick', (e) => {
-  const card = e.target.closest('.card[data-game]');
-  if (card && $('#tv').hidden) play(card.dataset.game);
+  const card = e.target.closest('.card[data-game], .lrow[data-game]');
+  if (card && $('#tv').hidden && !e.target.closest('.play-ic')) play(card.dataset.game);
 });
 document.addEventListener('contextmenu', (e) => {
-  const card = e.target.closest('[data-game]');
-  if (card && $('#tv').hidden) { e.preventDefault(); openCtx(card.dataset.game, e.clientX, e.clientY); }
+  const coll = e.target.closest('[data-collid]');
+  if (coll && $('#tv').hidden) { e.preventDefault(); return openCollCtx(coll.dataset.collid, e.clientX, e.clientY); }
+  const card = e.target.closest('[data-game], [data-game-ctx]');
+  if (card && $('#tv').hidden) { e.preventDefault(); openCtx(card.dataset.game || card.dataset.gameCtx, e.clientX, e.clientY); }
 });
+document.addEventListener('keydown', async (e) => {
+  if (e.target.id === 'newCollName') {
+    if (e.key === 'Enter' && e.target.value.trim()) { const c = await call('collection:create', e.target.value.trim()); ui.newColl = false; ui.coll = { type: 'user', key: c.id }; render(); }
+    if (e.key === 'Escape') { ui.newColl = false; render(); }
+  }
+}, true);
+document.addEventListener('focusout', (e) => { if (e.target.id === 'newCollName' && ui.newColl) setTimeout(() => { if (ui.newColl && document.activeElement?.id !== 'newCollName') { ui.newColl = false; render(); } }, 150); });
 document.addEventListener('input', (e) => {
+  if (e.target.id === 'cardSize') { document.documentElement.style.setProperty('--card-min', `${e.target.value}px`); S.settings.cardSize = Number(e.target.value); clearTimeout(window.__cs); window.__cs = setTimeout(() => api.call('settings:set', { cardSize: Number(e.target.value) }), 300); return; }
   if (e.target.id === 'libSearch') {
     ui.q = e.target.value;
     const pos = e.target.selectionStart;
@@ -693,6 +922,7 @@ document.addEventListener('keydown', (e) => {
 
 $('#searchBtn').onclick = openPalette;
 $('#tvBtn').onclick = () => enterTV();
+$('#themeBtn').onclick = (e) => { e.stopPropagation(); toggleThemePop(); };
 
 // --- Mode TV -------------------------------------------------------------------------------------
 const tv = { tab: 0, idx: 0, menu: null, fullscreenSet: false, launching: null };
@@ -703,6 +933,10 @@ function tvTabs() {
   tabs.push({ key: 'recent', label: recent.length ? 'Récents' : 'Ta collection', games: recent.length ? recent.slice(0, 30) : [...list].sort(byRecent) });
   const fav = list.filter((g) => g.favorite).sort(byRecent);
   if (fav.length) tabs.push({ key: 'fav', label: 'Favoris', games: fav });
+  for (const c of S.collections || []) {
+    const gs = c.games.map(gameById).filter((g) => g && (ui.showHidden || !g.hidden));
+    if (gs.length) tabs.push({ key: 'c:' + c.id, label: c.name, games: gs });
+  }
   for (const p of ORDER) {
     const gs = list.filter((g) => g.platform === p).sort(byRecent);
     if (gs.length) tabs.push({ key: p, label: plat(p).label, games: gs });
@@ -958,6 +1192,7 @@ requestAnimationFrame(pollPad);
 // --- Démarrage ------------------------------------------------------------------------------------
 api.on('state:changed', (st) => {
   S = st;
+  applyAppearance();
   if (modalState && modalState.detail) refreshModal();
   if (!$('#tv').hidden) renderTV(true);
   const view = $('#view');
@@ -990,6 +1225,7 @@ api.on('window:state', (s) => {
 (async function init() {
   S = await api.call('state:get');
   padKinds = S.padKinds || [];
+  applyAppearance();
   render();
   if (S.settings.startInTV) enterTV();
 })();
