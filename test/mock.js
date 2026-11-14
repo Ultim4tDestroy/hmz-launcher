@@ -11,6 +11,7 @@
     size: o.size || 4e9, minutes: o.min || 0, sessions: o.ses || 0, last: o.last ? now - o.last * D : 0,
     art: o.noart ? {} : { cover: svg(600, 900, c1, c2, name.split(' ')[0], 70), ...(o.hero ? { hero: svg(1920, 620, c2, c1, '') } : {}) },
     emu: { switch: 'eden', switch2: 'lichii', '3ds': 'azahar', ds: 'melonds' }[platform] || null,
+    status: o.status || '', rating: o.rating || 0, notes: '', launchArgs: '', hdr: false, runAsAdmin: false, canAdmin: o.source === 'gog', released: o.released || '',
     emuReady: o.ready !== false, genres: o.genres || ({ switch2: ['Course'], switch: ['Aventure', 'Monde ouvert'], '3ds': ['RPG'], ds: ['Plateforme'], pc: ['Action', 'Tir'] }[platform]), path: o.path || `C:\\Users\\Hamza\\HMZ\\Jeux\\${platform}\\${name}.nsp`, running: !!o.running,
   });
   const games = [
@@ -78,6 +79,12 @@
         emit('state:changed', JSON.parse(JSON.stringify(state)));
         return { version: 'build-83' };
       }
+      if (ch === 'game:meta') {
+        const g = games.find((x) => x.id === a[0]);
+        if (!g || g.platform === 'mobile') return { none: true };
+        return { src: 'steam', url: 'https://store.steampowered.com/app/1245620', desc: "Levez-vous, Sans-éclat, et puisse la grâce guider vos pas. Brandissez la puissance du Cercle d'Elden et devenez Seigneur de l'Entre-terre. Un vaste monde où les champs ouverts et les donjons immenses s'enchaînent sans transition, avec des combats exigeants et une histoire écrite avec George R. R. Martin.", released: '2022-02-25', releasedText: '25 févr. 2022', dev: 'FromSoftware Inc.', pub: 'FromSoftware Inc., Bandai Namco Entertainment', shots: [0, 1, 2, 3, 4].map((i) => ({ thumb: svg(600, 338, ['#1c1a15', '#3a3020', '#4a3b22', '#2a2a30', '#5a4a2a'][i], '#a68a4c', ''), full: svg(1920, 1080, '#1c1a15', '#a68a4c', 'Capture ' + (i + 1), 90) })) };
+      }
+      if (ch === 'displays:list') return [{ id: '1', label: 'Écran 1 · 2560×1440 (principal)' }, { id: '2', label: 'Écran 2 · 3840×2160' }];
       if (ch === 'game:extras') {
         const names = ['Seigneur d\'Elden', 'Âge des étoiles', 'Porteur de fragment', 'Godrick le Greffé', 'Rennala', 'Radahn', 'Morgott', 'Mohg', 'Malenia', 'Rykard', 'Astel', 'Dragon de feu', 'Légendaire', 'Sorts', 'Incantations', 'Cendres', 'Armement', 'Talismans', 'Esprits', 'Bataille', 'Pièce', 'Clé', 'Roche'];
         const ic = (i, on) => svg(64, 64, on ? ['#c9a24a', '#7a4a1f', '#2b6fd6', '#3d9b4f'][i % 4] : '#333', on ? '#1c1a15' : '#555', '');

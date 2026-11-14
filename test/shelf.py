@@ -2,10 +2,10 @@ import asyncio
 from playwright.async_api import async_playwright
 async def main():
     async with async_playwright() as p:
-        b = await p.chromium.launch(executable_path='/usr/bin/google-chrome', args=['--allow-file-access-from-files'])
+        b = await p.chromium.launch(**({'executable_path': '/usr/bin/google-chrome'} if __import__('os').path.exists('/usr/bin/google-chrome') else {}), args=['--allow-file-access-from-files'])
         pg = await b.new_page(viewport={'width':1440,'height':880})
         errs=[]; pg.on('pageerror', lambda e: errs.append(str(e)))
-        await pg.goto('file:///home/claude/hmz/renderer/dev.html'); await pg.wait_for_timeout(700)
+        await pg.goto('file://'+__import__('os').path.abspath(__import__('os').path.join(__import__('os').path.dirname(__file__),'..','renderer','dev.html'))); await pg.wait_for_timeout(700)
         await pg.evaluate("document.querySelector('#view').scrollTop=430"); await pg.wait_for_timeout(300)
         await pg.screenshot(path='test/sh-home.png')
         s = pg.locator('.rows .shelf').nth(0).locator('.slot').nth(2)

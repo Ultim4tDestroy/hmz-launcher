@@ -200,4 +200,43 @@ function epicOwned() {
   return out;
 }
 
-module.exports = { scanGog, scanUbisoft, scanBattleNet, scanXbox, xboxGameFromPackage, steamOwnedIds, epicOwned, parseRegTree, BNET };
+// --- GOG Galaxy : jeux possédés, d'après sa base locale ------------------------------------
+// GOG Galaxy garde la liste de tes jeux sur le PC (galaxy-2.0.db). On la lit en lecture seule,
+// sur une copie, pour ne jamais gêner Galaxy.
+function galaxyDb() {
+  const f = path.join(process.env.ProgramData || 'C:\\ProgramData', 'GOG.com', 'Galaxy', 'storage', 'galaxy-2.0.db');
+  return exists(f) ? f : null;
+}
+function gogOwned(dbFile = galaxyDb()) {
+  if (!dbFile) return [];
+  let DatabaseSync;
+  try { ({ DatabaseSync } = require('node:sqlite')); } catch { return []; }
+  const os = require('os');
+  const tmp = path.join(os.tmpdir(), `hmz-galaxy-${process.pid}.db`);
+  const out = [];
+  let db = null;
+  try {
+    fs.copyFileSync(dbFile, tmp);
+    db = new DatabaseSync(tmp, { readOnly: true });
+    const rows = db.prepare(`SELECT lr.releaseKey AS k, gp.value AS v, gpt.type AS t
+      FROM LibraryReleases lr
+      JOIN GamePieces gp ON gp.releaseKey = lr.releaseKey
+      JOIN GamePieceTypes gpt ON gpt.id = gp.gamePieceTypeId
+      WHERE lr.releaseKey LIKE 'gog\\_%' ESCAPE '\\' AND gpt.type IN ('title', 'originalTitle')`).all();
+    const titles = {};
+    for (const r of rows) {
+      let t = null;
+      try { t = JSON.parse(r.v).title; } catch {}
+      if (t && (r.t === 'title' || !titles[r.k])) titles[r.k] = t;
+    }
+    for (const [k, title] of Object.entries(titles)) {
+      const id = k.slice(4);
+      if (!/^\d+$/.test(id)) continue;
+      out.push({ id: `gog:${id}`, name: String(title).trim(), platform: 'pc', source: 'gog', notInstalled: true, install: `goggalaxy://openGameView/${id}` });
+    }
+  } catch (e) { /* base absente, verrouillée ou d'un autre format */ }
+  finally { try { db && db.close(); } catch {} try { fs.rmSync(tmp, { force: true }); } catch {} }
+  return out;
+}
+
+module.exports = { gogOwned, galaxyDb, scanGog, scanUbisoft, scanBattleNet, scanXbox, xboxGameFromPackage, steamOwnedIds, epicOwned, parseRegTree, BNET };

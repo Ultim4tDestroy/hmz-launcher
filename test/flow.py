@@ -2,10 +2,10 @@ import asyncio
 from playwright.async_api import async_playwright
 async def main():
     async with async_playwright() as p:
-        b = await p.chromium.launch(executable_path='/usr/bin/google-chrome')
+        b = await p.chromium.launch(**({'executable_path': '/usr/bin/google-chrome'} if __import__('os').path.exists('/usr/bin/google-chrome') else {}))
         pg = await b.new_page(viewport={'width':1440,'height':880})
         errs=[]; pg.on('pageerror', lambda e: errs.append(str(e)))
-        await pg.goto('file:///home/claude/hmz/renderer/dev.html'); await pg.wait_for_timeout(600)
+        await pg.goto('file://'+__import__('os').path.abspath(__import__('os').path.join(__import__('os').path.dirname(__file__),'..','renderer','dev.html'))); await pg.wait_for_timeout(600)
         await pg.click('[data-view=library]')
         await pg.click('[data-libview=grid]'); await pg.wait_for_timeout(200)
         await pg.click('[data-action=new-coll]')

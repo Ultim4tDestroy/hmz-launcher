@@ -1,5 +1,5 @@
 // HMZ Launcher : processus principal (Electron).
-const { app, BrowserWindow, ipcMain, dialog, shell, Menu, Tray, nativeImage } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, Menu, Tray, nativeImage, globalShortcut } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
@@ -18,12 +18,32 @@ const { normTitle } = require('./src/util');
 const PLAT = require('./src/platforms');
 const STORES = require('./src/stores');
 const EXTRAS = require('./src/extras');
+const HDR = require('./src/hdr');
+const META = require('./src/meta');
+const CLIENTS = require('./src/clients');
+const { DiscordPresence } = require('./src/discord');
+const discord = new DiscordPresence();
 const PLATFORMS = PLAT.publicPlatforms();
 const { ROM_FOLDER_NAMES } = PLAT;
 // Émulateurs dont HMZ sait régler les graphismes et la manette.
 const TUNED = ['melonds', 'azahar', 'eden', 'lichii'];
 
 if (!app.requestSingleInstanceLock()) { app.quit(); process.exit(0); }
+
+// Journal d'erreurs : une erreur imprévue est notée et signalée discrètement,
+// au lieu d'afficher la fenêtre d'erreur d'Electron et de tout arrêter.
+const LOG = require('./src/logger');
+LOG.init(app.getPath('userData'));
+let lastCrashToast = 0;
+function onUnexpected(kind, err) {
+  LOG.write('PLANTAGE', [kind, err instanceof Error ? err : new Error(String(err))]);
+  if (Date.now() - lastCrashToast > 10000) {
+    lastCrashToast = Date.now();
+    try { toast('Un petit problème est survenu : il est noté dans le journal (Paramètres › Aide).', 'error'); } catch {}
+  }
+}
+process.on('uncaughtException', (e) => onUnexpected('exception', e));
+process.on('unhandledRejection', (e) => onUnexpected('promesse', e));
 
 let win = null;
 let db = null;
@@ -89,7 +109,7 @@ function defaults() {
   return {
     settings: {
       root, romDirs, sgdbKey: '', startInTV: false, emuFullscreen: true, minimizeOnPlay: true,
-      scanSteam: true, scanEpic: true, scanOthers: true, scanStores: true, showOwned: true,
+      scanSteam: true, scanEpic: true, scanOthers: true, scanStores: true, showOwned: true, closeClients: false, globalSearch: true, discord: false, discordId: '', tvCursor: true, tvDisplay: '', tvScale: 100,
       theme: 'foret', accent: '', cardSize: 168, libView: 'shelf',
       padQuit: true, padHome: true, backups: true, backupDir: '', autostart: false,
     },
@@ -128,7 +148,13 @@ function ensureFolders() {
 }
 
 function send(channel, payload) { if (win && !win.isDestroyed()) win.webContents.send(channel, payload); }
-function notifyChange() { send('state:changed', publicState()); }
+// L'état est envoyé à la fenêtre au plus une fois toutes les 80 ms, même si beaucoup de
+// choses changent d'un coup (recherche des jeux, images…) : l'interface reste fluide.
+let notifyTimer = null;
+function notifyChange() {
+  if (notifyTimer) return;
+  notifyTimer = setTimeout(() => { notifyTimer = null; send('state:changed', publicState()); }, 80);
+}
 function toast(text, kind = 'info') { send('toast', { text, kind }); }
 
 // --- État envoyé à l'interface ----------------------------------------------
@@ -161,6 +187,8 @@ function publicState() {
       extras: g.extras || [],
       genres: g.genresManual || g.genres || [],
       notInstalled: !!g.notInstalled,
+      launchArgs: g.launchArgs || '', runAsAdmin: !!g.runAsAdmin, hdr: !!g.hdr, canAdmin: !!(g.launch && g.launch.type === 'exe' && g.source !== 'battlenet' && g.source !== 'riot' && g.source !== 'bluestacks'),
+      status: g.status || '', rating: g.rating || 0, notes: g.notes || '', released: (g.meta && g.meta.released) || '',
     };
   });
   const emulators = Object.values(EMU.EMULATORS).map((d) => {
@@ -252,6 +280,7 @@ async function scanLibraryNow() {
         } catch (e) { console.error(e); }
       }
       if (s.scanEpic) { try { for (const g of STORES.epicOwned()) if (!ids.has(g.id)) { found.push(g); ids.add(g.id); } } catch (e) { console.error(e); } }
+      if (s.scanStores) { try { for (const g of STORES.gogOwned()) if (!ids.has(g.id)) { found.push(g); ids.add(g.id); } } catch (e) { console.error(e); } }
     }
     if (s.scanOthers) {
       const known = new Set(found.filter((f) => f.platform === 'pc').map((f) => normTitle(f.name)));
@@ -284,6 +313,7 @@ async function scanLibraryNow() {
       addedAt: old.addedAt || Date.now(),
       favorite: old.favorite, hidden: old.hidden, customName: old.customName, custom: old.custom,
       art: old.art, artTried: old.artTried, emu: old.emu, lastLaunched: old.lastLaunched, needsLauncher: old.needsLauncher,
+      launchArgs: old.launchArgs, runAsAdmin: old.runAsAdmin, hdr: old.hdr, status: old.status, rating: old.rating, notes: old.notes, meta: old.meta,
       genres: old.genres, genresTried: old.genresTried, genresManual: old.genresManual,
     };
   }
@@ -329,6 +359,7 @@ async function fetchArt(force) {
     artBusy = false;
     send('scan:progress', null);
     notifyChange();
+    setTimeout(() => fetchMetaAll().catch(() => {}), 5000);
   }
 }
 
@@ -336,6 +367,8 @@ async function fetchArt(force) {
 function startSession(id, kind) {
   if (running.has(id)) return;
   running.set(id, { start: Date.now(), kind });
+  setTimeout(updateJumpList, 0);
+  updateDiscord();
   const g = db.data.games[id];
   if (g) g.lastLaunched = Date.now();
   db.save();
@@ -351,7 +384,120 @@ function endSession(id) {
   if (e - r.start >= 30000) db.data.sessions.push({ g: id, s: r.start, e });
   db.save();
   notifyChange();
+  afterGame(id);
+  updateDiscord();
 }
+
+// Statut Discord : le jeu en cours (le plus récent s'il y en a plusieurs).
+function updateDiscord() {
+  const s = db && db.data.settings;
+  if (!s || !s.discord || !/^\d{15,22}$/.test(s.discordId || '')) { discord.clear(); return; }
+  const cur = [...running.entries()].sort((a, b) => b[1].start - a[1].start)[0];
+  if (!cur) { discord.clear(); return; }
+  const g = db.data.games[cur[0]];
+  if (!g) return;
+  const name = g.customName || g.name;
+  const P = PLATFORMS[g.platform] || {};
+  const via = { steam: 'Steam', epic: 'Epic Games', gog: 'GOG', xbox: 'Xbox', battlenet: 'Battle.net', ubisoft: 'Ubisoft Connect', riot: 'Riot', ea: 'EA', bluestacks: 'BlueStacks' }[g.source];
+  const emu = g.platform !== 'pc' && g.platform !== 'mobile' ? (EMU.EMULATORS[g.emu || resolveEmu(g.platform)] || {}).name : null;
+  const cover = [g.custom && g.custom.cover, g.art && g.art.cover].find((u) => /^https:\/\//.test(u || ''));
+  const activity = {
+    details: name.slice(0, 120),
+    state: [P.label, emu ? `via ${emu}` : via ? `via ${via}` : null].filter(Boolean).join(' · ').slice(0, 120) || undefined,
+    timestamps: { start: cur[1].start },
+    assets: cover ? { large_image: cover, large_text: name.slice(0, 120) } : undefined,
+    instance: false,
+  };
+  discord.set(s.discordId, activity).catch(() => {});
+}
+
+// --- Sauvegarde de la bibliothèque (collections, temps de jeu, notes, images choisies) -----
+function libraryBackupDir() { return path.join(app.getPath('userData'), 'copies-bibliotheque'); }
+function libraryData() {
+  const data = JSON.parse(JSON.stringify(db.data));
+  if (data.settings) delete data.settings.sgdbKey; // la clé reste sur ce PC
+  return data;
+}
+// Une copie automatique par jour au démarrage ; les 10 plus récentes sont gardées.
+function backupLibrary(reason) {
+  try {
+    const dir = libraryBackupDir();
+    fs.mkdirSync(dir, { recursive: true });
+    const day = new Date().toISOString().slice(0, 10);
+    const files = fs.readdirSync(dir).filter((f) => /^hmz-\d{4}-\d{2}-\d{2}.*\.json$/.test(f)).sort();
+    if (reason === 'démarrage' && files.some((f) => f.startsWith(`hmz-${day}`))) return;
+    const stamp = new Date().toISOString().slice(0, 16).replace(/[T:]/g, '-');
+    fs.writeFileSync(path.join(dir, `hmz-${stamp}.json`), JSON.stringify(libraryData()));
+    for (const f of fs.readdirSync(dir).filter((x) => /^hmz-.*\.json$/.test(x)).sort().slice(0, -10)) fs.rmSync(path.join(dir, f), { force: true });
+  } catch (e) { console.warn('Copie de la bibliothèque', e.message); }
+}
+handle('library:export', async () => {
+  const r = await dialog.showSaveDialog(win, { title: 'Sauvegarder ma bibliothèque HMZ', defaultPath: path.join(app.getPath('documents'), `Bibliothèque HMZ ${new Date().toISOString().slice(0, 10)}.json`), filters: [{ name: 'Bibliothèque HMZ', extensions: ['json'] }] });
+  if (r.canceled || !r.filePath) return null;
+  fs.writeFileSync(r.filePath, JSON.stringify(libraryData(), null, 1));
+  return r.filePath;
+});
+handle('library:import', async () => {
+  const r = await dialog.showOpenDialog(win, { title: 'Restaurer une bibliothèque HMZ', defaultPath: libraryBackupDir(), properties: ['openFile'], filters: [{ name: 'Bibliothèque HMZ', extensions: ['json'] }] });
+  if (r.canceled || !r.filePaths[0]) return null;
+  let data;
+  try { data = JSON.parse(fs.readFileSync(r.filePaths[0], 'utf8')); } catch { throw new Error("Ce fichier n'est pas une bibliothèque HMZ lisible."); }
+  if (!data || typeof data !== 'object' || !data.games || !data.settings) throw new Error("Ce fichier n'est pas une bibliothèque HMZ.");
+  backupLibrary('avant restauration');
+  const key = db.data.settings.sgdbKey;
+  db.data = Object.assign(JSON.parse(JSON.stringify(defaults())), data);
+  db.data.settings = { ...defaults().settings, ...data.settings, sgdbKey: data.settings.sgdbKey || key };
+  db.save(true);
+  setTimeout(() => { quitting = true; app.relaunch(); app.exit(0); }, 600);
+  return true;
+});
+handle('library:openBackups', () => { fs.mkdirSync(libraryBackupDir(), { recursive: true }); shell.openPath(libraryBackupDir()); });
+handle('discord:test', async () => {
+  const s = db.data.settings;
+  if (!/^\d{15,22}$/.test(s.discordId || '')) throw new Error("Colle d'abord l'identifiant de ton application Discord (une suite de chiffres).");
+  const ok = await discord.set(s.discordId, { details: 'Dans la bibliothèque', state: 'HMZ Launcher', timestamps: { start: Date.now() }, instance: false });
+  if (!ok) throw new Error("Discord ne répond pas. Vérifie que l'application Discord est ouverte sur ce PC.");
+  setTimeout(() => { if (!running.size) discord.clear(); }, 15000);
+  return true;
+});
+handle('displays:list', () => {
+  const { screen } = require('electron');
+  const prim = screen.getPrimaryDisplay().id;
+  return screen.getAllDisplays().map((d, i) => ({ id: String(d.id), label: `Écran ${i + 1} · ${d.size.width}×${d.size.height}${d.id === prim ? ' (principal)' : ''}` }));
+});
+
+// --- Avant et après une partie : HDR et boutique ------------------------------------------
+const gameCtx = new Map(); // id → { hdrKeys, client, clientWasOpen, timer }
+async function prepareLaunch(g) {
+  const s = db.data.settings;
+  const ctx = {};
+  if (s.closeClients && CLIENTS.CLIENTS[g.source] && g.source !== 'gog') {
+    ctx.client = g.source;
+    try { ctx.clientWasOpen = await CLIENTS.isOpen(g.source); } catch { ctx.clientWasOpen = true; }
+  }
+  if (g.hdr) {
+    try { ctx.hdrKeys = await HDR.enable(); } catch (e) { console.warn('HDR', e.message); }
+  }
+  // Jeu jamais repéré (lancement annulé…) : le HDR est remis au bout de 4 minutes.
+  if (ctx.hdrKeys && ctx.hdrKeys.length) ctx.timer = setTimeout(() => { if (!running.has(g.id)) afterGame(g.id); }, 4 * 60e3);
+  gameCtx.set(g.id, ctx);
+}
+function afterGame(id) {
+  const ctx = gameCtx.get(id);
+  if (!ctx) return;
+  gameCtx.delete(id);
+  clearTimeout(ctx.timer);
+  if (ctx.hdrKeys && ctx.hdrKeys.length) HDR.restore(ctx.hdrKeys).catch((e) => console.warn('HDR', e.message));
+  if (ctx.client && ctx.clientWasOpen === false && db.data.settings.closeClients) {
+    // 90 s : le temps que la boutique synchronise les sauvegardes dans le cloud.
+    setTimeout(async () => {
+      const busy = [...running.keys()].some((gid) => (db.data.games[gid] || {}).source === ctx.client);
+      if (busy || quitting) return;
+      try { await CLIENTS.close(ctx.client, (u) => shell.openExternal(u)); LOG.info('Boutique fermée après la partie :', ctx.client); } catch (e) { console.warn(e); }
+    }, 90e3);
+  }
+}
+const splitArgs = (str) => (String(str || '').match(/(?:[^\s"]+|"[^"]*")+/g) || []).map((a) => a.replace(/^"|"$/g, ''));
 
 async function launchGame(id, emuOverride) {
   const g = db.data.games[id];
@@ -359,10 +505,11 @@ async function launchGame(id, emuOverride) {
   if (g.notInstalled) {
     // Pas installé : la boutique ouvre son installation.
     await shell.openExternal(g.install);
-    return { installing: true, store: g.source === 'epic' ? 'Epic Games' : 'Steam' };
+    return { installing: true, store: { epic: 'Epic Games', gog: 'GOG Galaxy' }[g.source] || 'Steam' };
   }
   if (running.has(id) && running.get(id).kind === 'child') return { already: true };
   const s = db.data.settings;
+  await prepareLaunch(g);
 
   // Jeu Netmarble avec un raccourci du launcher : il démarre le jeu sans passer par « Jouer ».
   if (g.source === 'netmarble' && g.shortcut && exists(g.shortcut)) {
@@ -415,10 +562,21 @@ async function launchGame(id, emuOverride) {
     if (!emu || !exists(emu.exe)) return { needEmu: emuId };
     if (!exists(g.path)) throw new Error('Le fichier du jeu est introuvable. Il a peut-être été déplacé.');
     cmd = emu.exe;
-    args = EMU.EMULATORS[emuId].args(g.path, s.emuFullscreen);
+    args = [...splitArgs(g.launchArgs), ...EMU.EMULATORS[emuId].args(g.path, s.emuFullscreen)];
   } else if (g.launch && g.launch.type === 'exe') {
-    cmd = g.launch.target; args = g.launch.args || [];
+    cmd = g.launch.target; args = [...(g.launch.args || []), ...splitArgs(g.launchArgs)];
     if (!exists(cmd)) throw new Error('Le programme du jeu est introuvable.');
+    if (g.runAsAdmin) {
+      // Windows demande la confirmation administrateur ; le temps de jeu est compté par la détection.
+      const q = (x) => `'${String(x).replace(/'/g, "''")}'`;
+      const ps = `Start-Process -FilePath ${q(cmd)} -WorkingDirectory ${q((g.launch.cwd && exists(g.launch.cwd)) ? g.launch.cwd : path.dirname(cmd))} -Verb RunAs${args.length ? ` -ArgumentList ${args.map((a) => q(/\s/.test(a) ? `"${a}"` : a)).join(',')}` : ''}`;
+      await run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps]).catch((e) => { throw new Error(/annul|cancel/i.test(e.message) ? 'Lancement annulé.' : `Lancement en administrateur impossible : ${e.message}`); });
+      const base = path.basename(cmd).toLowerCase();
+      if (!(g.exeHints || []).includes(base)) g.exeHints = [...(g.exeHints || []), base];
+      g.lastLaunched = Date.now();
+      db.save(); notifyChange(); minimizeForGame();
+      return { ok: true };
+    }
   } else if (g.launch && g.launch.type === 'shell') {
     spawn('explorer.exe', [g.launch.target], { detached: true, stdio: 'ignore' }).unref();
     g.lastLaunched = Date.now();
@@ -627,7 +785,46 @@ function createWindow() {
   win.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' }; });
 }
 
-app.on('second-instance', () => showWindow());
+// HMZ relancé (raccourci, jeu choisi dans la liste de la barre des tâches) : on reprend la fenêtre.
+app.on('second-instance', (_e, argv) => {
+  const id = launchArg(argv);
+  if (id) { launchFromOutside(id); return; }
+  showWindow();
+});
+function launchArg(argv) { const a = (argv || []).find((x) => String(x).startsWith('--launch=')); return a ? a.slice(9) : null; }
+async function launchFromOutside(id) {
+  if (!db || !db.data.games[id]) return showWindow();
+  try { await launchGame(id); } catch (e) { showWindow(); toast(e.message, 'error'); }
+}
+
+// Liste « Joués récemment » dans le clic droit sur l'icône HMZ de la barre des tâches.
+let jumpKey = '';
+function updateJumpList() {
+  if (process.platform !== 'win32' || !db) return;
+  const last = {};
+  for (const x of db.data.sessions) last[x.g] = Math.max(last[x.g] || 0, x.e);
+  for (const g of Object.values(db.data.games)) if (g.lastLaunched) last[g.id] = Math.max(last[g.id] || 0, g.lastLaunched);
+  const recent = Object.entries(last).filter(([id]) => db.data.games[id] && !db.data.games[id].notInstalled && !db.data.games[id].hidden)
+    .sort((a, b) => b[1] - a[1]).slice(0, 7).map(([id]) => db.data.games[id]);
+  const key = recent.map((g) => g.id).join('|');
+  if (key === jumpKey) return;
+  jumpKey = key;
+  try {
+    app.setJumpList([
+      { type: 'custom', name: 'Joués récemment', items: recent.map((g) => ({ type: 'task', title: (g.customName || g.name).slice(0, 60), description: `Lancer ${g.customName || g.name}`, program: process.execPath, args: `--launch="${g.id}"`, iconPath: process.execPath, iconIndex: 0 })) },
+      { type: 'tasks', items: [{ type: 'task', title: 'Mode TV', description: 'Ouvrir HMZ en mode TV', program: process.execPath, args: '--tv', iconPath: process.execPath, iconIndex: 0 }] },
+    ]);
+  } catch (e) { console.warn('Jump list', e.message); }
+}
+
+// Recherche de jeux depuis n'importe où (Ctrl + Alt + Espace).
+function applyGlobalSearch() {
+  try { globalShortcut.unregister('Control+Alt+Space'); } catch {}
+  if (!db.data.settings.globalSearch) return;
+  const ok = globalShortcut.register('Control+Alt+Space', () => { bringToFront(false); send('palette:open'); });
+  if (!ok) LOG.info('Raccourci Ctrl+Alt+Espace déjà pris par un autre programme.');
+}
+app.on('will-quit', () => { try { globalShortcut.unregisterAll(); } catch {} });
 
 app.whenReady().then(() => {
   db = new Store(path.join(app.getPath('userData'), 'hmz.json'), defaults());
@@ -652,6 +849,13 @@ app.whenReady().then(() => {
   EMU.setToolsDir(path.join(app.getPath('userData'), 'outils'));
   pad = new PadWatcher(path.join(app.getPath('userData'), 'outils'), onPad);
   pad.start();
+  applyGlobalSearch();
+  updateJumpList();
+  backupLibrary('démarrage');
+  // Lancé depuis la liste de la barre des tâches.
+  const first = launchArg(process.argv);
+  if (first) setTimeout(() => launchFromOutside(first), 1500);
+  if (process.argv.includes('--tv')) win.webContents.once('did-finish-load', () => setTimeout(() => send('tv:enter'), 600));
 });
 
 let pad = null;
@@ -696,6 +900,16 @@ const handle = (ch, fn) => ipcMain.handle(ch, async (_e, ...a) => {
 });
 
 handle('state:get', () => publicState());
+handle('log:error', (msg) => { LOG.write('ERREUR (fenêtre)', [String(msg).slice(0, 2000)]); });
+handle('log:open', () => { const f = LOG.getFile(); if (f) shell.showItemInFolder(f); });
+// Prépare un rapport de bug sur GitHub (rien n'est envoyé sans que tu cliques sur « Submit »).
+handle('app:report', () => {
+  const home = os.homedir();
+  const clean = (t) => t.split(home).join('%USERPROFILE%');
+  const errors = LOG.lastErrors(10).map(clean).join('\n').slice(-5000) || 'Aucune erreur notée.';
+  const body = `**Ce qui s'est passé :**\n\n(décris ici ce que tu faisais)\n\n**Version :** HMZ ${CUR_VERSION} · Windows ${os.release()}\n\n**Dernières erreurs du journal :**\n\`\`\`\n${errors}\n\`\`\``;
+  shell.openExternal(`https://github.com/Ultim4tDestroy/hmz-launcher/issues/new?title=${encodeURIComponent('Problème : ')}&body=${encodeURIComponent(body)}`);
+});
 handle('state:seen', () => { db.data.firstRun = false; db.save(); });
 handle('library:scan', () => scanLibrary());
 handle('art:refresh', (force) => { fetchArt(!!force); });
@@ -703,7 +917,7 @@ handle('art:refresh', (force) => { fetchArt(!!force); });
 handle('game:launch', (id, emu) => launchGame(id, emu));
 handle('game:update', (id, patch) => {
   const g = db.data.games[id]; if (!g) return;
-  const allowed = ['favorite', 'hidden', 'customName', 'emu'];
+  const allowed = ['favorite', 'hidden', 'customName', 'emu', 'launchArgs', 'runAsAdmin', 'hdr', 'status', 'rating', 'notes'];
   for (const k of allowed) if (k in patch) g[k] = patch[k];
   if (patch.customName === '') delete g.customName;
   db.save(); notifyChange();
@@ -732,6 +946,8 @@ handle('art:dataurl', async (url) => {
   let buf, type = 'image/jpeg';
   if (url.startsWith('file:')) {
     const p = require('url').fileURLToPath(url);
+    // Seulement des images (jaquettes locales de Steam, images choisies…), jamais un autre fichier.
+    if (!/\.(jpe?g|png|webp|gif|bmp|ico)$/i.test(p)) return null;
     buf = fs.readFileSync(p);
     if (/\.png$/i.test(p)) type = 'image/png';
     if (/\.webp$/i.test(p)) type = 'image/webp';
@@ -739,6 +955,7 @@ handle('art:dataurl', async (url) => {
     const r = await require('./src/util').fetchWithTimeout(url, {}, 10000);
     if (!r.ok) return null;
     type = (r.headers.get('content-type') || type).split(';')[0];
+    if (!/^image\//.test(type)) return null;
     buf = Buffer.from(await r.arrayBuffer());
   } else return null;
   if (!buf || buf.length > 8e6) return null;
@@ -945,6 +1162,35 @@ handle('game:extras', async (id) => {
   }
   return { achievements, hltb: g.platform === 'mobile' ? null : EXTRAS.hltbLink(g.customName || g.name) };
 });
+// Infos de la fiche d'un jeu (gardées 30 jours ; 7 jours si rien n'a été trouvé).
+async function loadMeta(g, force) {
+  const m = g.meta;
+  if (!force && m && Date.now() - m.t < (m.none ? 7 : 30) * 864e5) return m;
+  try {
+    const found = await META.find(g, (PLAT.PLATFORMS[g.platform] || {}).wiki);
+    g.meta = found ? { ...found, t: Date.now() } : { none: true, t: Date.now() };
+  } catch (e) {
+    if (e.status === 429) return m || null; // boutique saturée : on réessaiera
+    g.meta = { none: true, t: Date.now() };
+  }
+  db.save();
+  return g.meta;
+}
+handle('game:meta', async (id, force) => { const g = db.data.games[id]; if (!g) return null; const m = await loadMeta(g, force); if (m && !m.none) notifyChange(); return m; });
+// En fond, doucement : les infos des jeux installés (pour le tri par date de sortie).
+let metaBusy = false;
+async function fetchMetaAll() {
+  if (metaBusy) return;
+  metaBusy = true;
+  try {
+    const todo = Object.values(db.data.games).filter((g) => !g.notInstalled && g.platform !== 'mobile' && !g.meta);
+    for (const g of todo) {
+      if (quitting) break;
+      await loadMeta(g).catch(() => {});
+      await new Promise((r) => setTimeout(r, 2500));
+    }
+  } finally { metaBusy = false; notifyChange(); }
+}
 handle('emu:forget', (id) => { delete db.data.emulators[id]; db.save(); notifyChange(); });
 handle('emu:uninstall', async (id) => {
   const e = db.data.emulators[id];
@@ -988,6 +1234,8 @@ handle('settings:set', (patch) => {
   Object.assign(s, patch);
   db.save(); ensureFolders(); notifyChange();
   if ('autostart' in patch) applyAutostart();
+  if ('globalSearch' in patch) applyGlobalSearch();
+  if ('discord' in patch || 'discordId' in patch) { if (!s.discord) discord.clear(); else updateDiscord(); }
   if (keyChanged && s.sgdbKey) fetchArt(true);
   // Une source de jeux activée ou coupée : la bibliothèque est mise à jour.
   if (['scanSteam', 'scanEpic', 'scanOthers', 'scanStores', 'showOwned'].some((k) => k in patch)) scanLibrary().catch(() => {});
@@ -1036,4 +1284,15 @@ handle('app:rollback', () => {
 handle('win:minimize', () => win.minimize());
 handle('win:maximize', () => (win.isMaximized() ? win.unmaximize() : win.maximize()));
 handle('win:close', () => win.close());
-handle('win:fullscreen', (on) => win.setFullScreen(on === undefined ? !win.isFullScreen() : !!on));
+handle('win:fullscreen', (on) => {
+  const want = on === undefined ? !win.isFullScreen() : !!on;
+  // Mode TV sur l'écran choisi dans les paramètres.
+  if (want && db.data.settings.tvDisplay) {
+    try {
+      const { screen } = require('electron');
+      const d = screen.getAllDisplays().find((x) => String(x.id) === String(db.data.settings.tvDisplay));
+      if (d && !win.isFullScreen()) win.setBounds({ x: d.bounds.x + 40, y: d.bounds.y + 40, width: Math.min(1440, d.workArea.width - 80), height: Math.min(880, d.workArea.height - 80) });
+    } catch {}
+  }
+  win.setFullScreen(want);
+});
