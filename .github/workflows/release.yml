@@ -1,11 +1,16 @@
 # Fabrique le .exe sur un serveur Windows de GitHub et le publie.
-# Se lance à chaque tag « v2.x.y » (ou à la main depuis l'onglet Actions).
+# Se lance à chaque tag « v2.x.y » ou à la main depuis l'onglet Actions.
 name: Publier une version
 
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      nettoyage_seulement:
+        description: "Seulement fusionner les versions en double"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -13,20 +18,33 @@ permissions:
 jobs:
   windows:
     runs-on: windows-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
-      - name: Créer le tag de version s'il manque
+
+      - name: Fabriquer et publier
+        if: ${{ !inputs.nettoyage_seulement }}
         shell: bash
         run: |
+          npm ci
           V="v$(node -p "require('./package.json').version")"
           if ! git ls-remote --exit-code --tags origin "$V" >/dev/null; then
             git tag "$V" && git push origin "$V"
           fi
-      - run: npm run release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Une seule version brouillon est créée d'avance : electron-builder y dépose
+          # tous les fichiers, puis on la publie (évite les versions en double).
+          if ! gh release view "$V" >/dev/null 2>&1; then
+            gh release create "$V" --draft --title "${V#v}" --notes "HMZ Launcher ${V#v}"
+          fi
+          npx electron-builder --win nsis --publish always -c.publish.releaseType=draft
+          gh release edit "$V" --draft=false --latest
+
+      - name: Fusionner les versions en double
+        if: ${{ always() }}
+        run: node scripts/fusionner-versions.mjs
