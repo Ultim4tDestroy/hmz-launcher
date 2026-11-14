@@ -430,6 +430,12 @@ app.whenReady().then(() => {
   db = new Store(path.join(app.getPath('userData'), 'hmz.json'), defaults());
   art = new ArtFinder(path.join(app.getPath('userData'), 'cache'), () => db.data.settings.sgdbKey);
   ensureFolders();
+  // 2.3.1 : les images des jeux hors Steam sont recherchées à nouveau avec des règles plus strictes.
+  if ((db.data.artRules || 1) < 2) {
+    for (const g of Object.values(db.data.games)) if (g.source !== 'steam') { delete g.art; delete g.artTried; }
+    db.data.artRules = 2;
+    db.save();
+  }
   createWindow();
   setTimeout(() => scanLibrary().catch(console.error), 600);
   setInterval(() => pollProcesses().catch(() => {}), 20000);

@@ -97,7 +97,8 @@ async function steamRoot() {
   return null;
 }
 
-const NOT_A_GAME = /redistributable|proton|steam linux runtime|steamworks|steamvr|soundtrack|dedicated server|\bsdk\b|benchmark|wallpaper engine/i;
+const NOT_A_GAME = /redistributable|proton|steam linux runtime|steamworks|steamvr|soundtrack|dedicated server|\bsdk\b|benchmark|wallpaper engine|^spacewar$/i;
+const NOT_A_GAME_APPID = new Set(['480', '228980', '1070560', '1391110', '1493710', '1628350', '1826330', '2180100']);
 const BAD_EXE = /unins|crash|redist|vc_?redist|dxsetup|setup|install|helper|updater|prereq|dotnet|easyanticheat|eac|battleye|cef|webhelper|report|launcherpatcher|vcredist|directx|physx/i;
 
 function exeHints(dir) {
@@ -175,7 +176,7 @@ async function scanSteam() {
       const st = getCI(parseVdf(readText(path.join(sa, f)) || ''), 'AppState');
       if (!st) continue;
       const appid = getCI(st, 'appid'), name = getCI(st, 'name');
-      if (!appid || !name || NOT_A_GAME.test(name) || appid === '228980') continue;
+      if (!appid || !name || NOT_A_GAME.test(name) || NOT_A_GAME_APPID.has(String(appid))) continue;
       const installDir = path.join(sa, 'common', getCI(st, 'installdir') || '');
       games.push({
         id: `steam:${appid}`,
@@ -218,13 +219,14 @@ function scanEpic() {
       launch: { type: 'uri', target: uri },
       exeHints: [m.LaunchExecutable ? path.basename(m.LaunchExecutable).toLowerCase() : null, ...exeHints(m.InstallLocation)].filter(Boolean),
       size: Number(m.InstallSize) || 0,
+      catalogItemId: m.CatalogItemId,
     });
   }
   return games;
 }
 
 // --- Autres launchers : Riot, Roblox, Minecraft et jeux installés ---------------------
-const RIOT_NAMES = { league_of_legends: 'League of Legends', valorant: 'VALORANT', bacon: 'Legends of Runeterra', lion: '2XKO' };
+const RIOT_NAMES = { league_of_legends: 'League of Legends', valorant: 'VALORANT', bacon: 'Legends of Runeterra', lion: '2XKO', teamfighttactics: 'Teamfight Tactics', tft: 'Teamfight Tactics' };
 const RIOT_HINTS = { league_of_legends: ['league of legends.exe'], valorant: ['valorant-win64-shipping.exe'], bacon: ['lor.exe'], lion: [] };
 
 function scanRiot() {
@@ -304,7 +306,7 @@ function scanLaunchers() {
 
 // Jeux installés hors Steam/Epic, repérés par leur éditeur dans la liste des programmes de Windows.
 const PUBLISHERS = /netmarble|hoyoverse|mihoyo|cognosphere|kuro games|level infinite|nexon|smilegate|garena|ncsoft|pearl abyss|kakao games|grinding gear|sandbox interactive|wargaming|gameforge|blizzard|electronic arts|ubisoft|riot games|mojang|roblox|square enix|bandai namco|sega|capcom|krafton|hypergryph|yostar|nexters|playstation pc|rockstar games/i;
-const NOT_GAME_NAME = /launcher|uninstall|redistributable|runtime|anti-?cheat|helper|update|driver|battle\.net|ea app|origin|connect|agent|client services|vanguard|toolkit|sdk|tool\b|server|editor|bootstrapper/i;
+const NOT_GAME_NAME = / for \S+$|roblox|minecraft|studio|hoyoplay|game center|gamecenter|^garena$|ubisoft connect|rockstar games|wargaming\.net|launcher|uninstall|redistributable|runtime|anti-?cheat|helper|update|driver|battle\.net|ea app|origin|connect|agent|client services|vanguard|toolkit|sdk|tool\b|server|editor|bootstrapper/i;
 
 async function scanRegistry() {
   if (process.platform !== 'win32') return [];

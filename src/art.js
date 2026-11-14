@@ -3,7 +3,7 @@
 // → boutique Steam (jeux PC) → Wikipédia.
 const fs = require('fs');
 const path = require('path');
-const { fetchJson, urlExists, normTitle, similarity } = require('./util');
+const { fetchJson, urlExists, normTitle, similarity, strictSimilarity, readText, exists } = require('./util');
 
 const LIBRETRO = { ds: 'Nintendo_-_Nintendo_DS', '3ds': 'Nintendo_-_Nintendo_3DS' };
 const steamCdn = (id, f) => `https://cdn.cloudflare.steamstatic.com/steam/apps/${id}/${f}`;
@@ -32,6 +32,11 @@ class ArtFinder {
       set('header', steamCdn(game.appid, 'header.jpg'));
     }
 
+    if (game.source === 'epic') {
+      const e = this.epicArt(game);
+      if (e) Object.entries(e).forEach(([k, v]) => set(k, v));
+    }
+
     if ((!art.cover || !art.hero) && this.getKey()) {
       try { Object.entries(await this.sgdb(game)).forEach(([k, v]) => set(k, v)); } catch (e) { if (e.status === 401) throw e; }
     }
@@ -57,6 +62,22 @@ class ArtFinder {
     return art;
   }
 
+  // Le launcher Epic garde en cache les images des jeux de ton compte.
+  epicArt(game) {
+    if (!this.epicCatalog) {
+      this.epicCatalog = {};
+      const f = path.join(process.env.ProgramData || 'C:\\ProgramData', 'Epic', 'EpicGamesLauncher', 'Data', 'Catalog', 'catcache.bin');
+      try {
+        const items = JSON.parse(Buffer.from(fs.readFileSync(f, 'utf8'), 'base64').toString('utf8'));
+        for (const it of items) if (it && it.id) this.epicCatalog[it.id] = it;
+      } catch {}
+    }
+    const it = this.epicCatalog[game.catalogItemId];
+    if (!it || !Array.isArray(it.keyImages)) return null;
+    const img = (t) => (it.keyImages.find((k) => k.type === t) || {}).url || null;
+    return { cover: img('DieselGameBoxTall') || img('OfferImageTall'), hero: img('DieselGameBox') || img('OfferImageWide'), logo: img('DieselGameBoxLogo') };
+  }
+
   async sgdb(game) {
     const key = this.getKey();
     const h = { headers: { Authorization: `Bearer ${key}` } };
@@ -69,10 +90,10 @@ class ArtFinder {
       const res = (await fetchJson(`${base}/search/autocomplete/${encodeURIComponent(game.name)}`, h)).data || [];
       let best = null, bs = 0;
       for (const r of res.slice(0, 6)) {
-        const s = similarity(game.name, r.name);
+        const s = strictSimilarity(game.name, r.name);
         if (s > bs) { bs = s; best = r; }
       }
-      if (!best || bs < 0.6) return {};
+      if (!best || bs < 0.75) return {};
       gid = best.id;
     }
     const get = async (kind, q) => {
@@ -134,10 +155,10 @@ class ArtFinder {
     const d = await fetchJson(`https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(name)}&l=french&cc=FR`);
     let best = null, bs = 0;
     for (const it of d.items || []) {
-      const s = similarity(name, it.name);
+      const s = strictSimilarity(name, it.name);
       if (s > bs) { bs = s; best = it; }
     }
-    return best && bs >= 0.8 ? best.id : null;
+    return best && bs >= 0.9 ? best.id : null;
   }
 
   async wikipedia(game) {
@@ -156,7 +177,11 @@ class ArtFinder {
       const pages = Object.values((d.query && d.query.pages) || {}).sort((x, y) => x.index - y.index);
       for (const p of pages) {
         const title = p.title.replace(/\s*\([^)]*\)\s*$/, '');
-        if (similarity(game.name, title) >= 0.7 && p.thumbnail && !/\.svg/i.test(p.thumbnail.source)) return p.thumbnail.source;
+        if (strictSimilarity(game.name, title) < 0.9 || !p.thumbnail) continue;
+        const src = p.thumbnail.source;
+        // Pas de logo vectoriel ni de photo d'entreprise ou de personne.
+        if (/\.svg|headquarter|_hq|office|building|campus|ceo|founder|portrait|stadium|arena|tournament|champions|event|esports|logo/i.test(decodeURIComponent(src))) continue;
+        return src;
       }
     }
     return null;

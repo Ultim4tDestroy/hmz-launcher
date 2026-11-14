@@ -53,6 +53,18 @@ function similarity(a, b) {
   return score;
 }
 
+// Version stricte pour choisir une image : « Minecraft » ne doit pas valoir
+// « Minecraft Legends », ni « Valorant » valoir « Valorant Champions ».
+function strictSimilarity(a, b) {
+  const A = normTitle(a), B = normTitle(b);
+  if (!A || !B) return 0;
+  if (A === B || A.replace(/ /g, '') === B.replace(/ /g, '')) return 1;
+  const ta = new Set(A.split(' ')), tb = new Set(B.split(' '));
+  let common = 0;
+  for (const t of ta) if (tb.has(t)) common++;
+  return (2 * common) / (ta.size + tb.size);
+}
+
 async function fetchWithTimeout(url, opts = {}, ms = 15000) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), ms);
@@ -122,6 +134,6 @@ function copyDir(src, dst, filter = () => true) {
 }
 
 module.exports = {
-  UA, slug, normTitle, cleanRomTitle, switchTitleId, similarity,
+  UA, slug, normTitle, cleanRomTitle, switchTitleId, similarity, strictSimilarity,
   fetchWithTimeout, fetchJson, urlExists, run, exists, readText, walk, findFile, copyDir,
 };
