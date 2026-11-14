@@ -258,7 +258,7 @@ async function scanLibraryNow() {
       const others = [];
       try { others.push(...SCAN.scanRiot()); } catch (e) { console.error(e); }
       try { others.push(...SCAN.scanLaunchers()); } catch (e) { console.error(e); }
-      try { others.push(...await SCAN.scanNetmarble()); } catch (e) { console.error(e); }
+      try { others.push(...await SCAN.scanNetmarble((f) => { const l = shell.readShortcutLink(f); return { target: l.target, args: l.args }; })); } catch (e) { console.error(e); }
       try { others.push(...await SCAN.scanRegistry()); } catch (e) { console.error(e); }
       try { others.push(...SCAN.scanBlueStacks((f) => { const l = shell.readShortcutLink(f); return { target: l.target, args: l.args, icon: l.icon }; })); } catch (e) { console.error(e); }
       for (const o of others) {
@@ -363,6 +363,20 @@ async function launchGame(id, emuOverride) {
   }
   if (running.has(id) && running.get(id).kind === 'child') return { already: true };
   const s = db.data.settings;
+
+  // Jeu Netmarble avec un raccourci du launcher : il démarre le jeu sans passer par « Jouer ».
+  if (g.source === 'netmarble' && g.shortcut && exists(g.shortcut)) {
+    const err = await shell.openPath(g.shortcut);
+    if (err) throw new Error(`Lancement impossible : ${err}`);
+    g.lastLaunched = Date.now();
+    db.save(); notifyChange(); minimizeForGame();
+    return { ok: true };
+  }
+  // Jeu BlueStacks ajouté depuis HMZ : la bonne instance et la commande des raccourcis BlueStacks.
+  if (g.source === 'bluestacks' && g.manualMobile && g.package) {
+    const info = SCAN.bluestacksInfo();
+    if (info.player) g.launch = { type: 'exe', target: info.player, args: ['--instance', info.pkgInstance[g.package] || info.instance, '--cmd', 'launchAppWithBsx', '--package', g.package, '--source', 'desktop_shortcut'] };
+  }
   let cmd = null, args = [];
 
   if (g.source === 'rom' || (g.source === 'manual' && g.platform !== 'pc')) {
@@ -826,7 +840,7 @@ handle('bluestacks:add', async (items) => {
     const name = it.name || await playStoreName(pkg) || pkg;
     db.data.games[`android:${pkg}`] = {
       id: `android:${pkg}`, name, platform: 'mobile', source: 'bluestacks', package: pkg, manualMobile: true, addedAt: Date.now(),
-      launch: { type: 'exe', target: info.player, args: ['--instance', info.instance, '--cmd', 'launchApp', '--package', pkg] },
+      launch: { type: 'exe', target: info.player, args: ['--instance', info.pkgInstance[pkg] || info.instance, '--cmd', 'launchAppWithBsx', '--package', pkg, '--source', 'desktop_shortcut'] },
       installDir: path.dirname(info.player), exeHints: [],
     };
     n++;

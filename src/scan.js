@@ -1,7 +1,7 @@
 // Détection des jeux : ROM des consoles émulées, Steam et Epic.
 const fs = require('fs');
 const path = require('path');
-const { slug, cleanRomTitle, switchTitleId, run, exists, readText, walk } = require('./util');
+const { slug, cleanRomTitle, switchTitleId, run, exists, readText, walk, similarity } = require('./util');
 
 const { ROM_EXT, PLATFORM_OF_EXT, PLATFORMS } = require('./platforms');
 
@@ -474,7 +474,7 @@ function mainExe(dir) {
   return best && size > 2 * 1024 * 1024 ? { exe: best } : null;
 }
 
-async function scanNetmarble() {
+async function scanNetmarble(readShortcut) {
   if (process.platform !== 'win32') return [];
   const roots = netmarbleRoots();
   // Dossier du launcher Netmarble (et donc de ses jeux) d'après la liste des programmes.
@@ -535,7 +535,41 @@ async function scanNetmarble() {
     } catch {}
   }
   for (const g of games) if (!g.name) g.name = g.folder.replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
+  // Raccourci créé par le launcher Netmarble : il lance le jeu directement, sans passer
+  // par le bouton « Jouer » du launcher. Utilisé en priorité quand il existe.
+  if (readShortcut && games.length) {
+    for (const sc of shortcutsIn(readShortcut)) {
+      const t = (sc.target || '').toLowerCase();
+      for (const g of games) {
+        const byExe = t === g.launch.target.toLowerCase() && sc.args;
+        const byName = /netmarble/.test(t) && similarity(sc.title, g.name) >= 0.8;
+        if ((byExe || byName) && !g.shortcut) g.shortcut = sc.file;
+      }
+    }
+  }
   return games;
+}
+
+// Raccourcis du Bureau et du menu Démarrer.
+function shortcutsIn(readShortcut) {
+  const home = require('os').homedir();
+  const dirs = [
+    path.join(process.env.APPDATA || '', 'Microsoft', 'Windows', 'Start Menu', 'Programs'),
+    path.join(process.env.ProgramData || 'C:\\ProgramData', 'Microsoft', 'Windows', 'Start Menu', 'Programs'),
+    path.join(home, 'Desktop'), path.join(home, 'OneDrive', 'Desktop'), path.join(home, 'OneDrive', 'Bureau'),
+    path.join(process.env.PUBLIC || 'C:\\Users\\Public', 'Desktop'),
+  ];
+  const out = [];
+  for (const d of dirs) {
+    walk(d, 3, (full, name) => {
+      if (!/\.(lnk|url)$/i.test(name)) return;
+      let sc = null;
+      if (/\.url$/i.test(name)) { const u = (readText(full) || '').match(/^URL=(.+)$/m); if (u) sc = { target: u[1].trim(), args: '' }; }
+      else { try { sc = readShortcut(full); } catch {} }
+      if (sc) out.push({ ...sc, file: full, title: name.replace(/\.(lnk|url)$/i, '') });
+    });
+  }
+  return out;
 }
 
 // --- BlueStacks -------------------------------------------------------------------------------
@@ -592,7 +626,18 @@ function bluestacksInfo() {
       });
     }
   }
-  return { player, instance: instances.find((i) => /pie64|nougat64|rvc64|android/i.test(i)) || instances[0] || 'Pie64', packages: [...pkgs].sort() };
+  // Instance utilisée en dernier (ses fichiers de disque sont les plus récents).
+  const pkgInstance = {};
+  let instance = null, newest = 0;
+  for (const inst of instances) {
+    const dir = path.join(engine, inst);
+    walk(dir, 0, (full) => { try { const t = fs.statSync(full).mtimeMs; if (t > newest) { newest = t; instance = inst; } } catch {} });
+    walk(dir, 3, (full, name) => {
+      const base = name.replace(/\.(cfg|png|jpg|ico|json|xml|txt|webp)$/i, '');
+      if (PKG_RE.test(base) && !pkgInstance[base]) pkgInstance[base] = inst;
+    });
+  }
+  return { player, instance: instance || instances.find((i) => /pie64|nougat64|rvc64|android/i.test(i)) || instances[0] || 'Pie64', pkgInstance, packages: [...pkgs].sort() };
 }
 
 module.exports = { scanSteamOwned, steamRoot, readSfo, sfoTitle, bluestacksInfo, scanNetmarble, scanBlueStacks, scanRiot, scanLaunchers, scanRegistry, parseRegQuery, scanSwitchExtras, ROM_EXT, PLATFORM_OF_EXT, scanRoms, scanSteam, scanEpic, parseVdf, getCI, exeHints, isSwitchExtra };
