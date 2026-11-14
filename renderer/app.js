@@ -1161,6 +1161,7 @@ async function play(id, emu) {
     if (ok) { go('emulators'); installEmu(e.id); }
     return;
   }
+  if (res && res.viaLauncher) { toast(`Launcher ${res.viaLauncher} ouvert : clique sur « Jouer » pour lancer ${g.name}.`, 'ok', 5000); return; }
   if (res && res.installing) { toast(`Installation de ${g.name} ouverte dans ${res.store}.`, 'ok', 4000); return; }
   if (res && res.ok) {
     if (!$('#tv').hidden) tvLaunching(g);

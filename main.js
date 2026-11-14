@@ -283,7 +283,7 @@ async function scanLibraryNow() {
       ...f,
       addedAt: old.addedAt || Date.now(),
       favorite: old.favorite, hidden: old.hidden, customName: old.customName, custom: old.custom,
-      art: old.art, artTried: old.artTried, emu: old.emu, lastLaunched: old.lastLaunched,
+      art: old.art, artTried: old.artTried, emu: old.emu, lastLaunched: old.lastLaunched, needsLauncher: old.needsLauncher,
       genres: old.genres, genresTried: old.genresTried, genresManual: old.genresManual,
     };
   }
@@ -372,6 +372,14 @@ async function launchGame(id, emuOverride) {
     db.save(); notifyChange(); minimizeForGame();
     return { ok: true };
   }
+  // Jeu Netmarble qui exige son launcher : on l'ouvre directement (le temps de jeu est compté
+  // dès que le jeu apparaît parmi les programmes ouverts).
+  if (g.source === 'netmarble' && g.needsLauncher && g.launcherExe && exists(g.launcherExe)) {
+    spawn(g.launcherExe, [], { cwd: path.dirname(g.launcherExe), detached: true, stdio: 'ignore' }).unref();
+    g.lastLaunched = Date.now();
+    db.save(); notifyChange(); minimizeForGame();
+    return { ok: true, viaLauncher: 'Netmarble' };
+  }
   // Jeu BlueStacks ajouté depuis HMZ : la bonne instance et la commande des raccourcis BlueStacks.
   if (g.source === 'bluestacks' && g.manualMobile && g.package) {
     const info = SCAN.bluestacksInfo();
@@ -418,7 +426,9 @@ async function launchGame(id, emuOverride) {
     // Un jeu Netmarble qui se ferme tout de suite veut être lancé par le launcher Netmarble.
     if (g.source === 'netmarble' && Date.now() - startedAt < 20000 && g.launcherExe && exists(g.launcherExe)) {
       spawn(g.launcherExe, [], { cwd: path.dirname(g.launcherExe), detached: true, stdio: 'ignore' }).unref();
-      toast(`${g.customName || g.name} doit être lancé depuis le launcher Netmarble : il vient de s'ouvrir.`);
+      g.needsLauncher = true; // la prochaine fois, le launcher s'ouvre tout de suite
+      db.save();
+      toast(`${g.customName || g.name} se lance depuis le launcher Netmarble : clique sur « Jouer » dans la fenêtre qui vient de s'ouvrir.`);
     }
     if (emuUsed) backupSaves(emuUsed).catch((e) => console.error('Sauvegarde', e));
   });
