@@ -141,7 +141,7 @@ const EMULATORS = {
     name: 'DuckStation', platforms: ['ps1'],
     blurb: 'PlayStation. Rapide, précis, avec amélioration de la résolution.',
     needs: 'Demande le BIOS de ta PS1 (à placer dans le dossier bios de DuckStation).',
-    sources: [{ type: 'github', repo: 'stenzek/duckstation', prerelease: true }],
+    sources: [{ type: 'github', repo: 'stenzek/duckstation', prerelease: true, tag: 'latest' }],
     page: 'https://www.duckstation.org/',
     exe: [/^duckstation-qt-x64-releaseltcg\.exe$/i, /^duckstation-qt.*\.exe$/i], asset: /windows-x64-release\.zip$/i, portableFile: 'portable.txt',
     args: (rom, fs) => [...(fs ? ['-fullscreen'] : []), '-batch', '--', rom],
@@ -281,6 +281,8 @@ async function latestRelease(def) {
       } else {
         list = await fetchJson(`${src.api}?limit=15`);
       }
+      // Canal choisi (ex. « latest » de DuckStation plutôt que « preview »).
+      if (src.tag) list = [...list.filter((r) => r.tag_name === src.tag), ...list.filter((r) => r.tag_name !== src.tag)];
       for (const rel of list) {
         if (rel.draft) continue;
         if (rel.prerelease && !src.prerelease) continue;

@@ -37,16 +37,19 @@
     const s = now - i * D - 3 * 36e5;
     sessions.push({ g: g.id, s, e: s + (20 + ((i * 37) % 140)) * 60000 });
   }
-  const emulators = [
+  const emulatorsBase = [
     { id: 'melonds', name: 'melonDS', platforms: ['ds'], blurb: 'Nintendo DS. Stable et précis, aucun fichier système nécessaire.', installed: true, version: '1.1', latest: '1.1', needsKeys: false, page: '#' },
     { id: 'azahar', name: 'Azahar', platforms: ['3ds'], blurb: 'Nintendo 3DS. Successeur officiel de Citra. Les jeux doivent être déchiffrés.', installed: true, version: '2125.0', latest: '2126.1.1', needsKeys: false, page: '#' },
     { id: 'eden', name: 'Eden', platforms: ['switch'], blurb: 'Nintendo Switch. Le plus suivi des successeurs de Yuzu.', installed: true, version: 'v0.2.0-rc2', latest: 'v0.2.0-rc2', needsKeys: true, keys: { keys: true, firmware: false }, page: '#' },
     { id: 'lichii', name: 'Lichii', platforms: ['switch2', 'switch'], blurb: 'Nintendo Switch 2. Très expérimental : bugs fréquents, bon PC requis.', experimental: true, installed: false, needsKeys: true, page: '#' },
   ];
+  const emulators = (window.__CAT ? window.__CAT.emulators : []).map((c) => ({ ...c, ...(emulatorsBase.find((b) => b.id === c.id) || {}) }));
+  Object.assign(emulators.find((e) => e.id === 'pcsx2') || {}, { installed: true, version: 'v2.4.0', latest: 'v2.4.0', dir: 'C:\\Users\\Hamza\\HMZ\\Emulateurs\\PCSX2' });
+
   const state = {
     version: '2.0.0',
-    settings: { root: 'C:\\Users\\Hamza\\HMZ', romDirs: { ds: ['C:\\Users\\Hamza\\HMZ\\Jeux\\DS'], '3ds': ['C:\\Users\\Hamza\\HMZ\\Jeux\\3DS'], switch: ['C:\\Users\\Hamza\\HMZ\\Jeux\\Switch', 'D:\\Jeux Switch'], switch2: ['C:\\Users\\Hamza\\HMZ\\Jeux\\Switch 2'] }, sgdbKey: '', backups: true, backupDirShown: 'C:\\Users\\Hamza\\HMZ\\Sauvegardes', padQuit: true, padHome: true, scanOthers: true, autostart: false, startInTV: false, emuFullscreen: true, minimizeOnPlay: true, scanSteam: true, scanEpic: true },
-    platforms: { pc: { label: 'PC', color: '#7aa2ff' }, mobile: { label: 'Mobile', color: '#3ddc84' }, switch2: { label: 'Switch 2', color: '#ff5a4e' }, switch: { label: 'Switch', color: '#ff7a59' }, '3ds': { label: '3DS', color: '#f6c344' }, ds: { label: 'DS', color: '#7fd1b9' } },
+    settings: { root: 'C:\\Users\\Hamza\\HMZ', romDirs: { ds: ['C:\\Users\\Hamza\\HMZ\\Jeux\\DS'], '3ds': ['C:\\Users\\Hamza\\HMZ\\Jeux\\3DS'], switch: ['C:\\Users\\Hamza\\HMZ\\Jeux\\Switch', 'D:\\Jeux Switch'], switch2: ['C:\\Users\\Hamza\\HMZ\\Jeux\\Switch 2'], ps2: ['C:\\Users\\Hamza\\HMZ\\Jeux\\PS2'] }, sgdbKey: '', backups: true, backupDirShown: 'C:\\Users\\Hamza\\HMZ\\Sauvegardes', padQuit: true, padHome: true, scanOthers: true, autostart: false, startInTV: false, emuFullscreen: true, minimizeOnPlay: true, scanSteam: true, scanEpic: true },
+    platforms: window.__CAT ? window.__CAT.platforms : {},
     games, emulators, sessions, padKinds: ['playstation'], collections: [{ id: 'c1', name: 'À finir', color: '#ff6b5e', games: ['switch:zelda-totk', 'ds:pokemon-heartgold'] }, { id: 'c2', name: 'Soirées entre potes', color: '#7aa2ff', games: ['switch2:mario-kart-world', 'switch:smash', 'steam:730'] }],
   };
   if (location.hash === '#empty') state.games = [];
@@ -69,6 +72,7 @@
         emit('state:changed', JSON.parse(JSON.stringify(state)));
         return { version: 'build-83' };
       }
+      if (ch === 'emu:uninstall') { const e = emulators.find((x) => x.id === a[0]); e.installed = false; e.version = null; emit('state:changed', JSON.parse(JSON.stringify(state))); return { removed: true }; }
       if (ch === 'bluestacks:candidates') { await new Promise((r) => setTimeout(r, 300)); return { installed: true, list: [{ pkg: 'com.netmarble.sololv', name: 'Solo Leveling:Arise' }, { pkg: 'com.com2us.smon.normal.freefull.google.kr.android.common', name: 'Summoners War' }] }; }
       if (ch === 'art:options') { await new Promise((r) => setTimeout(r, 300)); return Array.from({ length: 9 }, (_, i) => ({ url: 'x' + i, thumb: a[1] === 'cover' ? svg(600, 900, ['#ff4655','#2b6fd6','#3d9b4f','#f6c344'][i % 4], '#111', 'Cover ' + (i + 1), 60) : svg(1920, 620, '#333', ['#ff4655','#2b6fd6','#3d9b4f'][i % 3], 'Fond ' + (i + 1), 120) })); }
       return null;

@@ -15,15 +15,11 @@ const EMUCFG = require('./src/emuconfig');
 const BACKUP = require('./src/backup');
 const { normTitle } = require('./src/util');
 
-const PLATFORMS = {
-  pc: { label: 'PC', color: '#7aa2ff' },
-  mobile: { label: 'Mobile', color: '#3ddc84' },
-  switch2: { label: 'Switch 2', color: '#ff5a4e' },
-  switch: { label: 'Switch', color: '#ff7a59' },
-  '3ds': { label: '3DS', color: '#f6c344' },
-  ds: { label: 'DS', color: '#7fd1b9' },
-};
-const ROM_FOLDER_NAMES = { ds: 'DS', '3ds': '3DS', switch: 'Switch', switch2: 'Switch 2' };
+const PLAT = require('./src/platforms');
+const PLATFORMS = PLAT.publicPlatforms();
+const { ROM_FOLDER_NAMES } = PLAT;
+// Émulateurs dont HMZ sait régler les graphismes et la manette.
+const TUNED = ['melonds', 'azahar', 'eden', 'lichii'];
 
 if (!app.requestSingleInstanceLock()) { app.quit(); process.exit(0); }
 
@@ -87,7 +83,7 @@ function restartApp() {
 function defaults() {
   const root = path.join(os.homedir(), 'HMZ');
   const romDirs = {};
-  for (const [p, n] of Object.entries(ROM_FOLDER_NAMES)) romDirs[p] = [path.join(root, 'Jeux', n)];
+  for (const p of PLAT.CORE) romDirs[p] = [path.join(root, 'Jeux', ROM_FOLDER_NAMES[p])];
   return {
     settings: {
       root, romDirs, sgdbKey: '', startInTV: false, emuFullscreen: true, minimizeOnPlay: true,
@@ -103,8 +99,18 @@ function defaults() {
   };
 }
 
+function emuInstalled(id) { const e = db.data.emulators[id]; return !!(e && e.exe && exists(e.exe)); }
+function resolveEmu(platform) { return EMU.emuFor(platform, emuInstalled); }
+
 function ensureFolders() {
   const s = db.data.settings;
+  // Un dossier de jeux par console, créé seulement quand un de ses émulateurs est installé.
+  for (const d of Object.values(EMU.EMULATORS)) {
+    if (!emuInstalled(d.id)) continue;
+    for (const p of d.platforms) {
+      if (!s.romDirs[p] || !s.romDirs[p].length) s.romDirs[p] = [path.join(s.root, 'Jeux', ROM_FOLDER_NAMES[p])];
+    }
+  }
   for (const dirs of Object.values(s.romDirs)) for (const d of dirs) { try { fs.mkdirSync(d, { recursive: true }); } catch {} }
   try { fs.mkdirSync(path.join(s.root, 'Emulateurs'), { recursive: true }); } catch {}
 }
@@ -131,7 +137,7 @@ function publicState() {
     const s = stats[g.id] || { minutes: 0, sessions: 0, last: 0 };
     const minutes = Math.max(s.minutes, g.steamMinutes || 0);
     const last = Math.max(s.last, g.steamLast || 0, g.lastLaunched || 0);
-    const emuId = g.source === 'rom' ? (g.emu || EMU.DEFAULT_EMU[g.platform]) : null;
+    const emuId = g.source === 'rom' ? (g.emu || resolveEmu(g.platform)) : null;
     return {
       id: g.id, name: g.customName || g.name, originalName: g.name, platform: g.platform, source: g.source,
       favorite: !!g.favorite, hidden: !!g.hidden, addedAt: g.addedAt, size: g.size || 0,
@@ -150,7 +156,8 @@ function publicState() {
     return {
       id: d.id, name: d.name, platforms: d.platforms, blurb: d.blurb, experimental: !!d.experimental, page: d.page,
       installed: ok, version: e.version || null, custom: !!e.custom, latest: e.latest || null,
-      needsKeys: d.needsKeys, keys: ok ? EMU.keysStatus(d.id, e) : null, dir: e.dir || null,
+      needsKeys: !!d.needsKeys, keys: ok ? EMU.keysStatus(d.id, e) : null, dir: e.dir || null,
+      needs: d.needs || '', tuned: TUNED.includes(d.id), isDefault: d.platforms.some((p) => EMU.DEFAULT_EMU[p] === d.id),
     };
   });
   const since = Date.now() - 400 * 864e5;
@@ -285,7 +292,7 @@ async function launchGame(id, emuOverride) {
   let cmd = null, args = [];
 
   if (g.source === 'rom' || (g.source === 'manual' && g.platform !== 'pc')) {
-    const emuId = emuOverride || g.emu || EMU.DEFAULT_EMU[g.platform];
+    const emuId = emuOverride || g.emu || resolveEmu(g.platform);
     const emu = db.data.emulators[emuId];
     if (!emu || !exists(emu.exe)) return { needEmu: emuId };
     if (!exists(g.path)) throw new Error('Le fichier du jeu est introuvable. Il a peut-être été déplacé.');
@@ -315,7 +322,7 @@ async function launchGame(id, emuOverride) {
     db.save(); notifyChange();
     return { ok: true };
   }
-  const emuUsed = g.source === 'rom' || (g.source === 'manual' && g.platform !== 'pc') ? (emuOverride || g.emu || EMU.DEFAULT_EMU[g.platform]) : null;
+  const emuUsed = g.source === 'rom' || (g.source === 'manual' && g.platform !== 'pc') ? (emuOverride || g.emu || resolveEmu(g.platform)) : null;
   child.on('error', (e) => { toast(`Lancement impossible : ${e.message}`, 'error'); endSession(id); });
   const startedAt = Date.now();
   child.on('exit', () => {
@@ -466,6 +473,7 @@ app.whenReady().then(() => {
   setInterval(checkLocalUpdate, 15000);
   setupAutoUpdate();
   applyAutostart();
+  EMU.setToolsDir(path.join(app.getPath('userData'), 'outils'));
   pad = new PadWatcher(path.join(app.getPath('userData'), 'outils'), onPad);
   pad.start();
 });
@@ -585,7 +593,7 @@ handle('game:add', async () => {
   return n;
 });
 handle('game:setPlatform', (id, platform) => {
-  const g = db.data.games[id]; if (!g || g.source !== 'manual' || !g.path) return;
+  const g = db.data.games[id]; if (!g || g.source !== 'manual' || !g.path || !PLATFORMS[platform]) return;
   g.platform = platform; db.save(); notifyChange();
 });
 
@@ -600,7 +608,7 @@ handle('emu:install', async (id) => {
 });
 handle('emu:installZip', async (id) => {
   const d = EMU.EMULATORS[id];
-  const r = await dialog.showOpenDialog(win, { title: `Choisis le .zip de ${d.name} pour Windows`, properties: ['openFile'], filters: [{ name: 'Archive', extensions: ['zip'] }] });
+  const r = await dialog.showOpenDialog(win, { title: `Choisis l'archive (.zip ou .7z) de ${d.name} pour Windows`, properties: ['openFile'], filters: [{ name: 'Archive', extensions: ['zip', '7z'] }] });
   if (r.canceled || !r.filePaths[0]) return null;
   const res = await EMU.installFromZip(id, db.data.settings.root, r.filePaths[0], (p) => send('emu:progress', { id, ...p }));
   send('emu:progress', { id, step: null });
@@ -723,6 +731,19 @@ handle('emu:locate', async (id) => {
   db.save(); notifyChange();
 });
 handle('emu:forget', (id) => { delete db.data.emulators[id]; db.save(); notifyChange(); });
+handle('emu:uninstall', async (id) => {
+  const e = db.data.emulators[id];
+  if (!e) return { removed: false };
+  const busy = [...running.keys()].some((gid) => { const g = db.data.games[gid]; return g && g.platform !== 'pc' && (g.emu || resolveEmu(g.platform)) === id; });
+  if (busy) throw new Error('Un jeu tourne encore avec cet émulateur. Ferme-le d\'abord.');
+  if (db.data.settings.backups) { try { await backupSaves(id, true); } catch {} }
+  let res;
+  try { res = EMU.uninstall(id, e, db.data.settings.root); }
+  catch (err) { throw new Error(`Suppression impossible : ${err.code === 'EBUSY' || err.code === 'EPERM' ? "l'émulateur est peut-être encore ouvert" : err.message}`); }
+  delete db.data.emulators[id];
+  db.save(); notifyChange();
+  return res;
+});
 handle('emu:open', (id) => {
   const e = db.data.emulators[id];
   if (!e || !exists(e.exe)) throw new Error("L'émulateur n'est pas installé.");

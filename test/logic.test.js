@@ -98,7 +98,7 @@ console.log('ROM OK', names);
   // 6. Correspondance des jaquettes libretro (liste simulée)
   const { ArtFinder } = require('../src/art');
   const af = new ArtFinder(tmp, ()=> '');
-  af.libretroLists.ds = ['Pokemon - HeartGold Version (USA)','Pokemon - HeartGold Version (France)','New Super Mario Bros. (Europe) (En,Fr,De,Es,It)','New Super Mario Bros. (USA)'];
+  af.libretroLists.ds = ['Pokemon - HeartGold Version (USA)','Pokemon - HeartGold Version (France)','New Super Mario Bros. (Europe) (En,Fr,De,Es,It)','New Super Mario Bros. (USA)'].map((n) => ['Nintendo_-_Nintendo_DS', n]);
   const u1 = await af.libretro({ name:'New Super Mario Bros.', platform:'ds' });
   assert.ok(u1.includes(encodeURIComponent('New Super Mario Bros. (Europe) (En,Fr,De,Es,It)')), u1);
   const u2 = await af.libretro({ name:'Pokemon HeartGold', platform:'ds' });

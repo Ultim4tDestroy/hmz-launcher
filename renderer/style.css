@@ -1006,3 +1006,82 @@ html, body { background: var(--bg); }
 [data-theme="glace"] .tb-search { background: rgba(255,255,255,.55); box-shadow: inset 0 0 0 1px rgba(0,0,0,.08); }
 @media (max-width: 1500px) { .tb-search { width: 200px; } .tb-search kbd { display: none; } }
 @media (max-width: 1340px) { .tb-search { width: 36px; padding: 0; justify-content: center; border-radius: 99px; } .tb-search span { display: none; } }
+
+/* 2.9 · page Émulateurs : recherche, filtres, tri, groupes par famille */
+.emu-bar { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 22px 0 8px; padding: 10px; border-radius: 18px; background: var(--glass-bg); backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur); box-shadow: var(--glass-hi), var(--glass-shadow); }
+.emu-search { flex: 1 1 260px; display: flex; align-items: center; gap: 9px; height: 38px; padding: 0 12px; border-radius: 12px; background: rgba(var(--bg-rgb), .4); box-shadow: inset 0 0 0 1px rgba(var(--fg-rgb), .08); color: var(--muted); }
+.emu-search:focus-within { box-shadow: inset 0 0 0 1.5px var(--cream); color: var(--text); }
+.emu-search svg { width: 16px; height: 16px; flex: none; }
+.emu-search input { flex: 1; min-width: 0; background: none; border: 0; outline: 0; color: var(--text); font: inherit; font-size: 13.5px; }
+.emu-search input::-webkit-search-cancel-button { filter: grayscale(1) opacity(.6); }
+.emu-bar .seg { flex: none; background: rgba(var(--bg-rgb), .35); border-radius: 12px; }
+.emu-bar .seg button { flex: none; padding: 0 12px; height: 32px; white-space: nowrap; }
+.emu-bar .select { height: 38px; border-radius: 12px; }
+.emu-group { margin-top: 26px; }
+.emu-gtitle { display: flex; align-items: baseline; gap: 10px; margin: 0 2px 12px; font: 750 19px/1.1 var(--display); letter-spacing: -.02em; }
+.emu-gtitle span { font: 600 12.5px var(--ui); color: var(--faint); }
+.emu-results > .emu-grid { margin-top: 18px; }
+.emu-page .emu-grid { grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 14px; }
+.emu-page .emu { padding: 18px 18px 14px; gap: 11px; border-radius: 20px; background: var(--glass-bg); border: 0; box-shadow: var(--glass-hi), 0 1px 0 rgba(0,0,0,.15); transition: box-shadow .2s, transform .2s; }
+.emu-page .emu::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 2px; background: linear-gradient(90deg, var(--c), transparent 80%); opacity: .55; }
+.emu-page .emu.is-inst::before { opacity: 1; }
+.emu-page .emu:hover { box-shadow: var(--glass-hi), 0 14px 34px -18px rgba(0,0,0,.6); }
+.emu-page .emu h3 { font-size: 19px; }
+.emu-page .emu p { margin: 0; color: var(--muted); font-size: 13.5px; line-height: 1.45; }
+.emu-page .emu .tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
+.emu-need { display: flex; gap: 8px; align-items: flex-start; padding: 9px 11px; border-radius: 12px; background: rgba(var(--fg-rgb), .045); color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+.emu-need svg { width: 15px; height: 15px; flex: none; margin-top: 1px; opacity: .8; }
+.emu-page .emu-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+.emu-page .emu-actions .btn { height: 34px; padding: 0 13px; font-size: 13px; }
+.emu-page .emu .links { align-items: center; margin-top: auto; padding-top: 4px; gap: 12px; }
+.emu-page .emu .links .grow { flex: 1; }
+.emu .links button.danger { color: color-mix(in srgb, var(--red) 75%, var(--faint)); }
+.emu .links button.danger:hover { color: var(--red); }
+.modal.dialog .btn.danger { background: var(--red); color: #fff; }
+.modal.dialog .btn.danger:hover { filter: brightness(1.1); }
+#setPlat { width: 100%; max-width: 280px; }
+@media (max-width: 1100px) { .emu-bar .emu-fam { order: 3; } }
+
+/* Boîtiers des autres consoles */
+.k-wiiu { --case: #e8f2f7; --spine: #dbe9f1; --spine-ink: #1d5d7a; --band-ink: #fff; }
+.k-wiiu .band { background: #1aa3d6; }
+.k-wii { --case: #f3f5f7; --spine: #e8ebee; --spine-ink: #59626d; --band-ink: #8a939e; }
+.k-wii .band { background: #fff; border-bottom: 1px solid #e3e6ea; }
+.k-gc { --case: #1c1b23; --spine: #16151c; --band-ink: #b9b1ff; }
+.k-gc .band { background: #2a2540; }
+.k-n64 { --case: #1a1a1a; --spine: #141414; --band-ink: #fff; }
+.k-n64 .band { background: linear-gradient(90deg, #d92b26 0 25%, #1f8f4a 25% 50%, #f2b705 50% 75%, #1d5bd8 75%); text-shadow: 0 1px 2px rgba(0,0,0,.5); }
+.k-snes { --case: #dcdae0; --spine: #d0ced6; --spine-ink: #3a3646; --band-ink: #fff; }
+.k-snes .band { background: linear-gradient(90deg, #7d6fc1, #9d93d4); }
+.k-nes { --case: #121212; --spine: #0d0d0d; --band-ink: #fff; }
+.k-nes .band { background: #c8102e; }
+.k-gba { --case: #eceaf6; --spine: #e2dff0; --spine-ink: #3e2f9a; --band-ink: #fff; }
+.k-gba .band { background: #4b3cc4; }
+.k-gb { --case: #e9e7dd; --spine: #dfdcd0; --spine-ink: #333; --band-ink: #fff; }
+.k-gb .band { background: #6f8a2a; }
+.k-ps4 { --case: #0c3c93; --spine: #09337e; --band-ink: #fff; }
+.k-ps4 .band { background: #0a2e70; }
+.k-ps3 { --case: #151515; --spine: #101010; --band-ink: #ececec; }
+.k-ps3 .band { background: linear-gradient(90deg, #2a2a2a, #4d4d4d); }
+.k-ps2 { --case: #101014; --spine: #0b0b0e; --band-ink: #cfd6ff; }
+.k-ps2 .band { background: #161a33; }
+.k-ps1 { --case: #131313; --spine: #0e0e0e; --band-ink: #fff; }
+.k-ps1 .band { background: #1d1d1d; }
+.k-vita { --case: #1b4fb8; --spine: #1846a3; --band-ink: #fff; }
+.k-vita .band { background: #163f94; }
+.k-psp { --case: #161616; --spine: #111; --band-ink: #e9e9e9; }
+.k-psp .band { background: #262626; }
+.k-x360 { --case: #e9ecef; --spine: #dfe3e7; --spine-ink: #2b6b16; --band-ink: #fff; }
+.k-x360 .band { background: #5fa82e; }
+.k-xbox { --case: #1d201d; --spine: #171a17; --band-ink: #fff; }
+.k-xbox .band { background: #2f8a3a; }
+.k-dc { --case: #f1f3f6; --spine: #e6e9ee; --spine-ink: #1d4fa0; --band-ink: #fff; }
+.k-dc .band { background: #1d4fa0; }
+.k-md { --case: #131313; --spine: #0e0e0e; --band-ink: #fff; }
+.k-md .band { background: #1f4fa8; }
+.k-wiiu .f-front, .k-wii .f-front, .k-snes .f-front, .k-gba .f-front, .k-gb .f-front, .k-x360 .f-front, .k-dc .f-front { box-shadow: inset 0 0 0 1px rgba(0,0,0,.08); }
+.emu-page .emu-grid { align-items: start; }
+.emu-page .emu .links { margin-top: 2px; }
+.emu-bar { top: 6px; }
+/* Boîtes à l'italienne ou carrées : bandeau calé sur la largeur */
+.k-n64 .band, .k-snes .band, .k-gba .band, .k-gb .band, .k-ps1 .band, .k-dc .band { height: calc(var(--bw) * .075); font-size: calc(var(--bw) * .036); }
