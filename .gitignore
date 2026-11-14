@@ -2,3 +2,4 @@ node_modules/
 dist/
 test/*.png
 renderer/dev.html
+.lint/

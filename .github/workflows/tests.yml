@@ -14,22 +14,13 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Tests de logique
-        run: |
-          node test/logic.test.js
-          node test/v23.test.js
-          node test/boot.test.js
-          node test/main.smoke.js
-      - name: Electron sait lire la base GOG Galaxy (node:sqlite)
-        run: ELECTRON_RUN_AS_NODE=1 npx electron -e "require('node:sqlite'); console.log('node:sqlite OK, Node', process.versions.node)"
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Interface (parcours complet dans un navigateur)
-        run: |
-          node test/gen-catalog.js
-          node test/make-dev.js
+      - run: |
           pip install playwright
           python -m playwright install --with-deps chromium
-          python test/flow.py | tee flow.log
-          grep -q "erreurs: \[\]" flow.log
+      - name: Toutes les vérifications (npm run verifier)
+        run: npm run verifier
+      - name: Electron sait lire la base GOG Galaxy (node:sqlite)
+        run: ELECTRON_RUN_AS_NODE=1 npx electron -e "require('node:sqlite'); console.log('node:sqlite OK')"

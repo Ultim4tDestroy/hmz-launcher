@@ -41,8 +41,8 @@ function onUnexpected(kind, err) {
   // Erreur avant que la fenêtre existe : HMZ ne peut pas démarrer. On le dit clairement
   // et on quitte, plutôt que de rester ouvert en arrière-plan sans fenêtre.
   if (!startedOk) {
-    try { require('electron').dialog.showErrorBox('HMZ ne peut pas démarrer', `${err && err.message ? err.message : err}\n\nLe détail est noté dans le journal :\n${LOG.getFile() || ''}\n\nRéinstalle la dernière version depuis github.com/Ultim4tDestroy/hmz-launcher/releases.`); } catch {}
-    try { app.exit(1); } catch { process.exit(1); }
+    // Mode secours : version corrigée téléchargée et installée toute seule si elle existe.
+    try { require('./src/recovery').start(err); } catch { try { app.exit(1); } catch { process.exit(1); } }
     return;
   }
   if (Date.now() - lastCrashToast > 10000) {
@@ -775,6 +775,7 @@ function createWindow() {
   Menu.setApplicationMenu(null);
   win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
   win.once('ready-to-show', () => {
+    LOG.info(`Fenêtre affichée · HMZ ${CUR_VERSION}`);
     if (db.data.settings.startInTV) win.setFullScreen(true);
     win.show();
   });
@@ -912,6 +913,10 @@ function handle(ch, fn) {
 }
 
 handle('state:get', () => publicState());
+handle('ui:ready', (info) => {
+  if (info && info.ok) LOG.info(`Interface prête · HMZ ${CUR_VERSION} · ${info.games} jeux`);
+  else LOG.write('PLANTAGE', ['Interface vide au démarrage', JSON.stringify(info || {})]);
+});
 handle('log:error', (msg) => { LOG.write('ERREUR (fenêtre)', [String(msg).slice(0, 2000)]); });
 handle('log:open', () => { const f = LOG.getFile(); if (f) shell.showItemInFolder(f); });
 // Prépare un rapport de bug sur GitHub (rien n'est envoyé sans que tu cliques sur « Submit »).

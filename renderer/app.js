@@ -47,4 +47,7 @@ api.on('window:state', (s) => {
   applyAppearance();
   render();
   if (S.settings.startInTV) enterTV();
+  // Signal de bonne santé : l'interface est vraiment affichée (vérifié avant chaque publication).
+  const ok = $('#view') && $('#view').children.length > 0 && $('.titlebar');
+  api.call('ui:ready', { ok: !!ok, view: ui.view, games: (S.games || []).length }).catch(() => {});
 })();

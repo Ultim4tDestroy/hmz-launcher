@@ -79,6 +79,7 @@
         emit('state:changed', JSON.parse(JSON.stringify(state)));
         return { version: 'build-83' };
       }
+      if (ch === 'ui:ready') return true;
       if (ch === 'game:meta') {
         const g = games.find((x) => x.id === a[0]);
         if (!g || g.platform === 'mobile') return { none: true };

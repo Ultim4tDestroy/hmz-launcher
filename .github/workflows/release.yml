@@ -1,10 +1,14 @@
-# Fabrique le .exe sur un serveur Windows de GitHub et le publie.
-# Se lance à chaque tag « v2.x.y » ou à la main depuis l'onglet Actions.
+# Publication d'une version de HMZ, avec un protocole qui ne laisse rien passer :
+#   1. toutes les vérifications (code, logique, démarrage simulé, interface) ;
+#   2. démarrage réel du code sous Windows ;
+#   3. fabrication de l'installateur, publié d'abord en BROUILLON (invisible pour les utilisateurs) ;
+#   4. installation silencieuse de CET installateur, puis lancement du HMZ installé :
+#      fenêtre ouverte, bonne version, journal sans plantage ;
+#   5. seulement alors, la version devient publique et les mises à jour automatiques la proposent.
+# Un échec à n'importe quelle étape arrête tout : personne ne reçoit la version.
 name: Publier une version
 
 on:
-  push:
-    tags: ['v*']
   workflow_dispatch:
     inputs:
       nettoyage_seulement:
@@ -16,7 +20,28 @@ permissions:
   contents: write
 
 jobs:
+  verifications:
+    if: ${{ !inputs.nettoyage_seulement }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: npm ci
+      - run: |
+          pip install playwright
+          python -m playwright install --with-deps chromium
+      - name: Toutes les vérifications (npm run verifier)
+        run: npm run verifier
+
   windows:
+    needs: verifications
+    if: ${{ always() && (inputs.nettoyage_seulement || needs.verifications.result == 'success') }}
     runs-on: windows-latest
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -27,30 +52,56 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - run: npm ci
+        if: ${{ !inputs.nettoyage_seulement }}
 
-      - name: Vérifier que HMZ démarre vraiment (sinon pas de publication)
+      - name: 2. Démarrage réel du code sous Windows
         if: ${{ !inputs.nettoyage_seulement }}
         shell: pwsh
-        run: |
-          npm ci
-          ./scripts/verifier-demarrage.ps1
+        run: ./scripts/verifier-demarrage.ps1
 
-      - name: Fabriquer et publier
+      - name: 3. Fabriquer l'installateur (brouillon, invisible pour les utilisateurs)
         if: ${{ !inputs.nettoyage_seulement }}
         shell: bash
         run: |
-          npm ci
           V="v$(node -p "require('./package.json').version")"
+          echo "V=$V" >> "$GITHUB_ENV"
+          if gh release view "$V" --json isDraft --jq .isDraft 2>/dev/null | grep -q false; then
+            echo "La version $V est déjà publiée : augmente le numéro de version." && exit 1
+          fi
           if ! git ls-remote --exit-code --tags origin "$V" >/dev/null; then
             git tag "$V" && git push origin "$V"
           fi
-          # Une seule version brouillon est créée d'avance : electron-builder y dépose
-          # tous les fichiers, puis on la publie (évite les versions en double).
           if ! gh release view "$V" >/dev/null 2>&1; then
             gh release create "$V" --draft --title "${V#v}" --notes "HMZ Launcher ${V#v}"
           fi
           npx electron-builder --win nsis --publish always -c.publish.releaseType=draft
-          gh release edit "$V" --draft=false --latest
+
+      - name: 4. Installer CET installateur et lancer le HMZ installé
+        if: ${{ !inputs.nettoyage_seulement }}
+        shell: pwsh
+        run: |
+          $ver = $env:V.Substring(1)
+          $setup = Get-ChildItem dist -Filter "HMZ-Launcher-Setup-$ver.exe" | Select-Object -First 1
+          if (-not $setup) { Write-Error "Installateur introuvable"; exit 1 }
+          Start-Process -FilePath $setup.FullName -ArgumentList '/S' -Wait
+          $exe = @("$env:LOCALAPPDATA\Programs\HMZ Launcher\HMZ Launcher.exe", "$env:ProgramFiles\HMZ Launcher\HMZ Launcher.exe") | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $exe) { Write-Error "HMZ installé introuvable"; exit 1 }
+          ./scripts/verifier-demarrage.ps1 -Exe $exe -Version $ver -Seconds 40
+
+      - name: 5. Rendre la version publique
+        if: ${{ !inputs.nettoyage_seulement }}
+        shell: bash
+        run: gh release edit "$V" --draft=false --latest
+
+      - name: Échec → la version brouillon est supprimée (rien n'a été publié)
+        if: ${{ failure() && env.V != '' }}
+        shell: bash
+        run: |
+          # Seulement un BROUILLON (jamais une version déjà publique).
+          if gh release view "$V" --json isDraft --jq .isDraft 2>/dev/null | grep -q true; then
+            gh release delete "$V" --yes --cleanup-tag
+          fi
 
       - name: Fusionner les versions en double
         if: ${{ always() }}

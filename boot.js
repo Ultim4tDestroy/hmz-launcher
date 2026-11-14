@@ -66,6 +66,8 @@ try {
     app.relaunch();
     app.exit(0);
   } else {
-    throw e;
+    // Version installée cassée : mode secours (télécharge et installe une version corrigée).
+    try { console.error('Erreur au chargement de HMZ :', e); } catch {}
+    require('./src/recovery').start(e);
   }
 }
