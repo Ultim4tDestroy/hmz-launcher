@@ -12,7 +12,7 @@ const OVERRIDE = path.join(os.homedir(), 'HMZ', 'app');
 const BOOTING = path.join(OVERRIDE, '.demarrage');
 
 function newer(a, b) {
-  const pa = String(a).split('.').map(Number), pb = String(b).split('.').map(Number);
+  const pa = String(a).split('.').map((x) => parseInt(x, 10) || 0), pb = String(b).split('.').map((x) => parseInt(x, 10) || 0); // « 2.11.2-test » → 2, 11, 2
   for (let i = 0; i < 3; i++) if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) > (pb[i] || 0);
   return false;
 }
