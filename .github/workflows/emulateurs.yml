@@ -1,0 +1,22 @@
+name: Vérifier les émulateurs
+on:
+  workflow_dispatch:
+    inputs:
+      ids:
+        description: "Émulateurs à vérifier (vide = tous)"
+        required: false
+        default: ""
+  schedule:
+    - cron: "17 6 * * 1"
+jobs:
+  verifier:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Télécharger et installer chaque émulateur
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/verifier-emulateurs.js ${{ github.event.inputs.ids }}

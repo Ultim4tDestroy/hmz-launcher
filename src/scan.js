@@ -3,15 +3,31 @@ const fs = require('fs');
 const path = require('path');
 const { slug, cleanRomTitle, switchTitleId, run, exists, readText, walk } = require('./util');
 
-const ROM_EXT = {
-  ds: ['.nds', '.dsi', '.srl'],
-  '3ds': ['.3ds', '.cci', '.cxi', '.3dsx', '.app', '.zcci', '.zcxi', '.z3dsx'],
-  switch: ['.nsp', '.xci', '.nsz', '.xcz', '.nro'],
-  switch2: ['.nsp', '.xci', '.nsz', '.xcz', '.nro'],
-};
+const { ROM_EXT, PLATFORM_OF_EXT, PLATFORMS } = require('./platforms');
 
-const PLATFORM_OF_EXT = {};
-for (const p of ['ds', '3ds', 'switch']) for (const e of ROM_EXT[p]) PLATFORM_OF_EXT[e] = p;
+// Titre d'un jeu PS3 / PS4 lu dans son fichier PARAM.SFO.
+function readSfo(buf) {
+  if (buf.length < 20 || buf.readUInt32BE(0) !== 0x00505346) return {};
+  const keys = buf.readUInt32LE(8), data = buf.readUInt32LE(12), n = buf.readUInt32LE(16);
+  const out = {};
+  for (let i = 0; i < n && 20 + i * 16 + 16 <= buf.length; i++) {
+    const o = 20 + i * 16;
+    const kOff = buf.readUInt16LE(o), fmt = buf.readUInt16LE(o + 2), len = buf.readUInt32LE(o + 4), dOff = buf.readUInt32LE(o + 12);
+    const kStart = keys + kOff;
+    const key = buf.toString('utf8', kStart, buf.indexOf(0, kStart));
+    if (fmt === 0x0204 || fmt === 0x0004) out[key] = buf.toString('utf8', data + dOff, data + dOff + len).replace(/\0+$/, '');
+  }
+  return out;
+}
+function sfoTitle(gameDir) {
+  for (const rel of ['PS3_GAME/PARAM.SFO', 'PARAM.SFO', 'sce_sys/param.sfo']) {
+    try {
+      const t = readSfo(fs.readFileSync(path.join(gameDir, rel))).TITLE;
+      if (t) return t.replace(/[\r\n]+/g, ' ').replace(/[™®]/g, '').trim();
+    } catch {}
+  }
+  return null;
+}
 
 // Une mise à jour ou un DLC n'est pas un jeu à afficher.
 function isSwitchExtra(file) {
@@ -28,11 +44,26 @@ function scanRoms(romDirs) {
     const seen = new Map();
     for (const dir of romDirs[platform] || []) {
       if (!exists(dir)) continue;
-      walk(dir, 3, (full, name) => {
+      const eboot = PLATFORMS[platform].eboot;
+      walk(dir, eboot ? 6 : 3, (full, name) => {
         const ext = path.extname(name).toLowerCase();
-        if (!ROM_EXT[platform].includes(ext)) return;
-        if (platform.startsWith('switch') && isSwitchExtra(full)) return;
-        const title = cleanRomTitle(name);
+        let title;
+        if (eboot && /^eboot\.bin$/i.test(name)) {
+          // PS3 / PS4 : un jeu est un dossier ; son nom vient du dossier du jeu
+          // (…/Mon jeu/PS3_GAME/USRDIR/EBOOT.BIN ou …/CUSA00000/eboot.bin).
+          const parts = path.dirname(full).split(/[\\/]/);
+          while (parts.length && /^(usrdir|ps3_game|sce_sys)$/i.test(parts[parts.length - 1])) parts.pop();
+          if (!parts.length) return;
+          const gameDir = parts.join(path.sep);
+          if (path.resolve(gameDir) === path.resolve(dir)) return;
+          title = sfoTitle(gameDir) || cleanRomTitle(parts[parts.length - 1]);
+        } else {
+          if (!ROM_EXT[platform].includes(ext)) return;
+          if (platform.startsWith('switch') && isSwitchExtra(full)) return;
+          // Une piste .bin/.iso rangée à côté d'un .cue ou d'un .m3u n'est pas un jeu à part.
+          if (platform === 'ps1' && ext === '.iso' && fs.existsSync(full.replace(/\.iso$/i, '.cue'))) return;
+          title = cleanRomTitle(name);
+        }
         const key = title.toLowerCase();
         let size = 0;
         try { size = fs.statSync(full).size; } catch {}
@@ -537,4 +568,4 @@ function bluestacksInfo() {
   return { player, instance: instances.find((i) => /pie64|nougat64|rvc64|android/i.test(i)) || instances[0] || 'Pie64', packages: [...pkgs].sort() };
 }
 
-module.exports = { bluestacksInfo, scanNetmarble, scanBlueStacks, scanRiot, scanLaunchers, scanRegistry, parseRegQuery, scanSwitchExtras, ROM_EXT, PLATFORM_OF_EXT, scanRoms, scanSteam, scanEpic, parseVdf, getCI, exeHints, isSwitchExtra };
+module.exports = { readSfo, sfoTitle, bluestacksInfo, scanNetmarble, scanBlueStacks, scanRiot, scanLaunchers, scanRegistry, parseRegQuery, scanSwitchExtras, ROM_EXT, PLATFORM_OF_EXT, scanRoms, scanSteam, scanEpic, parseVdf, getCI, exeHints, isSwitchExtra };

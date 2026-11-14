@@ -7,7 +7,12 @@ const { fetchJson, urlExists, normTitle, similarity, strictSimilarity, readText,
 
 const COVERS_URL = 'https://raw.githubusercontent.com/Ultim4tDestroy/hmz-launcher/main/data/covers.json';
 const COVERS_BUNDLED = path.join(__dirname, '..', 'data', 'covers.json');
-const LIBRETRO = { ds: 'Nintendo_-_Nintendo_DS', '3ds': 'Nintendo_-_Nintendo_3DS' };
+const { PLATFORMS } = require('./platforms');
+// Dépôts libretro-thumbnails de chaque console (plusieurs pour Game Boy / Color).
+const LIBRETRO = {};
+for (const [k, v] of Object.entries(PLATFORMS)) if (v.libretro) LIBRETRO[k] = v.libretro;
+const HINT = {};
+for (const [k, v] of Object.entries(PLATFORMS)) if (v.wiki) HINT[k] = v.wiki;
 const steamCdn = (id, f) => `https://cdn.cloudflare.steamstatic.com/steam/apps/${id}/${f}`;
 const { pathToFileURL } = require('url');
 const fileUrl = (p) => (p ? pathToFileURL(p).href : null);
@@ -178,8 +183,7 @@ class ArtFinder {
 
   async libretroList(platform) {
     if (this.libretroLists[platform]) return this.libretroLists[platform];
-    const repo = LIBRETRO[platform];
-    const cache = path.join(this.cacheDir, `libretro-${platform}.json`);
+    const cache = path.join(this.cacheDir, `libretro2-${platform}.json`);
     try {
       const st = fs.statSync(cache);
       if (Date.now() - st.mtimeMs < 14 * 864e5) {
@@ -187,20 +191,27 @@ class ArtFinder {
       }
     } catch {}
     const gh = { headers: { Accept: 'application/vnd.github+json' } };
-    const root = await fetchJson(`https://api.github.com/repos/libretro-thumbnails/${repo}/git/trees/master`, gh);
-    const node = root.tree.find((t) => t.path === 'Named_Boxarts');
-    const tree = await fetchJson(`https://api.github.com/repos/libretro-thumbnails/${repo}/git/trees/${node.sha}`, gh, 30000);
-    const names = tree.tree.filter((t) => /\.png$/i.test(t.path)).map((t) => t.path.replace(/\.png$/i, ''));
+    const out = [];
+    for (const repo of LIBRETRO[platform] || []) {
+      try {
+        const root = await fetchJson(`https://api.github.com/repos/libretro-thumbnails/${repo}/git/trees/master`, gh);
+        const node = root.tree.find((t) => t.path === 'Named_Boxarts');
+        if (!node) continue;
+        const tree = await fetchJson(`https://api.github.com/repos/libretro-thumbnails/${repo}/git/trees/${node.sha}`, gh, 30000);
+        for (const t of tree.tree) if (/\.png$/i.test(t.path)) out.push([repo, t.path.replace(/\.png$/i, '')]);
+      } catch {}
+    }
+    if (!out.length) throw new Error('libretro indisponible');
     fs.mkdirSync(this.cacheDir, { recursive: true });
-    fs.writeFileSync(cache, JSON.stringify(names));
-    return (this.libretroLists[platform] = names);
+    fs.writeFileSync(cache, JSON.stringify(out));
+    return (this.libretroLists[platform] = out);
   }
 
   async libretro(game) {
     const names = await this.libretroList(game.platform);
     const want = normTitle(game.name);
     let best = null, bs = 0;
-    for (const n of names) {
+    for (const [repo, n] of names) {
       let s = normTitle(n) === want ? 1 : 0;
       if (!s) {
         s = similarity(game.name, n);
@@ -211,10 +222,10 @@ class ArtFinder {
       else if (/Europe/.test(n)) s += 0.02;
       else if (/USA/.test(n)) s += 0.01;
       if (/Demo|Beta|Proto|Kiosk/i.test(n)) s -= 0.2;
-      if (s > bs) { bs = s; best = n; }
+      if (s > bs) { bs = s; best = [repo, n]; }
     }
     if (!best) return null;
-    return `https://raw.githubusercontent.com/libretro-thumbnails/${LIBRETRO[game.platform]}/master/Named_Boxarts/${encodeURIComponent(best)}.png`;
+    return `https://raw.githubusercontent.com/libretro-thumbnails/${best[0]}/master/Named_Boxarts/${encodeURIComponent(best[1])}.png`;
   }
 
   async steamStore(name) {
@@ -228,7 +239,7 @@ class ArtFinder {
   }
 
   async wikipedia(game) {
-    const hint = { switch: 'Nintendo Switch', switch2: 'Nintendo Switch 2', '3ds': 'Nintendo 3DS', ds: 'Nintendo DS', pc: '' }[game.platform] || '';
+    const hint = HINT[game.platform] || '';
     // Wikipédia anglais d'abord (jaquettes plus souvent présentes), puis français.
     const tries = [
       ['en', `${game.name} ${hint} video game`],
@@ -306,7 +317,7 @@ ArtFinder.prototype.genres = async function genres(game) {
   }
   // Tous les autres (et Steam en secours) : Wikidata, via la page Wikipédia du jeu.
   const name = game.name.replace(/\s*\([^)]*\)\s*$/, '');
-  const hint = { switch: 'Nintendo Switch', switch2: 'Nintendo Switch 2', '3ds': 'Nintendo 3DS', ds: 'Nintendo DS' }[game.platform] || '';
+  const hint = HINT[game.platform] || '';
   for (const q of [`${name} ${hint} video game`, `${name} video game`]) {
     let d;
     try {

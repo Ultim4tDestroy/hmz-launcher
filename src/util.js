@@ -74,6 +74,10 @@ async function fetchWithTimeout(url, opts = {}, ms = 15000) {
 }
 
 async function fetchJson(url, opts = {}, ms) {
+  // Sur les machines de vérification GitHub, le jeton évite la limite de requêtes.
+  if (process.env.GITHUB_TOKEN && url.startsWith('https://api.github.com/')) {
+    opts = { ...opts, headers: { ...(opts.headers || {}), Authorization: `Bearer ${process.env.GITHUB_TOKEN}` } };
+  }
   const r = await fetchWithTimeout(url, opts, ms);
   if (!r.ok) {
     const err = new Error(`HTTP ${r.status} sur ${new URL(url).host}`);
