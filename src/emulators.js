@@ -41,7 +41,12 @@ const EMULATORS = {
   dolphin: {
     name: 'Dolphin', platforms: ['gc', 'wii'],
     blurb: 'GameCube et Wii. La référence, compatible avec presque tous les jeux.',
-    sources: [{ type: 'scrape', page: 'https://dolphin-emu.org/download/', re: /https:\/\/dl\.dolphin-emu\.org\/releases\/([\w.-]+)\/dolphin-[\w.-]+-x64\.7z/ }],
+    sources: [
+      // API officielle utilisée par le programme de mise à jour de Dolphin.
+      { type: 'json', url: 'https://dolphin-emu.org/update/latest/release', pick: (j) => ({ version: j.shortrev, url: ((j.artifacts || []).find((a) => /windows x64/i.test(a.system)) || {}).url, date: j.date }) },
+      { type: 'json', url: 'https://dolphin-emu.org/update/latest/beta', pick: (j) => ({ version: j.shortrev, url: ((j.artifacts || []).find((a) => /windows x64/i.test(a.system)) || {}).url, date: j.date }) },
+      { type: 'scrape', page: 'https://dolphin-emu.org/download/', re: /https:\/\/dl\.dolphin-emu\.org\/releases\/([\w.-]+)\/dolphin-[\w.-]+-x64\.7z/ },
+    ],
     page: 'https://dolphin-emu.org/download/',
     exe: /^dolphin\.exe$/i, portableFile: 'portable.txt',
     args: (rom, fs) => ['-b', ...(fs ? ['-C', 'Dolphin.Display.Fullscreen=True'] : []), '-e', rom],
@@ -237,13 +242,32 @@ function pickAsset(assets, def) {
   return scored[0] ? scored[0].a : null;
 }
 
+const BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36 HMZ-Launcher';
+
+// Numéro de version lisible : les versions « en continu » (preview, continuous…)
+// reçoivent leur date, sinon la recherche de mises à jour ne verrait jamais rien changer.
+function versionOf(rel, asset) {
+  const tag = rel.tag_name || rel.name || '';
+  const fromFile = (asset.name.match(/v?(\d+\.\d+(?:\.\d+)*(?:-\d+)?)/) || [])[1];
+  if (/^(preview|latest|continuous|nightly|dev|canary)$/i.test(tag)) return `${tag}-${String(rel.published_at || rel.created_at || '').slice(0, 10)}`;
+  if (/^build-[0-9a-f]{20,}$/i.test(tag) || /^[0-9a-f]{20,}$/i.test(tag)) return fromFile || tag.slice(0, 14);
+  return tag;
+}
+
 async function latestRelease(def) {
   const errors = [];
   for (const src of def.sources) {
     try {
+      if (src.type === 'json') {
+        const r = await fetchWithTimeout(src.url, { headers: { 'User-Agent': BROWSER_UA, Accept: 'application/json' } }, 20000);
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const got = src.pick(await r.json());
+        if (!got || !got.url) throw new Error('aucun fichier Windows');
+        return { version: got.version, url: got.url, file: got.url.split('/').pop(), size: 0, date: got.date || null };
+      }
       if (src.type === 'scrape') {
         // Page de téléchargement officielle (émulateurs qui ne publient pas sur GitHub).
-        const r = await fetchWithTimeout(src.page, { headers: { 'User-Agent': 'Mozilla/5.0 HMZ-Launcher' } }, 20000);
+        const r = await fetchWithTimeout(src.page, { headers: { 'User-Agent': BROWSER_UA, Accept: 'text/html' } }, 20000);
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         const m = (await r.text()).match(src.re);
         if (!m) throw new Error('lien de téléchargement introuvable sur la page');
@@ -252,7 +276,7 @@ async function latestRelease(def) {
       }
       let list;
       if (src.type === 'github') {
-        list = await fetchJson(`https://api.github.com/repos/${src.repo}/releases?per_page=15`,
+        list = await fetchJson(`https://api.github.com/repos/${src.repo}/releases?per_page=40`,
           { headers: { Accept: 'application/vnd.github+json' } });
       } else {
         list = await fetchJson(`${src.api}?limit=15`);
@@ -263,7 +287,7 @@ async function latestRelease(def) {
         const asset = pickAsset(rel.assets, def);
         if (asset) {
           return {
-            version: rel.tag_name || rel.name,
+            version: versionOf(rel, asset),
             url: asset.browser_download_url,
             file: asset.name,
             size: asset.size || 0,
@@ -274,11 +298,11 @@ async function latestRelease(def) {
       // Aucune version stable avec un fichier Windows : on accepte une préversion.
       for (const rel of list) {
         const asset = pickAsset(rel.assets, def);
-        if (asset) return { version: rel.tag_name, url: asset.browser_download_url, file: asset.name, size: asset.size || 0, date: rel.published_at };
+        if (asset) return { version: versionOf(rel, asset), url: asset.browser_download_url, file: asset.name, size: asset.size || 0, date: rel.published_at };
       }
       errors.push(`${src.repo || src.api} : aucun fichier Windows trouvé`);
     } catch (e) {
-      errors.push(`${src.repo || new URL(src.api || src.page).host} : ${e.message}`);
+      errors.push(`${src.repo || new URL(src.api || src.page || src.url).host} : ${e.message}`);
     }
   }
   throw new Error('Impossible de trouver la dernière version. ' + errors.join(' · '));
