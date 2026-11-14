@@ -1,5 +1,5 @@
 // HMZ Launcher : processus principal (Electron).
-const { app, BrowserWindow, ipcMain, dialog, shell, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, Menu, Tray, nativeImage } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
@@ -346,7 +346,7 @@ function endSession(id) {
   const r = running.get(id);
   if (!r) return;
   running.delete(id);
-  if (minimizedForGame && win && running.size === 0) { minimizedForGame = false; win.restore(); win.focus(); }
+  if (minimizedForGame && running.size === 0) bringBackAfterGame();
   const e = Date.now();
   if (e - r.start >= 30000) db.data.sessions.push({ g: id, s: r.start, e });
   db.save();
@@ -415,12 +415,54 @@ async function launchGame(id, emuOverride) {
   return { ok: true };
 }
 
+// Retour de HMZ après la partie. Beaucoup de jeux démarrent en plusieurs étapes
+// (boutique, anti-triche, puis le jeu) : on attend un peu pour être sûr que c'est fini.
+let bringBackTimer = null;
+function bringBackAfterGame() {
+  clearTimeout(bringBackTimer);
+  bringBackTimer = setTimeout(() => {
+    if (quitting || running.size > 0 || !minimizedForGame) return;
+    minimizedForGame = false;
+    showWindow();
+  }, 12000);
+}
+function showWindow() {
+  if (!win || win.isDestroyed()) return;
+  if (!win.isVisible()) win.show();
+  if (win.isMinimized()) win.restore();
+  win.focus();
+  destroyTray();
+}
+
+// Fermer HMZ pendant une partie : il reste dans la zone de notification (à côté de l'horloge)
+// pour continuer à compter le temps de jeu, et revient à la fin de la partie.
+let tray = null, quitting = false;
+function toTray() {
+  if (!win || win.isDestroyed()) return;
+  win.hide();
+  minimizedForGame = true;
+  if (tray) return;
+  try {
+    const icon = nativeImage.createFromPath(path.join(__dirname, 'build', 'icon.png')).resize({ width: 16, height: 16 });
+    tray = new Tray(icon);
+    tray.setToolTip('HMZ : partie en cours');
+    tray.setContextMenu(Menu.buildFromTemplate([
+      { label: 'Ouvrir HMZ', click: () => showWindow() },
+      { type: 'separator' },
+      { label: 'Quitter HMZ', click: () => { quitting = true; app.quit(); } },
+    ]));
+    tray.on('click', () => showWindow());
+  } catch (e) { console.error(e); }
+}
+function destroyTray() { if (tray) { tray.destroy(); tray = null; } }
+
 // HMZ se réduit pendant la partie et revient quand le jeu se ferme
 // (jeu lancé par HMZ, ou repéré parmi les programmes ouverts).
 function minimizeForGame() {
-  if (!db.data.settings.minimizeOnPlay || !win) return;
+  if (!db.data.settings.minimizeOnPlay || !win || win.isDestroyed()) return;
   minimizedForGame = true;
-  setTimeout(() => win && !win.isMinimized() && win.minimize(), 1500);
+  clearTimeout(bringBackTimer);
+  setTimeout(() => win && !win.isDestroyed() && win.isVisible() && !win.isMinimized() && win.minimize(), 1500);
 }
 
 // Quitter le jeu lancé par HMZ (Select + Start maintenus sur la manette).
@@ -438,7 +480,8 @@ async function quitRunningGame() {
 }
 
 function bringToFront(tv) {
-  if (!win) return;
+  if (!win || win.isDestroyed()) return;
+  destroyTray();
   if (win.isMinimized()) win.restore();
   win.show();
   win.setAlwaysOnTop(true); win.focus(); win.setAlwaysOnTop(false);
@@ -523,6 +566,9 @@ function createWindow() {
     const marker = process.env.HMZ_BOOT_MARKER;
     if (marker) fs.rm(marker, { force: true }, () => {});
   }, 4000));
+  win.on('close', (e) => {
+    if (!quitting && running.size > 0) { e.preventDefault(); toTray(); }
+  });
   win.on('maximize', () => send('window:state', { maximized: true }));
   win.on('unmaximize', () => send('window:state', { maximized: false }));
   win.on('enter-full-screen', () => send('window:state', { fullscreen: true }));
@@ -530,7 +576,7 @@ function createWindow() {
   win.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' }; });
 }
 
-app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
+app.on('second-instance', () => showWindow());
 
 app.whenReady().then(() => {
   db = new Store(path.join(app.getPath('userData'), 'hmz.json'), defaults());
@@ -559,6 +605,8 @@ app.whenReady().then(() => {
 
 let pad = null;
 app.on('before-quit', () => {
+  quitting = true;
+  destroyTray();
   if (pad) pad.stop();
   for (const id of [...running.keys()]) endSession(id);
   db && db.save(true);
