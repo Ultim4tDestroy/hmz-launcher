@@ -851,7 +851,8 @@ function renderSettingsRaw() {
       <div class="set-group">Jeu</div>
       <div class="set"><div><div class="t">Lancer HMZ au démarrage de Windows</div><div class="d">Avec « Démarrer en mode TV », ton PC démarre comme une console.</div></div>${tg('autostart')}</div>
       <div class="set"><div><div class="t">Démarrer en mode TV</div><div class="d">HMZ s'ouvre en plein écran, prêt pour la manette. Touche F11 ou bouton Start pour basculer.</div></div>${tg('startInTV')}</div>
-      <div class="set"><div><div class="t">Émulateurs en plein écran</div><div class="d">Les jeux DS, 3DS et Switch s'ouvrent directement en plein écran.</div></div>${tg('emuFullscreen')}</div>
+      <div class="set"><div><div class="t">Réduire HMZ pendant une partie</div><div class="d">HMZ se met dans la barre des tâches quand un jeu se lance, puis revient tout seul quand tu quittes le jeu.</div></div>${tg('minimizeOnPlay')}</div>
+      <div class="set"><div><div class="t">Émulateurs en plein écran</div><div class="d">Les jeux émulés s'ouvrent directement en plein écran.</div></div>${tg('emuFullscreen')}</div>
       <div class="set"><div><div class="t">Réduire HMZ pendant que je joue</div><div class="d">Valable pour tous les jeux (Steam, Epic, Xbox, émulateurs…). HMZ revient tout seul quand tu quittes le jeu.</div></div>${tg('minimizeOnPlay')}</div>
       <div class="set"><div><div class="t">Afficher les jeux masqués</div><div class="d">Pour retrouver un jeu que tu as masqué.</div></div><button class="toggle${ui.showHidden ? ' on' : ''}" data-action="toggle-hidden"></button></div>
     </div>
