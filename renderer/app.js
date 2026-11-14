@@ -771,7 +771,7 @@ function renderSettingsRaw() {
       <div class="set"><div><div class="t">Clé SteamGridDB (conseillée)</div><div class="d">Donne de belles jaquettes, fonds et logos aux jeux Switch et Switch 2. Gratuite : crée un compte sur <a data-url="https://www.steamgriddb.com/profile/preferences/api">steamgriddb.com</a>, puis copie ta clé ici.</div></div><input class="input" id="sgdbKey" type="password" placeholder="Colle ta clé ici" value="${esc(s.sgdbKey)}"></div>
       <div class="set"><div><div class="t">Recharger les images</div><div class="d">Cherche à nouveau les jaquettes de tous les jeux.</div></div><button class="btn" data-action="refresh-art">${ICON.image}Recharger</button></div>
       <div class="set-group">Manette</div>
-      <div class="set"><div><div class="t">Manette détectée</div><div class="d">${padKinds.length ? `${padKinds.map((k) => PAD_LABEL[k] || k).join(', ')} : prête, même quand HMZ est en arrière-plan.` : 'Aucune pour l\'instant. Branche ou allume ta manette (Xbox, PlayStation, Switch Pro ou autre).'}</div></div>${padKinds.length ? '<span class="status ok">Connectée</span>' : '<span class="status">—</span>'}</div>
+      <div class="set"><div><div class="t">Manette détectée</div><div class="d">${(() => { const all = allPadKinds(); const bg = all.filter((k) => padKinds.includes(k)); const fg = all.filter((k) => !padKinds.includes(k)); return all.length ? `${all.map((k) => PAD_LABEL[k] || k).join(', ')} : prête.${fg.length ? ' Elle marche dans HMZ ; pour quitter un jeu avec Select + Start, HMZ la cherche encore en arrière-plan (quelques secondes).' : ' Elle marche même quand HMZ est en arrière-plan.'}` : 'Aucune pour l\'instant. Branche ou allume ta manette (Xbox, PlayStation, Switch Pro ou autre), puis appuie sur un bouton.'; })()}</div></div>${allPadKinds().length ? '<span class="status ok">Connectée</span>' : '<span class="status">—</span>'}</div>
       <div class="set"><div><div class="t">Quitter un jeu à la manette</div><div class="d">Maintiens <b>Select + Start</b> pendant 1 seconde (Xbox : View + Menu · PlayStation : Share/Create + Options · Switch : − et +). Le jeu se ferme et HMZ revient.</div></div>${tg('padQuit')}</div>
       <div class="set"><div><div class="t">Bouton Xbox / PS / Home</div><div class="d">Quand aucun jeu ne tourne, il ouvre HMZ en mode TV.</div></div>${tg('padHome')}</div>
       <div class="set-group">Sauvegardes</div>
@@ -1555,13 +1555,15 @@ $('#tv').addEventListener('mousemove', () => { $('#tv').classList.remove('hide-c
 // Manette (API Gamepad, disposition standard Xbox / PlayStation / Switch Pro).
 const pad = { held: {}, next: {} };
 function pollPad() {
-  const pads = navigator.getGamepads ? [...navigator.getGamepads()].filter(Boolean) : [];
-  const p = pads[0];
+  const pads = navigator.getGamepads ? [...navigator.getGamepads()].filter((x) => x && x.connected) : [];
   const label = $('#tvPad');
-  if (label) label.textContent = p || padKinds.length ? '● Manette connectée' : '';
-  if (p) {
-    const b = (i) => !!(p.buttons[i] && p.buttons[i].pressed);
-    const ax = p.axes || [];
+  if (label) label.textContent = pads.length || padKinds.length ? '● Manette connectée' : '';
+  if (pads.length) {
+    // Toutes les manettes comptent : Windows en liste parfois une virtuelle
+    // (ou un casque, un volant…) avant la vraie.
+    const b = (i) => pads.some((p) => p.buttons[i] && p.buttons[i].pressed);
+    const axis = (i) => { let best = 0; for (const p of pads) { const v = (p.axes || [])[i] || 0; if (Math.abs(v) > Math.abs(best)) best = v; } return best; };
+    const ax = [axis(0), axis(1)];
     const st = {
       left: b(14) || ax[0] < -0.55, right: b(15) || ax[0] > 0.55,
       up: b(12) || ax[1] < -0.6, down: b(13) || ax[1] > 0.6,
@@ -1590,6 +1592,31 @@ function onPad(k) {
   tvAction(k === 'start' ? 'menu' : k);
 }
 requestAnimationFrame(pollPad);
+
+// Manettes vues par la fenêtre (API Gamepad) : sert aussi d'appoint à la
+// détection en arrière-plan, qui ne voit pas toujours une manette branchée après coup.
+function padKindOf(gp) {
+  const id = (gp.id || '').toLowerCase();
+  const m = id.match(/vendor:\s*([0-9a-f]{4})/) || id.match(/^([0-9a-f]{4})-/);
+  const v = m ? m[1] : '';
+  if (v === '054c' || /dualshock|dualsense|wireless controller|playstation/.test(id)) return 'playstation';
+  if (v === '057e' || /pro controller|nintendo/.test(id)) return 'switch';
+  if (v === '045e' || /xinput|xbox/.test(id)) return 'xbox';
+  return 'generic';
+}
+function windowPadKinds() {
+  const pads = navigator.getGamepads ? [...navigator.getGamepads()].filter((x) => x && x.connected) : [];
+  return [...new Set(pads.map(padKindOf))];
+}
+function allPadKinds() { return [...new Set([...padKinds, ...windowPadKinds()])]; }
+let padRefreshes = 0;
+window.addEventListener('gamepadconnected', (e) => {
+  const k = padKindOf(e.gamepad);
+  toast(`Manette ${PAD_LABEL[k] || ''} connectée. Appuie sur ${k === 'playstation' ? 'PS ou Options' : k === 'xbox' ? 'Xbox ou Menu' : 'Home ou +'} pour passer en mode TV.`, 'ok', 5000);
+  if (!padKinds.includes(k) && padRefreshes++ < 4) call('pad:refresh');
+  if (ui.view === 'settings' && !modalState) render();
+});
+window.addEventListener('gamepaddisconnected', () => { if (ui.view === 'settings' && !modalState) render(); });
 
 // --- Démarrage ------------------------------------------------------------------------------------
 api.on('state:changed', (st) => {

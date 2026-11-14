@@ -126,6 +126,19 @@ class PadWatcher {
     });
   }
 
+  // L'API joystick de Windows (winmm) ne voit que les manettes présentes au
+  // lancement du script : une manette PlayStation branchée après coup reste
+  // invisible tant que le script n'est pas relancé.
+  refresh() {
+    if (this.stopped || process.platform !== 'win32') return;
+    this.restarts = 0;
+    const p = this.proc;
+    if (!p) return this.start();
+    p.removeAllListeners('exit');
+    p.on('exit', () => { this.proc = null; this.start(); });
+    try { p.kill(); } catch { this.proc = null; this.start(); }
+  }
+
   stop() {
     this.stopped = true;
     if (this.proc) { try { this.proc.kill(); } catch {} }

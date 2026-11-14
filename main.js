@@ -624,6 +624,14 @@ handle('backup:chooseDir', async () => {
   db.save(); notifyChange();
 });
 handle('pad:kinds', () => padKinds);
+let padRefreshAt = 0;
+handle('pad:refresh', () => {
+  const now = Date.now();
+  if (!pad || now - padRefreshAt < 8000) return false;
+  padRefreshAt = now;
+  pad.refresh();
+  return true;
+});
 
 // --- Jeux BlueStacks --------------------------------------------------------------------------
 const playNames = {};
