@@ -19,15 +19,16 @@ function readSfo(buf) {
   }
   return out;
 }
-function sfoTitle(gameDir) {
+function sfoInfo(gameDir) {
   for (const rel of ['PS3_GAME/PARAM.SFO', 'PARAM.SFO', 'sce_sys/param.sfo']) {
     try {
-      const t = readSfo(fs.readFileSync(path.join(gameDir, rel))).TITLE;
-      if (t) return t.replace(/[\r\n]+/g, ' ').replace(/[™®]/g, '').trim();
+      const o = readSfo(fs.readFileSync(path.join(gameDir, rel)));
+      if (o.TITLE) return { title: o.TITLE.replace(/[\r\n]+/g, ' ').replace(/[™®]/g, '').trim(), category: o.CATEGORY || '', id: o.TITLE_ID || '' };
     } catch {}
   }
   return null;
 }
+function sfoTitle(gameDir) { const i = sfoInfo(gameDir); return i ? i.title : null; }
 
 // Une mise à jour ou un DLC n'est pas un jeu à afficher.
 function isSwitchExtra(file) {
@@ -56,7 +57,10 @@ function scanRoms(romDirs) {
           if (!parts.length) return;
           const gameDir = parts.join(path.sep);
           if (path.resolve(gameDir) === path.resolve(dir)) return;
-          title = sfoTitle(gameDir) || cleanRomTitle(parts[parts.length - 1]);
+          const info = sfoInfo(gameDir);
+          // Mise à jour ou contenu additionnel (PS3 : catégorie GD), pas un jeu.
+          if (info && /^(GD|AC|AT|CB|HM|SF|WT|gp|ac)$/.test(info.category)) return;
+          title = (info && info.title) || cleanRomTitle(parts[parts.length - 1]);
         } else {
           if (!ROM_EXT[platform].includes(ext)) return;
           if (platform.startsWith('switch') && isSwitchExtra(full)) return;

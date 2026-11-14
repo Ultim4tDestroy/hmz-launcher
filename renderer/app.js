@@ -1689,7 +1689,7 @@ function windowPadKinds() {
   const pads = navigator.getGamepads ? [...navigator.getGamepads()].filter((x) => x && x.connected) : [];
   return [...new Set(pads.map(padKindOf))];
 }
-function allPadKinds() { return [...new Set([...padKinds, ...windowPadKinds()])]; }
+function allPadKinds() { const all = [...new Set([...padKinds, ...windowPadKinds()])]; return all.length > 1 ? all.filter((k) => k !== 'generic') : all; }
 let padRefreshes = 0;
 window.addEventListener('gamepadconnected', (e) => {
   const k = padKindOf(e.gamepad);

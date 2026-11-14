@@ -21,13 +21,16 @@ function sources(id, emu, romDirs) {
   }
   const roms = (p, re) => { const files = []; for (const d of romDirs[p] || []) walk(d, 3, (full, name) => { if (re.test(name)) files.push(full); }); return files; };
   switch (id) {
-    case 'duckstation': return [path.join(dir, 'memcards'), path.join(dir, 'savestates')];
-    case 'pcsx2': return [path.join(dir, 'memcards'), path.join(dir, 'sstates')];
-    case 'ppsspp': return [path.join(dir, 'memstick', 'PSP', 'SAVEDATA'), path.join(dir, 'memstick', 'PSP', 'PPSSPP_STATE')];
-    case 'dolphin': return [path.join(dir, 'User', 'GC'), path.join(dir, 'User', 'Wii', 'title'), path.join(dir, 'User', 'StateSaves')];
+    case 'duckstation': return [path.join(dir, 'memcards')];
+    case 'pcsx2': return [path.join(dir, 'memcards')];
+    case 'ppsspp': return [path.join(dir, 'memstick', 'PSP', 'SAVEDATA')];
+    case 'dolphin': return [path.join(dir, 'User', 'GC'), path.join(dir, 'User', 'Wii', 'title')];
     case 'rpcs3': return [path.join(dir, 'dev_hdd0', 'home', '00000001', 'savedata')];
     case 'cemu': return [path.join(dir, 'mlc01', 'usr', 'save')];
-    case 'mgba': return [...roms('gba', /\.(sav|ss\d)$/i), ...roms('gb', /\.(sav|ss\d)$/i)];
+    case 'vita3k': return [path.join(dir, 'ux0', 'user', '00', 'savedata')];
+    case 'rmg': return [path.join(dir, 'Save')];
+    case 'flycast': return [path.join(dir, 'data')];
+    case 'mgba': return [...roms('gba', /\.sav$/i), ...roms('gb', /\.sav$/i)];
     case 'snes9x': return [path.join(dir, 'Saves')];
     case 'desmume': return [path.join(dir, 'Battery'), ...roms('ds', /\.dsv$/i)];
     case 'xenia': return [path.join(dir, 'content')];

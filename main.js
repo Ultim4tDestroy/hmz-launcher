@@ -102,6 +102,16 @@ function defaults() {
 function emuInstalled(id) { const e = db.data.emulators[id]; return !!(e && e.exe && exists(e.exe)); }
 function resolveEmu(platform) { return EMU.emuFor(platform, emuInstalled); }
 
+// Dossiers de jeux + jeux installés à l'intérieur des émulateurs (PSN dans RPCS3, Vita3K).
+function romDirsWithEmulators() {
+  const s = db.data.settings;
+  const dirs = { ...s.romDirs };
+  const add = (p, d) => { if (exists(d)) dirs[p] = [...(dirs[p] || []), d]; };
+  const r = db.data.emulators.rpcs3; if (r && r.exe) add('ps3', path.join(path.dirname(r.exe), 'dev_hdd0', 'game'));
+  const v = db.data.emulators.vita3k; if (v && v.exe) add('vita', path.join(path.dirname(v.exe), 'ux0', 'app'));
+  return dirs;
+}
+
 function ensureFolders() {
   const s = db.data.settings;
   // Un dossier de jeux par console, créé seulement quand un de ses émulateurs est installé.
@@ -177,11 +187,21 @@ function publicState() {
 }
 
 // --- Bibliothèque --------------------------------------------------------------
-async function scanLibrary() {
+// Une seule recherche à la fois ; une demande pendant une recherche en relance une après.
+let scanRun = null, scanAgain = false;
+function scanLibrary() {
+  if (scanRun) { scanAgain = true; return scanRun; }
+  scanRun = scanLibraryNow().finally(() => {
+    scanRun = null;
+    if (scanAgain) { scanAgain = false; scanLibrary().catch((e) => console.error(e)); }
+  });
+  return scanRun;
+}
+async function scanLibraryNow() {
   const s = db.data.settings;
   ensureFolders();
   send('scan:progress', 'Recherche des jeux…');
-  const found = [...SCAN.scanRoms(s.romDirs)];
+  const found = [...SCAN.scanRoms(romDirsWithEmulators())];
   if (process.platform === 'win32') {
     if (s.scanSteam) { try { found.push(...await SCAN.scanSteam()); } catch (e) { console.error(e); } }
     if (s.scanEpic) { try { found.push(...SCAN.scanEpic()); } catch (e) { console.error(e); } }
@@ -470,6 +490,7 @@ app.whenReady().then(() => {
   setTimeout(() => scanLibrary().catch(console.error), 600);
   setInterval(() => pollProcesses().catch(() => {}), 20000);
   setTimeout(() => checkEmuUpdates().catch(() => {}), 8000);
+  setTimeout(adoptExistingEmulators, 3000);
   setInterval(checkLocalUpdate, 15000);
   setupAutoUpdate();
   applyAutostart();
@@ -485,6 +506,23 @@ app.on('before-quit', () => {
   db && db.save(true);
 });
 app.on('window-all-closed', () => app.quit());
+
+// Émulateur déjà installé sur le PC avec son installateur officiel : HMZ le reprend
+// tel quel au lieu d'en télécharger un deuxième. Proposé une seule fois par émulateur.
+function adoptExistingEmulators() {
+  db.data.adoptSeen = db.data.adoptSeen || {};
+  const found = EMU.detectExisting();
+  const names = [];
+  for (const [id, exe] of Object.entries(found)) {
+    if (emuInstalled(id) || db.data.adoptSeen[id]) continue;
+    db.data.adoptSeen[id] = true;
+    db.data.emulators[id] = { installed: true, exe, dir: path.dirname(exe), version: 'perso', custom: true };
+    names.push(EMU.EMULATORS[id].name);
+  }
+  if (!names.length) return;
+  toast(`Déjà installé sur ton PC, repris dans HMZ : ${names.join(', ')}.`, 'ok');
+  afterEmuChange();
+}
 
 async function checkEmuUpdates() {
   for (const id of Object.keys(db.data.emulators)) {
@@ -572,8 +610,12 @@ handle('game:add', async () => {
   for (const f of r.filePaths) {
     const ext = path.extname(f).toLowerCase();
     let entry;
-    if (SCAN.PLATFORM_OF_EXT[ext]) {
-      const platform = SCAN.PLATFORM_OF_EXT[ext];
+    const consoles = Object.keys(SCAN.ROM_EXT).filter((p) => p !== 'switch2' && SCAN.ROM_EXT[p].includes(ext));
+    if (consoles.length) {
+      // Extension partagée (.iso, .chd…) : console d'un émulateur installé si possible ;
+      // elle se change ensuite dans la fiche du jeu.
+      const platform = SCAN.PLATFORM_OF_EXT[ext] || consoles.find((p) => emuInstalled(resolveEmu(p))) || consoles[0];
+      if (!SCAN.PLATFORM_OF_EXT[ext]) toast(`${path.basename(f)} rangé dans ${PLATFORMS[platform].label}. Si c'est une autre console, change-la dans la fiche du jeu.`, 'info');
       const name = cleanRomTitle(f);
       entry = { id: `manual:${platform}:${slug(name)}`, name, platform, source: 'manual', path: f };
     } else {
@@ -603,7 +645,7 @@ handle('emu:install', async (id) => {
   db.data.emulators[id] = { ...res, latest: res.version };
   db.save();
   if (!prev || prev.custom || !exists(prev.exe)) { try { await configureEmu(id); } catch (e) { console.error(e); } }
-  notifyChange();
+  afterEmuChange();
   return res;
 });
 handle('emu:installZip', async (id) => {
@@ -615,7 +657,7 @@ handle('emu:installZip', async (id) => {
   db.data.emulators[id] = { ...res };
   db.save();
   try { await configureEmu(id); } catch (e) { console.error(e); }
-  notifyChange();
+  afterEmuChange();
   return res;
 });
 handle('emu:configure', (id) => configureEmu(id));
@@ -728,8 +770,14 @@ handle('emu:locate', async (id) => {
   const r = await dialog.showOpenDialog(win, { title: `Où se trouve ${d.name} ?`, properties: ['openFile'], filters: [{ name: 'Programme', extensions: ['exe'] }] });
   if (r.canceled || !r.filePaths[0]) return;
   db.data.emulators[id] = { installed: true, exe: r.filePaths[0], dir: path.dirname(r.filePaths[0]), version: 'perso', custom: true };
-  db.save(); notifyChange();
+  db.save(); afterEmuChange();
 });
+// Un émulateur vient d'arriver : son dossier de jeux apparaît et les jeux sont recherchés.
+function afterEmuChange() {
+  ensureFolders();
+  db.save(); notifyChange();
+  scanLibrary().catch((e) => console.error(e));
+}
 handle('emu:forget', (id) => { delete db.data.emulators[id]; db.save(); notifyChange(); });
 handle('emu:uninstall', async (id) => {
   const e = db.data.emulators[id];

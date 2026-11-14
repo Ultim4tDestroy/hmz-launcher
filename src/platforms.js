@@ -23,7 +23,7 @@ const PLATFORMS = {
   ps3: { label: 'PS3', color: '#9aa4b2', family: 'playstation', folder: 'PS3', ext: ['.iso'], eboot: true, wiki: 'PlayStation 3', libretro: ['Sony_-_PlayStation_3'] },
   ps2: { label: 'PS2', color: '#4f6bd8', family: 'playstation', folder: 'PS2', ext: ['.iso', '.chd', '.cso', '.zso'], wiki: 'PlayStation 2', libretro: ['Sony_-_PlayStation_2'] },
   ps1: { label: 'PS1', color: '#b8bec8', family: 'playstation', folder: 'PS1', ext: ['.cue', '.chd', '.pbp', '.m3u', '.ecm', '.iso'], wiki: 'PlayStation', libretro: ['Sony_-_PlayStation'] },
-  vita: { label: 'PS Vita', color: '#3d8bff', family: 'playstation', folder: 'PS Vita', ext: ['.vpk'], wiki: 'PlayStation Vita', libretro: ['Sony_-_PlayStation_Vita'] },
+  vita: { label: 'PS Vita', color: '#3d8bff', family: 'playstation', folder: 'PS Vita', ext: ['.vpk'], eboot: true, wiki: 'PlayStation Vita', libretro: ['Sony_-_PlayStation_Vita'] },
   psp: { label: 'PSP', color: '#d0d4da', family: 'playstation', folder: 'PSP', ext: ['.iso', '.cso', '.pbp', '.chd'], wiki: 'PlayStation Portable', libretro: ['Sony_-_PlayStation_Portable'] },
 
   x360: { label: 'Xbox 360', color: '#8dc63f', family: 'xbox', folder: 'Xbox 360', ext: ['.iso', '.xex', '.zar'], wiki: 'Xbox 360', libretro: ['Microsoft_-_Xbox_360'] },

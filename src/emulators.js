@@ -76,7 +76,7 @@ const EMULATORS = {
     args: (rom) => [rom],
   },
   rmg: {
-    name: "Rosalie's Mupen GUI", platforms: ['n64'],
+    name: "Rosalie's Mupen GUI", folder: 'RMG', platforms: ['n64'],
     blurb: 'Nintendo 64. Basé sur Mupen64Plus, simple et précis.',
     sources: [{ type: 'github', repo: 'Rosalie241/RMG' }],
     page: 'https://github.com/Rosalie241/RMG/releases',
@@ -89,7 +89,7 @@ const EMULATORS = {
     sources: [{ type: 'github', repo: 'snes9xgit/snes9x' }],
     page: 'https://www.snes9x.com/',
     exe: [/^snes9x-x64\.exe$/i, /^snes9x.*\.exe$/i], prefer: [/x64/i], asset: /win/i,
-    args: (rom, fs) => [...(fs ? ['-fullscreen'] : []), rom],
+    args: (rom) => [rom],
   },
   mesen: {
     name: 'Mesen', platforms: ['nes', 'snes', 'gb', 'gba'],
@@ -153,7 +153,7 @@ const EMULATORS = {
     sources: [{ type: 'github', repo: 'Vita3K/Vita3K', prerelease: true }],
     page: 'https://vita3k.org/',
     exe: /^vita3k\.exe$/i, asset: /windows/i,
-    args: (rom, fs) => [...(fs ? ['-F'] : []), rom],
+    args: (rom, fs) => (/^eboot\.bin$/i.test(path.basename(rom)) ? [...(fs ? ['-F'] : []), '-r', path.basename(path.dirname(rom))] : [...(fs ? ['-F'] : []), rom]),
   },
   ppsspp: {
     name: 'PPSSPP', platforms: ['psp'],
@@ -368,6 +368,19 @@ async function extractZip(zip, dest) {
   }
 }
 
+// L'archive, sa décompression et l'émulateur installé prennent environ 3 fois sa taille.
+function checkSpace(root, size) {
+  const need = Math.max(size || 0, 50e6) * 3 + 200e6;
+  for (const dir of [root, os.tmpdir()]) {
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+      const st = fs.statfsSync(dir);
+      const free = st.bavail * st.bsize;
+      if (free < need) throw new Error(`Pas assez de place sur le disque ${path.parse(dir).root} : il faut environ ${Math.ceil(need / 1e9 * 10) / 10} Go libres, il en reste ${Math.floor(free / 1e9 * 10) / 10}.`);
+    } catch (e) { if (/Pas assez de place/.test(e.message)) throw e; }
+  }
+}
+
 // Installe ou met à jour un émulateur dans <racine>/Emulateurs/<nom>.
 async function install(id, root, prev, onProgress) {
   const def = EMULATORS[id];
@@ -376,6 +389,7 @@ async function install(id, root, prev, onProgress) {
   if (prev && prev.version === rel.version && exists(prev.exe)) {
     return { ...prev, upToDate: true };
   }
+  checkSpace(root, rel.size);
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hmz-'));
   const zip = path.join(tmpDir, rel.file);
   try {
@@ -403,7 +417,7 @@ async function installFromZip(id, root, zip, onProgress = () => {}) {
     const exeInStaging = findExe(staging, def, 4);
     if (!exeInStaging) throw new Error(`${def.name} : programme introuvable dans l'archive. Vérifie que c'est bien la version Windows.`);
 
-    const target = path.join(root, 'Emulateurs', def.name);
+    const target = path.join(root, 'Emulateurs', def.folder || def.name);
     fs.mkdirSync(target, { recursive: true });
     const appRoot = path.dirname(exeInStaging);
     for (const e of fs.readdirSync(target)) {
@@ -505,4 +519,25 @@ function keysStatus(id, emu) {
   return { keys: exists(path.join(dir, 'keys', 'prod.keys')), firmware };
 }
 
-module.exports = { EMULATORS, DEFAULT_EMU, emuFor, uninstall, setToolsDir, extractArchive, pickAsset, latestRelease, install, installFromZip, checkUpdate, installKeys, installFirmware, keysStatus, userDir };
+// Emplacements des installateurs officiels, pour reprendre un émulateur déjà installé.
+function detectExisting() {
+  if (process.platform !== 'win32') return {};
+  const PF = process.env.ProgramFiles || 'C:\\Program Files';
+  const PF86 = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
+  const LP = path.join(process.env.LOCALAPPDATA || '', 'Programs');
+  const C = {
+    pcsx2: [path.join(PF, 'PCSX2', 'pcsx2-qt.exe'), path.join(PF86, 'PCSX2', 'pcsx2-qt.exe')],
+    dolphin: [path.join(PF, 'Dolphin', 'Dolphin.exe'), path.join(PF, 'Dolphin-x64', 'Dolphin.exe')],
+    ppsspp: [path.join(PF, 'PPSSPP', 'PPSSPPWindows64.exe'), path.join(PF86, 'PPSSPP', 'PPSSPPWindows64.exe')],
+    mgba: [path.join(PF, 'mGBA', 'mGBA.exe')],
+    rmg: [path.join(PF, 'RMG', 'RMG.exe'), path.join(LP, 'RMG', 'RMG.exe')],
+    duckstation: [path.join(LP, 'DuckStation', 'duckstation-qt-x64-ReleaseLTCG.exe'), path.join(PF, 'DuckStation', 'duckstation-qt-x64-ReleaseLTCG.exe')],
+    cemu: [path.join(PF, 'Cemu', 'Cemu.exe'), path.join(LP, 'Cemu', 'Cemu.exe')],
+    flycast: [path.join(PF, 'Flycast', 'flycast.exe')],
+  };
+  const out = {};
+  for (const [id, list] of Object.entries(C)) { const f = list.find(exists); if (f) out[id] = f; }
+  return out;
+}
+
+module.exports = { detectExisting, EMULATORS, DEFAULT_EMU, emuFor, uninstall, setToolsDir, extractArchive, pickAsset, latestRelease, install, installFromZip, checkUpdate, installKeys, installFirmware, keysStatus, userDir };
