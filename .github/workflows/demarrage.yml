@@ -1,6 +1,8 @@
 name: Vérifier le démarrage
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
 jobs:
   demarrage:
     runs-on: windows-latest
@@ -11,18 +13,6 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Lancer HMZ 40 secondes puis lire son journal
+      - name: Lancer HMZ et vérifier que la fenêtre s'ouvre
         shell: pwsh
-        run: |
-          node node_modules/electron/install.js
-          $exe = node -p "require('electron')"
-          "Electron : $exe"
-          $p = Start-Process -FilePath $exe -ArgumentList "." -PassThru -RedirectStandardOutput out.txt -RedirectStandardError err.txt
-          Start-Sleep -Seconds 40
-          "--- processus ---"
-          Get-Process electron -ErrorAction SilentlyContinue | Select-Object Id, MainWindowTitle, WS | Format-Table | Out-String
-          "--- sortie ---"; Get-Content out.txt -ErrorAction SilentlyContinue | Select-Object -Last 60
-          "--- erreurs ---"; Get-Content err.txt -ErrorAction SilentlyContinue | Select-Object -Last 60
-          "--- journal ---"
-          Get-ChildItem "$env:APPDATA" -Recurse -Filter hmz.log -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName; Get-Content $_.FullName -Tail 60 }
-          Stop-Process -Name electron -Force -ErrorAction SilentlyContinue
+        run: ./scripts/verifier-demarrage.ps1

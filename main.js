@@ -35,8 +35,16 @@ if (!app.requestSingleInstanceLock()) { app.quit(); process.exit(0); }
 const LOG = require('./src/logger');
 LOG.init(app.getPath('userData'));
 let lastCrashToast = 0;
+let startedOk = false; // passe à vrai quand la fenêtre est créée
 function onUnexpected(kind, err) {
   LOG.write('PLANTAGE', [kind, err instanceof Error ? err : new Error(String(err))]);
+  // Erreur avant que la fenêtre existe : HMZ ne peut pas démarrer. On le dit clairement
+  // et on quitte, plutôt que de rester ouvert en arrière-plan sans fenêtre.
+  if (!startedOk) {
+    try { require('electron').dialog.showErrorBox('HMZ ne peut pas démarrer', `${err && err.message ? err.message : err}\n\nLe détail est noté dans le journal :\n${LOG.getFile() || ''}\n\nRéinstalle la dernière version depuis github.com/Ultim4tDestroy/hmz-launcher/releases.`); } catch {}
+    try { app.exit(1); } catch { process.exit(1); }
+    return;
+  }
   if (Date.now() - lastCrashToast > 10000) {
     lastCrashToast = Date.now();
     try { toast('Un petit problème est survenu : il est noté dans le journal (Paramètres › Aide).', 'error'); } catch {}
@@ -839,6 +847,7 @@ app.whenReady().then(() => {
   // 2.6.0 : l'étagère devient la vue par défaut de la bibliothèque.
   if ((db.data.uiRev || 0) < 1) { db.data.settings.libView = 'shelf'; db.data.uiRev = 1; db.save(); }
   createWindow();
+  startedOk = true;
   setTimeout(() => scanLibrary().catch(console.error), 600);
   setInterval(() => pollProcesses().catch(() => {}), 20000);
   setTimeout(() => checkEmuUpdates().catch(() => {}), 8000);
@@ -895,9 +904,12 @@ async function checkEmuUpdates() {
 }
 
 // --- Communication avec l'interface ------------------------------------------------
-const handle = (ch, fn) => ipcMain.handle(ch, async (_e, ...a) => {
-  try { return { ok: true, data: await fn(...a) }; } catch (e) { console.error(ch, e); return { ok: false, error: e.message }; }
-});
+// Déclarée comme fonction (donc utilisable partout dans ce fichier, quel que soit l'ordre).
+function handle(ch, fn) {
+  ipcMain.handle(ch, async (_e, ...a) => {
+    try { return { ok: true, data: await fn(...a) }; } catch (e) { console.error(ch, e); return { ok: false, error: e.message }; }
+  });
+}
 
 handle('state:get', () => publicState());
 handle('log:error', (msg) => { LOG.write('ERREUR (fenêtre)', [String(msg).slice(0, 2000)]); });

@@ -28,6 +28,13 @@ jobs:
           node-version: 22
           cache: npm
 
+      - name: Vérifier que HMZ démarre vraiment (sinon pas de publication)
+        if: ${{ !inputs.nettoyage_seulement }}
+        shell: pwsh
+        run: |
+          npm ci
+          ./scripts/verifier-demarrage.ps1
+
       - name: Fabriquer et publier
         if: ${{ !inputs.nettoyage_seulement }}
         shell: bash
