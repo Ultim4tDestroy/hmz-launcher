@@ -14,7 +14,10 @@ jobs:
       - name: Lancer HMZ 40 secondes puis lire son journal
         shell: pwsh
         run: |
-          $p = Start-Process -FilePath "node_modules\electron\dist\electron.exe" -ArgumentList "." -PassThru -RedirectStandardOutput out.txt -RedirectStandardError err.txt
+          node node_modules/electron/install.js
+          $exe = node -p "require('electron')"
+          "Electron : $exe"
+          $p = Start-Process -FilePath $exe -ArgumentList "." -PassThru -RedirectStandardOutput out.txt -RedirectStandardError err.txt
           Start-Sleep -Seconds 40
           "--- processus ---"
           Get-Process electron -ErrorAction SilentlyContinue | Select-Object Id, MainWindowTitle, WS | Format-Table | Out-String
