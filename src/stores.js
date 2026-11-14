@@ -186,7 +186,8 @@ function epicOwned() {
   for (const it of items) {
     if (!it || !it.id || it.mainGameItem) continue;
     const cats = (it.categories || []).map((c) => c.path);
-    if (!cats.includes('games') || cats.some((c) => /addons|digitalextras|applications|engines|plugins/.test(c))) continue;
+    // Les jeux Epic sont souvent rangés à la fois dans « games » et « applications ».
+    if (!cats.some((c) => c === 'games' || c.startsWith('games/')) || cats.some((c) => /addons|digitalextras|engines|plugins|software\/edition/.test(c))) continue;
     const rel = (it.releaseInfo || []).find((r) => (r.platform || []).includes('Windows')) || (it.releaseInfo || [])[0];
     if (!rel || !rel.appId || seen.has(rel.appId) || /^UE_/.test(rel.appId)) continue;
     seen.add(rel.appId);

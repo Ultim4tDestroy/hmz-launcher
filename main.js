@@ -346,6 +346,7 @@ function endSession(id) {
   const r = running.get(id);
   if (!r) return;
   running.delete(id);
+  if (minimizedForGame && win && running.size === 0) { minimizedForGame = false; win.restore(); win.focus(); }
   const e = Date.now();
   if (e - r.start >= 30000) db.data.sessions.push({ g: id, s: r.start, e });
   db.save();
@@ -377,12 +378,12 @@ async function launchGame(id, emuOverride) {
   } else if (g.launch && g.launch.type === 'shell') {
     spawn('explorer.exe', [g.launch.target], { detached: true, stdio: 'ignore' }).unref();
     g.lastLaunched = Date.now();
-    db.save(); notifyChange();
+    db.save(); notifyChange(); minimizeForGame();
     return { ok: true };
   } else if (g.launch && g.launch.type === 'uri') {
     await shell.openExternal(g.launch.target);
     g.lastLaunched = Date.now();
-    db.save(); notifyChange();
+    db.save(); notifyChange(); minimizeForGame();
     return { ok: true };
   }
 
@@ -392,7 +393,7 @@ async function launchGame(id, emuOverride) {
     child.on('error', (e) => toast(`Lancement impossible : ${e.message}`, 'error'));
     child.unref();
     g.lastLaunched = Date.now();
-    db.save(); notifyChange();
+    db.save(); notifyChange(); minimizeForGame();
     return { ok: true };
   }
   const emuUsed = g.source === 'rom' || (g.source === 'manual' && g.platform !== 'pc') ? (emuOverride || g.emu || resolveEmu(g.platform)) : null;
@@ -406,16 +407,20 @@ async function launchGame(id, emuOverride) {
       toast(`${g.customName || g.name} doit être lancé depuis le launcher Netmarble : il vient de s'ouvrir.`);
     }
     if (emuUsed) backupSaves(emuUsed).catch((e) => console.error('Sauvegarde', e));
-    if (minimizedForGame && win && ![...running.values()].some((r) => r.kind === 'child')) {
-      minimizedForGame = false;
-      win.restore(); win.focus();
-    }
   });
   child.unref();
   startSession(id, 'child');
   running.get(id).pid = child.pid;
-  if (s.minimizeOnPlay && win) { minimizedForGame = true; setTimeout(() => win && win.minimize(), 1200); }
+  minimizeForGame();
   return { ok: true };
+}
+
+// HMZ se réduit pendant la partie et revient quand le jeu se ferme
+// (jeu lancé par HMZ, ou repéré parmi les programmes ouverts).
+function minimizeForGame() {
+  if (!db.data.settings.minimizeOnPlay || !win) return;
+  minimizedForGame = true;
+  setTimeout(() => win && !win.isMinimized() && win.minimize(), 1500);
 }
 
 // Quitter le jeu lancé par HMZ (Select + Start maintenus sur la manette).
