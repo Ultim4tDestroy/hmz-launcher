@@ -17,6 +17,7 @@ const { normTitle } = require('./src/util');
 
 const PLATFORMS = {
   pc: { label: 'PC', color: '#7aa2ff' },
+  mobile: { label: 'Mobile', color: '#3ddc84' },
   switch2: { label: 'Switch 2', color: '#ff5a4e' },
   switch: { label: 'Switch', color: '#ff7a59' },
   '3ds': { label: '3DS', color: '#f6c344' },
@@ -182,7 +183,9 @@ async function scanLibrary() {
       const others = [];
       try { others.push(...SCAN.scanRiot()); } catch (e) { console.error(e); }
       try { others.push(...SCAN.scanLaunchers()); } catch (e) { console.error(e); }
+      try { others.push(...await SCAN.scanNetmarble()); } catch (e) { console.error(e); }
       try { others.push(...await SCAN.scanRegistry()); } catch (e) { console.error(e); }
+      try { others.push(...SCAN.scanBlueStacks((f) => { const l = shell.readShortcutLink(f); return { target: l.target, args: l.args, icon: l.icon }; })); } catch (e) { console.error(e); }
       for (const o of others) {
         const k = normTitle(o.name);
         if (known.has(k)) continue;

@@ -123,6 +123,47 @@ Subnautica
 Factorio
 Geometry Dash
 
+# --- Netmarble et jeux mobiles (BlueStacks) ---
+Solo Leveling: ARISE
+Seven Knights Re:BIRTH
+Ni no Kuni: Cross Worlds
+Game of Thrones: Kingsroad
+MARVEL Future Fight
+RAVEN2
+The King of Fighters ALLSTAR
+The Seven Deadly Sins: IDLE Adventure
+Pokémon GO
+Pokémon TCG Pocket
+Subway Surfers
+Monopoly GO!
+Royal Match
+Candy Crush Saga
+Free Fire
+Mobile Legends: Bang Bang
+PUBG Mobile
+Call of Duty: Mobile
+Honor of Kings
+Whiteout Survival
+Last War: Survival
+Rise of Kingdoms
+AFK Journey
+RAID: Shadow Legends
+Dragon Ball Legends
+Dragon Ball Z Dokkan Battle
+One Piece Bounty Rush
+Hay Day
+Stumble Guys
+8 Ball Pool
+Fate/Grand Order
+Epic Seven
+Pokémon Masters EX
+Umamusume: Pretty Derby
+Azur Lane
+Goddess of Victory: NIKKE
+Brawl Stars
+Clash of Clans
+Clash Royale
+
 # --- Nintendo Switch 2 ---
 Mario Kart World
 Donkey Kong Bananza

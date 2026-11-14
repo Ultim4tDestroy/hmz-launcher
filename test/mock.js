@@ -27,6 +27,7 @@
     mk('steam:1245620', 'ELDEN RING', 'pc', '#1c1a15', '#a68a4c', { source: 'steam', hero: 1, min: 7900, ses: 80, last: 2 }),
     mk('steam:730', 'Counter-Strike 2', 'pc', '#1a2533', '#e0a33a', { source: 'steam', hero: 1, min: 12000, ses: 300, last: 0.5 }),
     mk('epic:fortnite', 'Fortnite', 'pc', '#3b1e7a', '#2fc0f0', { source: 'epic', min: 600, ses: 20, last: 6 }),
+    mk('android:com.netmarble.sololv', 'Solo Leveling: ARISE', 'mobile', '#1b3a8a', '#7b5cff', { source: 'bluestacks', min: 240, ses: 9, last: 1 }),
     Object.assign(mk('manual:pc:valorant', 'VALORANT', 'pc', '#ff4655', '#0f1923', { source: 'manual', noart: 1 }), { art: { logo: 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="120"><text x="200" y="88" text-anchor="middle" font-family="Arial Black" font-size="78" fill="#ff4655">VALORANT</text></svg>'), hero: svg(1920, 620, '#ff4655', '#0f1923', '') } }),
   ];
   const sessions = [];
@@ -45,7 +46,7 @@
   const state = {
     version: '2.0.0',
     settings: { root: 'C:\\Users\\Hamza\\HMZ', romDirs: { ds: ['C:\\Users\\Hamza\\HMZ\\Jeux\\DS'], '3ds': ['C:\\Users\\Hamza\\HMZ\\Jeux\\3DS'], switch: ['C:\\Users\\Hamza\\HMZ\\Jeux\\Switch', 'D:\\Jeux Switch'], switch2: ['C:\\Users\\Hamza\\HMZ\\Jeux\\Switch 2'] }, sgdbKey: '', backups: true, backupDirShown: 'C:\\Users\\Hamza\\HMZ\\Sauvegardes', padQuit: true, padHome: true, scanOthers: true, autostart: false, startInTV: false, emuFullscreen: true, minimizeOnPlay: true, scanSteam: true, scanEpic: true },
-    platforms: { pc: { label: 'PC', color: '#7aa2ff' }, switch2: { label: 'Switch 2', color: '#ff5a4e' }, switch: { label: 'Switch', color: '#ff7a59' }, '3ds': { label: '3DS', color: '#f6c344' }, ds: { label: 'DS', color: '#7fd1b9' } },
+    platforms: { pc: { label: 'PC', color: '#7aa2ff' }, mobile: { label: 'Mobile', color: '#3ddc84' }, switch2: { label: 'Switch 2', color: '#ff5a4e' }, switch: { label: 'Switch', color: '#ff7a59' }, '3ds': { label: '3DS', color: '#f6c344' }, ds: { label: 'DS', color: '#7fd1b9' } },
     games, emulators, sessions, padKinds: ['playstation'], collections: [{ id: 'c1', name: 'À finir', color: '#ff6b5e', games: ['switch:zelda-totk', 'ds:pokemon-heartgold'] }, { id: 'c2', name: 'Soirées entre potes', color: '#7aa2ff', games: ['switch2:mario-kart-world', 'switch:smash', 'steam:730'] }],
   };
   if (location.hash === '#empty') state.games = [];

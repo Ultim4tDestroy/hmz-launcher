@@ -377,4 +377,116 @@ function scanSwitchExtras(romDirs) {
   return extras;
 }
 
-module.exports = { scanRiot, scanLaunchers, scanRegistry, parseRegQuery, scanSwitchExtras, ROM_EXT, PLATFORM_OF_EXT, scanRoms, scanSteam, scanEpic, parseVdf, getCI, exeHints, isSwitchExtra };
+// --- Netmarble -----------------------------------------------------------------------------
+// Les jeux Netmarble sont installés à côté du launcher Netmarble, un dossier par jeu.
+const NETMARBLE_NAMES = {
+  '7dsgc': 'The Seven Deadly Sins: Grand Cross', nanatsunotaizai: 'The Seven Deadly Sins: Grand Cross',
+  tog: 'Tower of God: New World', towerofgod: 'Tower of God: New World',
+  sololv: 'Solo Leveling: ARISE', sololevelingarise: 'Solo Leveling: ARISE', sla: 'Solo Leveling: ARISE',
+  sevenknightsrebirth: 'Seven Knights Re:BIRTH', skr: 'Seven Knights Re:BIRTH',
+  ninokuni: 'Ni no Kuni: Cross Worlds', gotkingsroad: 'Game of Thrones: Kingsroad', kingsroad: 'Game of Thrones: Kingsroad',
+  mff: 'MARVEL Future Fight', raven2: 'RAVEN2', kofas: "The King of Fighters ALLSTAR", '7dsidle': 'The Seven Deadly Sins: IDLE Adventure',
+};
+const NETMARBLE_SKIP = /launcher|elevate|update|patch|crash|common|redist|prerequisite|logs?$|cache|temp|downloads?$/i;
+
+function netmarbleRoots() {
+  const roots = new Set();
+  const PF86 = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
+  const PF = process.env.ProgramFiles || 'C:\\Program Files';
+  const L = process.env.LOCALAPPDATA || '';
+  for (const d of ['C:\\Netmarble', 'D:\\Netmarble', 'C:\\Netmarble Games', 'D:\\Netmarble Games', path.join(PF86, 'Netmarble'), path.join(PF, 'Netmarble'), path.join(L, 'Netmarble'), path.join(L, 'Programs', 'Netmarble')]) if (exists(d)) roots.add(d);
+  return roots;
+}
+
+async function scanNetmarble() {
+  if (process.platform !== 'win32') return [];
+  const roots = netmarbleRoots();
+  // Dossier du launcher Netmarble (et donc de ses jeux) d'après la liste des programmes.
+  for (const r of ['HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall', 'HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall', 'HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall']) {
+    let out = '';
+    try { out = await run('reg', ['query', r, '/s', '/f', 'Netmarble', '/d']); } catch { continue; }
+    for (const e of parseRegQuery(out)) {
+      const loc = e.InstallLocation || (e.DisplayIcon || '').replace(/^"|"?,\s*-?\d+$|"$/g, '');
+      if (!loc) continue;
+      const dir = /\.exe$/i.test(loc) ? path.dirname(loc) : loc;
+      if (exists(dir)) { roots.add(dir); roots.add(path.dirname(dir)); }
+    }
+  }
+  const games = [];
+  const seen = new Set();
+  for (const root of roots) {
+    let subs = [];
+    try { subs = fs.readdirSync(root, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name); } catch { continue; }
+    for (const sub of subs) {
+      if (NETMARBLE_SKIP.test(sub)) continue;
+      const dir = path.join(root, sub);
+      let best = null, size = 0;
+      walk(dir, 3, (full, n) => {
+        if (!/\.exe$/i.test(n) || BAD_EXE.test(n) || /launcher|elevate|unitycrash|crashpad/i.test(n)) return;
+        try { const sz = fs.statSync(full).size; if (sz > size) { size = sz; best = full; } } catch {}
+      });
+      if (!best || size < 5 * 1024 * 1024 || seen.has(best.toLowerCase())) continue;
+      seen.add(best.toLowerCase());
+      const key = sub.toLowerCase().replace(/[^a-z0-9]/g, '');
+      games.push({
+        id: `netmarble:${key}`, name: NETMARBLE_NAMES[key] || null, folder: sub, platform: 'pc', source: 'netmarble',
+        installDir: dir, launch: { type: 'exe', target: best, args: [] }, exeHints: [path.basename(best).toLowerCase()],
+      });
+    }
+  }
+  // Nom du jeu inscrit dans le .exe quand le dossier ne suffit pas (« 7dsgc » → vrai nom).
+  const unnamed = games.filter((g) => !g.name);
+  if (unnamed.length) {
+    try {
+      const list = unnamed.map((g) => `'${g.launch.target.replace(/'/g, "''")}'`).join(',');
+      const out = await run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
+        `@(${list}) | ForEach-Object { $v = (Get-Item -LiteralPath $_).VersionInfo; ($v.ProductName + '|' + $v.FileDescription) }`]);
+      out.split(/\r?\n/).filter(Boolean).forEach((line, i) => {
+        const [prod, desc] = line.split('|').map((x) => (x || '').trim());
+        const g = unnamed[i];
+        const n = [prod, desc].find((x) => x && x.length > 2 && !/unity|unreal|launcher|^game$|client/i.test(x));
+        if (g && n) g.name = n;
+      });
+    } catch {}
+  }
+  for (const g of games) if (!g.name) g.name = g.folder.replace(/[_-]+/g, ' ');
+  return games;
+}
+
+// --- BlueStacks -------------------------------------------------------------------------------
+// BlueStacks crée un raccourci par application installée (menu Démarrer, Bureau).
+// Chaque raccourci lance HD-Player.exe avec le nom du paquet Android du jeu.
+const BLUESTACKS_SKIP = /^(com\.android\.|com\.google\.android\.(gms|apps)|com\.bluestacks\.|com\.uncube|com\.now\.gg)/i;
+
+function scanBlueStacks(readShortcut) {
+  if (process.platform !== 'win32' || !readShortcut) return [];
+  const home = require('os').homedir();
+  const dirs = [
+    path.join(process.env.APPDATA || '', 'Microsoft', 'Windows', 'Start Menu', 'Programs'),
+    path.join(process.env.ProgramData || 'C:\\ProgramData', 'Microsoft', 'Windows', 'Start Menu', 'Programs'),
+    path.join(home, 'Desktop'), path.join(home, 'OneDrive', 'Desktop'), path.join(home, 'OneDrive', 'Bureau'),
+    path.join(process.env.PUBLIC || 'C:\\Users\\Public', 'Desktop'),
+  ];
+  const games = new Map();
+  for (const d of dirs) {
+    walk(d, 3, (full, name) => {
+      if (!/\.lnk$/i.test(name)) return;
+      let sc;
+      try { sc = readShortcut(full); } catch { return; }
+      if (!sc || !/hd-player\.exe$|hd-runapp\.exe$|bluestacks.*\.exe$/i.test(sc.target || '')) return;
+      const args = sc.args || '';
+      const pkg = (args.match(/(?:--package|-p|-json.*?"package"\s*:\s*)\s*"?([a-z][\w]*(?:\.[\w]+)+)/i) || [])[1];
+      if (!pkg || BLUESTACKS_SKIP.test(pkg)) return;
+      const title = name.replace(/\.lnk$/i, '').replace(/\s*-\s*BlueStacks.*$/i, '').trim();
+      if (games.has(pkg)) return;
+      games.set(pkg, {
+        id: `android:${pkg}`, name: title, platform: 'mobile', source: 'bluestacks', package: pkg,
+        launch: { type: 'exe', target: sc.target, args: (args.match(/(?:[^\s"]+|"[^"]*")+/g) || []).map((a) => a.replace(/^"|"$/g, '')) },
+        installDir: path.dirname(sc.target), iconPath: sc.icon || null, exeHints: [],
+      });
+    });
+  }
+  return [...games.values()];
+}
+
+module.exports = { scanNetmarble, scanBlueStacks, scanRiot, scanLaunchers, scanRegistry, parseRegQuery, scanSwitchExtras, ROM_EXT, PLATFORM_OF_EXT, scanRoms, scanSteam, scanEpic, parseVdf, getCI, exeHints, isSwitchExtra };

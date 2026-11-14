@@ -18,7 +18,7 @@ const PAD_HELP = {
   azahar: 'Dans Azahar : Émulation › Configurer › Contrôles, puis « Configuration automatique » et appuie sur les boutons demandés.',
   melonds: 'Dans melonDS : Config › Input and hotkeys, onglet DS keypad, puis clique sur chaque touche.',
 };
-const ORDER = ['switch2', 'switch', '3ds', 'ds', 'pc'];
+const ORDER = ['switch2', 'switch', '3ds', 'ds', 'pc', 'mobile'];
 
 const ICON = {
   play: '<svg viewBox="0 0 24 24"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12.4-7.5a1 1 0 0 0 0-1.72L8.5 3.64A1 1 0 0 0 7 4.5z"/></svg>',
@@ -129,9 +129,8 @@ function fmtLast(t) {
 }
 function fmtSize(b) { if (!b) return '—'; const g = b / 1024 ** 3; return g >= 1 ? `${g.toFixed(g >= 10 ? 0 : 1)} Go` : `${Math.round(b / 1024 ** 2)} Mo`; }
 function sourceLabel(g) {
-  if (g.source === 'steam') return 'Steam';
-  if (g.source === 'epic') return 'Epic Games';
-  if (g.platform === 'pc') return 'Ajouté à la main';
+  const SRC = { steam: 'Steam', epic: 'Epic Games', riot: 'Riot Games', netmarble: 'Netmarble', bluestacks: 'BlueStacks', launcher: 'Launcher', installed: 'Installé', manual: 'Ajouté à la main' };
+  if (SRC[g.source]) return SRC[g.source];
   const e = S.emulators.find((x) => x.id === g.emu);
   return e ? `via ${e.name}` : 'Émulé';
 }
@@ -187,8 +186,9 @@ const BOX = {
   '3ds': { w: 176, h: 192, d: 15, band: '3DS' },
   ds: { w: 176, h: 192, d: 15, band: 'DS' },
   pc: { w: 156, h: 234, d: 19, band: null },
+  mobile: { w: 118, h: 236, d: 10, band: null },
 };
-const SRC_COLOR = { steam: '#66c0f4', epic: '#e8e8e8', riot: '#ff4655', launcher: '#c084fc', installed: '#f6c344', manual: '#7fd1b9' };
+const SRC_COLOR = { steam: '#66c0f4', epic: '#e8e8e8', riot: '#ff4655', netmarble: '#ffc93c', bluestacks: '#3ddc84', launcher: '#c084fc', installed: '#f6c344', manual: '#7fd1b9' };
 function boxDims(g) {
   const b = BOX[g.platform] || BOX.pc;
   const k = (S.settings.cardSize || 168) / 168;
@@ -381,8 +381,8 @@ function renderWelcome() {
 }
 
 // Bibliothèque ---------------------------------------------------------------------------------
-const SOURCES = { steam: 'Steam', epic: 'Epic Games', riot: 'Riot Games', launcher: 'Autres launchers', installed: 'Jeux installés', manual: 'Ajoutés à la main', rom: 'Émulés' };
-const SOURCE_COLORS = { steam: '#66c0f4', epic: '#d6d6d6', riot: '#ff4655', launcher: '#c084fc', installed: '#f6c344', manual: '#7fd1b9', rom: '#ff7a59' };
+const SOURCES = { steam: 'Steam', epic: 'Epic Games', riot: 'Riot Games', netmarble: 'Netmarble', bluestacks: 'BlueStacks', launcher: 'Autres launchers', installed: 'Jeux installés', manual: 'Ajoutés à la main', rom: 'Émulés' };
+const SOURCE_COLORS = { steam: '#66c0f4', epic: '#d6d6d6', riot: '#ff4655', netmarble: '#ffc93c', bluestacks: '#3ddc84', launcher: '#c084fc', installed: '#f6c344', manual: '#7fd1b9', rom: '#ff7a59' };
 
 function collFilter(c) {
   const now = Date.now();
@@ -452,7 +452,6 @@ function renderCollPanel(all) {
     ${collSection('user', 'Mes collections', `<div class="clist">${user || (ui.newColl ? '' : '<p class="chint">Crée une collection, puis glisse des jeux dessus.</p>')}${newRow}</div>`, `<button class="cadd" data-action="new-coll" title="Nouvelle collection">${ICON.plus}</button>`)}
     ${plats ? collSection('plats', 'Consoles', `<div class="pills">${plats}</div>`) : ''}
     ${srcs ? collSection('srcs', 'Launchers', `<div class="pills">${srcs}</div>`) : ''}
-    ${genres ? collSection('genres', 'Genres', `<div class="pills">${genres}</div>`) : ''}
   </aside>`;
 }
 
@@ -470,6 +469,8 @@ function listRowHTML(g) {
 function renderLibrary() {
   const all = visible();
   let list = all.filter(collFilter(ui.coll));
+  const inColl = list;
+  if (ui.genre) list = list.filter((g) => (g.genres || []).includes(ui.genre));
   if (ui.q) { const q = ui.q.toLowerCase(); list = list.filter((g) => g.name.toLowerCase().includes(q)); }
   const sorts = {
     recent: byRecent,
@@ -487,7 +488,7 @@ function renderLibrary() {
     ${renderCollPanel(all)}
     <div class="lib-main"><div class="page">
       <div class="page-head">
-        <div class="lib-head"><span class="big-ic" style="--c:${info.color}">${info.icon}</span><div><h1>${esc(info.label)}</h1><p style="margin-top:4px">${list.length} jeu${list.length > 1 ? 'x' : ''}${ui.q ? ` pour « ${esc(ui.q)} »` : ''}</p></div></div>
+        <div class="lib-head"><span class="big-ic" style="--c:${info.color}">${info.icon}</span><div><h1>${esc(info.label)}</h1><p style="margin-top:4px">${list.length} jeu${list.length > 1 ? 'x' : ''}${ui.genre ? `, genre ${esc(ui.genre)}` : ''}${ui.q ? ` pour « ${esc(ui.q)} »` : ''}</p></div></div>
         <div style="display:flex;gap:8px;align-items:center">
           ${isUser ? `<button class="btn ghost sm" data-collmenu="${esc(ui.coll.key)}">${ICON.dots}</button>` : ''}
           <button class="btn primary" data-action="add-game">${ICON.plus}Ajouter un jeu</button>
@@ -496,6 +497,11 @@ function renderLibrary() {
       <div class="toolbar">
         <div class="viewsw"><button class="${view === 'shelf' ? 'on' : ''}" data-libview="shelf" title="Étagère">${ICON.shelf}</button><button class="${view === 'grid' ? 'on' : ''}" data-libview="grid" title="Grille">${ICON.grid}</button><button class="${view === 'list' ? 'on' : ''}" data-libview="list" title="Liste">${ICON.list}</button></div>
         ${view !== 'list' ? `<input type="range" class="range" id="cardSize" min="120" max="260" step="4" value="${S.settings.cardSize || 168}" title="Taille des jaquettes" style="width:150px">` : ''}
+        <div class="gsel">
+          <button class="btn sm ${ui.genre ? 'on-acc' : 'ghost'}" data-action="genre-menu">${ICON.tagic}${ui.genre ? esc(ui.genre) : 'Tous les genres'}${ICON.chev}</button>
+          ${ui.genre ? `<button class="icon-btn" data-action="genre-clear" title="Retirer le filtre">${ICON.x}</button>` : ''}
+          ${ui.genreOpen ? (() => { const gc = {}; for (const g of inColl) for (const x of g.genres || []) gc[x] = (gc[x] || 0) + 1; const gl = Object.entries(gc).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'fr')); return `<div class="genre-pop">${gl.length ? gl.map(([k, n]) => `<button class="cpill${ui.genre === k ? ' on' : ''}" data-genre-pick="${esc(k)}">${esc(k)}<span class="n">${n}</span></button>`).join('') : '<p class="chint">Les genres apparaissent au fur et à mesure que HMZ les trouve.</p>'}</div>`; })() : ''}
+        </div>
         <div class="grow"></div>
         <select class="select" id="libSort">
           ${[['recent', 'Joués récemment'], ['name', 'Nom'], ['time', 'Temps de jeu'], ['added', 'Ajoutés récemment']].map(([k, l]) => `<option value="${k}"${ui.sort === k ? ' selected' : ''}>${l}</option>`).join('')}
@@ -626,7 +632,33 @@ function renderStats() {
 }
 
 // Paramètres ---------------------------------------------------------------------------------
-function renderSettings() {
+// Regroupe les réglages en sections avec un sommaire à gauche.
+function groupSettings(html) {
+  const tpl = document.createElement('template');
+  tpl.innerHTML = html;
+  const list = tpl.content.querySelector('.settings');
+  if (!list) return html;
+  const sections = [];
+  let cur = null;
+  for (const el of [...list.children]) {
+    if (el.classList.contains('set-group')) { cur = { title: el.textContent.trim(), rows: [] }; sections.push(cur); }
+    else if (cur) cur.rows.push(el.outerHTML);
+  }
+  const id = (t) => 's-' + t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z]+/g, '-');
+  const nav = `<nav class="snav">${sections.map((x) => `<button data-snav="${id(x.title)}">${esc(x.title)}</button>`).join('')}</nav>`;
+  const body = `<div class="sbody">${sections.map((x) => `<section class="sgrp" id="${id(x.title)}"><h3>${esc(x.title)}</h3><div class="scard">${x.rows.join('')}</div></section>`).join('')}</div>`;
+  list.outerHTML;
+  const wrap = document.createElement('div');
+  wrap.className = 'swrap';
+  wrap.innerHTML = nav + body;
+  list.replaceWith(wrap);
+  const out = document.createElement('div');
+  out.appendChild(tpl.content.cloneNode(true));
+  return out.innerHTML;
+}
+
+function renderSettings() { return groupSettings(renderSettingsRaw()); }
+function renderSettingsRaw() {
   const s = S.settings;
   const tg = (k) => `<button class="toggle${s[k] ? ' on' : ''}" data-toggle="${k}" aria-pressed="${!!s[k]}"></button>`;
   return `<div class="page">
@@ -654,7 +686,7 @@ function renderSettings() {
       <div class="set"><div><div class="t">Manette détectée</div><div class="d">${padKinds.length ? `${padKinds.map((k) => PAD_LABEL[k] || k).join(', ')} : prête, même quand HMZ est en arrière-plan.` : 'Aucune pour l\'instant. Branche ou allume ta manette (Xbox, PlayStation, Switch Pro ou autre).'}</div></div>${padKinds.length ? '<span class="status ok">Connectée</span>' : '<span class="status">—</span>'}</div>
       <div class="set"><div><div class="t">Quitter un jeu à la manette</div><div class="d">Maintiens <b>Select + Start</b> pendant 1 seconde (Xbox : View + Menu · PlayStation : Share/Create + Options · Switch : − et +). Le jeu se ferme et HMZ revient.</div></div>${tg('padQuit')}</div>
       <div class="set"><div><div class="t">Bouton Xbox / PS / Home</div><div class="d">Quand aucun jeu ne tourne, il ouvre HMZ en mode TV.</div></div>${tg('padHome')}</div>
-      <div class="set-group">Sauvegardes de tes parties</div>
+      <div class="set-group">Sauvegardes</div>
       <div class="set"><div><div class="t">Sauvegarde automatique</div><div class="d">Après chaque partie, tes sauvegardes sont copiées dans <span class="linkish" data-action="open-backups">${esc(s.backupDirShown || '')}</span>. Les 15 dernières de chaque émulateur sont gardées. Choisis un dossier OneDrive pour les retrouver sur un autre PC.</div></div>${tg('backups')}</div>
       <div class="set"><div><div class="t">Dossier des sauvegardes</div><div class="d">Tu peux aussi sauvegarder tout de suite.</div></div><div style="display:flex;gap:8px"><button class="btn ghost" data-action="backup-dir">Changer</button><button class="btn" data-action="backup-now">Sauvegarder maintenant</button></div></div>
       <div class="set-group">Jeu</div>
@@ -883,6 +915,8 @@ function openCollCtx(id, x, y) {
 
 // --- Notifications -----------------------------------------------------------------------
 function toast(text, kind = 'info', ms = 4200, action = null) {
+  // Pas deux fois le même message à l'écran.
+  if ($$('#toasts .toast').some((x) => x.firstChild && x.firstChild.textContent === text)) return;
   const el = document.createElement('div');
   el.className = `toast ${kind}${action ? ' act' : ''}`;
   el.textContent = text;
@@ -979,8 +1013,11 @@ document.addEventListener('click', async (ev) => {
   if (d.seeall) { ui.coll = d.seeall === 'fav' ? { type: 'fav' } : d.seeall.startsWith('c:') ? { type: 'user', key: d.seeall.slice(2) } : { type: 'platform', key: d.seeall }; ui.q = ''; return go('library'); }
   const co = ev.target.closest('[data-collopen]');
   if (co) { ui.openColl[co.dataset.collopen] = !ui.openColl[co.dataset.collopen]; return render(); }
+  if (d.genrePick) { ui.genre = ui.genre === d.genrePick ? null : d.genrePick; ui.genreOpen = false; return render(); }
+  if (ui.genreOpen && !t.closest('.gsel')) { ui.genreOpen = false; render(); }
   if (d.coll) { ui.coll = JSON.parse(d.coll); $('#view').scrollTop = 0; return render(); }
   if (d.collsec) { ui.closed[d.collsec] = !ui.closed[d.collsec]; return render(); }
+  if (d.snav) { const el = document.getElementById(d.snav); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
   if (d.libview) { setAppearance({ libView: d.libview }); return render(); }
   if (d.themePick) { setAppearance({ theme: d.themePick }); $$('[data-theme-pick]').forEach((b) => b.classList.toggle('on', b.dataset.themePick === d.themePick)); return; }
   if (d.accent !== undefined) { setAppearance({ accent: d.accent }); $$('[data-accent]').forEach((b) => b.classList.toggle('on', b.dataset.accent === d.accent)); return; }
@@ -1034,6 +1071,8 @@ document.addEventListener('click', async (ev) => {
   }
 
   switch (d.action) {
+    case 'genre-menu': ui.genreOpen = !ui.genreOpen; render(); break;
+    case 'genre-clear': ui.genre = null; ui.genreOpen = false; render(); break;
     case 'toggle-genres': ui.allGenres = !ui.allGenres; render(); break;
     case 'new-coll': ui.newColl = true; render(); setTimeout(() => $('#newCollName')?.focus(), 0); break;
     case 'add-game': { const n = await call('game:add'); if (n) toast(`${n} jeu${n > 1 ? 'x' : ''} ajouté${n > 1 ? 's' : ''}.`, 'ok'); break; }
@@ -1049,7 +1088,7 @@ document.addEventListener('click', async (ev) => {
     case 'check-app-update': {
       const r = await call('app:checkUpdate');
       if (r.dev) toast('Les mises à jour automatiques marchent seulement dans la version installée.');
-      else if (r.newer) toast(`Mise à jour ${r.latest} trouvée, téléchargement en cours…`, 'ok');
+      else if (r.newer) { /* HMZ annonce lui-même la mise à jour trouvée */ }
       else toast(`Tu as la dernière version (${S.version}).`, 'ok');
       break;
     }
@@ -1445,6 +1484,7 @@ api.on('emu:progress', (p) => {
 });
 api.on('toast', (t) => toast(t.text, t.kind));
 api.on('update:ready', (u) => {
+  if ($('#toasts .toast.update')) return;
   const el = document.createElement('div');
   el.className = 'toast ok update';
   el.innerHTML = `<div><b>Mise à jour ${esc(u.version)} prête</b><br><span style="color:var(--muted);font-weight:500">Redémarre HMZ pour l'installer.</span></div><button class="btn primary sm">Redémarrer</button><button class="icon-btn" title="Plus tard">${ICON.x}</button>`;
