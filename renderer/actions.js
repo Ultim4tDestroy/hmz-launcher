@@ -129,6 +129,7 @@ document.addEventListener('click', async (ev) => {
     try { await call('emu:uninstall', e.id); delete emuErr[e.id]; toast(`${e.name} est ${e.custom ? 'oublié' : 'supprimé'}.`, 'ok'); } catch {}
     return;
   }
+  if (d.rowscroll) { const tr = t.parentElement.querySelector('.row-track'); return tr.scrollBy({ left: Number(d.rowscroll) * tr.clientWidth * 0.8, behavior: reduceMotion() ? 'auto' : 'smooth' }); }
   if (d.emumenu) { const r = t.closest('[data-emumenu]').getBoundingClientRect(); return openEmuCtx(d.emumenu, r.right, r.bottom + 6); }
   if (d.emufam) { ui.emu.fam = d.emufam; return render(); }
   if (d.gstatus !== undefined && d.id) { await call('game:update', d.id, { status: d.gstatus }); return refreshModal(); }
@@ -153,7 +154,7 @@ document.addEventListener('click', async (ev) => {
     if (ui.view === 'home' && card.closest('.rows')) {
       ui.heroId = card.dataset.game;
       render();
-      $('#view').scrollTo({ top: 0, behavior: 'smooth' });
+      $('#view').scrollTo({ top: 0, behavior: reduceMotion() ? 'auto' : 'smooth' });
     } else openDetail(card.dataset.game);
     return;
   }
@@ -307,17 +308,17 @@ document.addEventListener('keydown', (e) => {
   if ((e.ctrlKey || e.metaKey) && /^[1-5]$/.test(e.key)) { e.preventDefault(); closeModal(); return go(['home', 'library', 'emulators', 'stats', 'settings'][+e.key - 1]); }
   const typing = e.target.matches('input, select, textarea');
   if (!typing && !modalState && e.key === '?') { e.preventDefault(); return openKeys(); }
-  const slot = document.activeElement && document.activeElement.closest && document.activeElement.closest('.slot');
+  const slot = document.activeElement && document.activeElement.closest && document.activeElement.closest('.slot, .rows .card[data-game]');
   if (slot && !modalState) {
-    const sibs = $$('.slot', slot.closest('.shelf'));
+    const sibs = $$('.slot, .card[data-game]', slot.closest('.shelf, .row'));
     const i = sibs.indexOf(slot);
     if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
       e.preventDefault();
       const n = sibs[Math.max(0, Math.min(sibs.length - 1, i + (e.key === 'ArrowRight' ? 1 : -1)))];
-      if (n) { n.focus({ preventScroll: true }); n.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' }); if (ui.view === 'home') { ui.heroId = n.dataset.game; renderHero(); } }
+      if (n) { n.focus({ preventScroll: true }); n.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: reduceMotion() ? 'auto' : 'smooth' }); if (ui.view === 'home') { ui.heroId = n.dataset.game; renderHero(); } }
       return;
     }
-    if (e.key === ' ') { e.preventDefault(); return toggleFlip(slot); }
+    if (e.key === ' ' && slot.classList.contains('slot')) { e.preventDefault(); return toggleFlip(slot); }
     if (e.key === 'Enter') { e.preventDefault(); return play(slot.dataset.game); }
   }
   if (e.key === 'Escape' && $('.slot.flipped') && !modalState) { $$('.slot.flipped').forEach((x) => x.classList.remove('flipped')); return; }
@@ -325,7 +326,7 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') { if (!$('#ctx').hidden) return closeCtx(); if (modalState) return closeModal(); }
   if (e.target.matches('input, select, textarea') || modalState) return;
   if (ui.view === 'home' && !slot && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
-    const first = $(`.slot[data-game="${CSS.escape((featured() || {}).id || '')}"]`) || $('.slot');
+    const first = $(`.rows .card[data-game="${CSS.escape((featured() || {}).id || '')}"], .slot[data-game="${CSS.escape((featured() || {}).id || '')}"]`) || $('.rows .card[data-game], .slot');
     if (first) { e.preventDefault(); first.focus(); }
   }
   if (ui.view === 'home' && !slot && e.key === 'Enter' && featured()) play(featured().id);

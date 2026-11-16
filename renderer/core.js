@@ -44,6 +44,8 @@ const ICON = {
   shelf: '<svg viewBox="0 0 24 24"><path d="M3 20h18M3 12h18"/><rect x="5" y="4" width="3" height="8" rx=".5"/><rect x="9.5" y="5" width="3" height="7" rx=".5"/><rect x="14" y="14" width="3" height="6" rx=".5"/><rect x="6" y="14.5" width="4" height="5.5" rx=".5"/></svg>',
   grid: '<svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>',
   list: '<svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/></svg>',
+  chevL: '<svg viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg>',
+  chevR: '<svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>',
   chev: '<svg class="chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>',
   clock: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
   sparkle: '<svg viewBox="0 0 24 24"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/></svg>',
@@ -182,7 +184,7 @@ function moveNavInd() {
 addEventListener('resize', () => moveNavInd());
 let hoverT = null;
 document.addEventListener('mouseover', (e) => {
-  const sl = e.target.closest && e.target.closest('.slot[data-game]');
+  const sl = e.target.closest && e.target.closest('.slot[data-game], .rows .card[data-game]');
   if (!sl) return;
   clearTimeout(hoverT);
   hoverT = setTimeout(() => { const g = gameById(sl.dataset.game); if (g) setAmbientFor(g); }, 280);
@@ -225,6 +227,28 @@ function metaParts(g) {
 }
 
 // --- Images -----------------------------------------------------------------------------
+// --- Lueur des cartes : couleur dominante de la jaquette, calculée au premier survol ----------
+const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+function glowFor(el) {
+  if (!el || el.dataset.glow) return;
+  const g = gameById(el.dataset.game || '');
+  if (!g) return;
+  el.dataset.glow = '1';
+  const key = g.art.cover || g.art.hero || g.art.header;
+  const set = (rgb) => el.style.setProperty('--gl', rgb);
+  set((key && colorCache.get(key)) || hexToRgb(plat(g.platform).color));
+  if (key && !colorCache.has(key)) colorFor(key).then((rgb) => { if (rgb) set(rgb); });
+}
+document.addEventListener('pointerover', (e) => { const el = e.target.closest && e.target.closest('.card[data-game], .slot[data-game]'); if (el) glowFor(el); });
+document.addEventListener('focusin', (e) => { const el = e.target.closest && e.target.closest('.card[data-game], .slot[data-game]'); if (el) glowFor(el); });
+
+// --- Au repos : rien ne bouge quand HMZ est caché, réduit, ou qu'un jeu tourne -------------
+function updateIdle() {
+  const playing = !!(S && S.games && S.games.some((g) => g.running));
+  document.documentElement.classList.toggle('is-idle', document.hidden || playing);
+}
+document.addEventListener('visibilitychange', updateIdle);
+
 function coverHTML(g, extra = '') {
   const p = plat(g.platform);
   const src = g.art.cover || g.art.header;
@@ -412,8 +436,12 @@ function render() {
   const st = view.scrollTop;
   view.innerHTML = VIEWS[ui.view]();
   view.scrollTop = st;
+  markScrollableRows();
   if (!$('#tv').hidden) renderTV(true);
 }
+// Les flèches d'une rangée n'apparaissent que si elle dépasse de l'écran.
+function markScrollableRows() { $$('.row-track').forEach((t) => t.parentElement.classList.toggle('scrollable', t.scrollWidth > t.clientWidth + 4)); }
+addEventListener('resize', () => markScrollableRows());
 function go(v) {
   const run = () => { ui.view = v; $('#view').scrollTop = 0; render(); };
   if (document.startViewTransition && ui.view !== v && !matchMedia('(prefers-reduced-motion: reduce)').matches) {

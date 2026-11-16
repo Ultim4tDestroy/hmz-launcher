@@ -1,22 +1,39 @@
 // HMZ · Pages : accueil, bibliothèque, émulateurs, statistiques, paramètres.
 // (Les fichiers de l'interface partagent leurs variables : ils sont chargés dans l'ordre de index.html.)
 // Accueil ------------------------------------------------------------------------------------
+// Le héros ne rejoue son animation d'entrée que quand le jeu affiché change (pas à chaque rafraîchissement).
+let heroShown = null;
 function heroHTML(g) {
-  const h = heroInfo(g);
-  const title = g.name;
-  const meta = metaParts(g).map((x) => `<span class="mi">${esc(x)}</span>`).join('');
-  return `<section class="hero">
-      ${h ? `<div class="hero-bg${h.blur ? ' blur' : ''}" style="background-image:url('${esc(h.url)}')"></div>` : `<div class="hero-bg" style="background:radial-gradient(80% 90% at 70% 30%, ${plat(g.platform).color}55, transparent 70%)"></div>`}
-      <div class="hero-shade"></div>
-      ${h && h.cover ? `<div class="hero-cover"><img src="${esc(h.cover)}" draggable="false"></div>` : ''}
-      <div class="hero-content">
-        <div class="kicker${g.running ? ' live' : ''}"><i class="dot"></i>${g.running ? 'En cours' : (g.emuReady ? 'Prêt à jouer' : 'Émulateur à installer')}</div>
-        ${g.art.logo ? `<img class="hero-logo" src="${esc(g.art.logo)}" alt="${esc(title)}" data-title="${esc(title)}">` : `<h1 class="hero-title${title.length > 22 ? ' long' : ''}">${esc(title)}</h1>`}
-        <div class="hero-meta">${meta}</div>
-        <div class="hero-actions">
-          <button class="btn primary play" data-play="${esc(g.id)}">${playIcon(g)}${playLabel(g)}</button>
-          <button class="btn round" data-detail="${esc(g.id)}" title="Voir la fiche">${ICON.info}</button>
-          <button class="btn round" data-menu="${esc(g.id)}" title="Plus d'options">${ICON.dots}</button>
+  const p = plat(g.platform);
+  const cover = g.art.cover || null;
+  const wide = g.art.hero || g.art.header || null;
+  const blurSrc = cover || wide;
+  const enter = heroShown !== g.id;
+  heroShown = g.id;
+  const latest = [...visible()].sort(byRecent)[0];
+  const kicker = g.running ? 'En cours' : g.notInstalled ? 'Pas installé' : !g.emuReady ? 'Émulateur à installer' : g.last && latest && latest.id === g.id ? 'Dernier jeu lancé' : 'Prêt à jouer';
+  const art = cover
+    ? `<img src="${esc(cover)}" draggable="false" alt="">`
+    : wide ? `<img src="${esc(wide)}" draggable="false" alt="">` : `<div class="hz-fb"><span>${esc(p.label)}</span><b>${esc(g.name)}</b></div>`;
+  const stat = (v, l, cls = '') => `<div class="hz-stat${cls}"><b>${esc(v)}</b><span>${esc(l)}</span></div>`;
+  return `<section class="hero hz${enter ? ' enter' : ''}" style="--c:${p.color}">
+      <div class="hz-bg">${blurSrc ? `<div class="hz-blur" style="background-image:url('${esc(blurSrc)}')"></div>` : ''}</div>
+      <div class="hz-shade"></div>
+      <div class="hz-inner">
+        <button class="hz-art${cover ? '' : ' wide'}" data-detail="${esc(g.id)}" title="Voir la fiche">${art}</button>
+        <div class="hz-text">
+          <div class="kicker${g.running ? ' live' : ''}"><i class="dot"></i>${kicker}</div>
+          ${g.art.logo ? `<img class="hero-logo" src="${esc(g.art.logo)}" alt="${esc(g.name)}" data-title="${esc(g.name)}">` : `<h1 class="hero-title${g.name.length > 22 ? ' long' : ''}">${esc(g.name)}</h1>`}
+          <div class="hz-stats">
+            ${stat(g.minutes >= 1 ? fmtTime(g.minutes) : '0 h', 'de jeu', ' big')}
+            ${stat(g.last ? fmtLast(g.last).replace(/^./, (c) => c.toUpperCase()) : 'Jamais', 'dernière partie')}
+            ${stat(p.label, sourceLabel(g))}
+          </div>
+          <div class="hero-actions">
+            <button class="btn primary play" data-play="${esc(g.id)}">${playIcon(g)}${playLabel(g)}</button>
+            <button class="btn round" data-detail="${esc(g.id)}" title="Voir la fiche">${ICON.info}</button>
+            <button class="btn round" data-menu="${esc(g.id)}" title="Plus d'options">${ICON.dots}</button>
+          </div>
         </div>
       </div>
     </section>`;
@@ -29,8 +46,18 @@ function renderHero() {
   tmp.innerHTML = heroHTML(g);
   el.replaceWith(tmp.firstElementChild);
   setAmbientFor(g);
-  $$('.slot.selected').forEach((x) => x.classList.remove('selected'));
-  $$(`.slot[data-game="${CSS.escape(g.id)}"]`).forEach((x) => x.classList.add('selected'));
+  $$('.rows .card.selected, .slot.selected').forEach((x) => x.classList.remove('selected'));
+  $$(`.rows .card[data-game="${CSS.escape(g.id)}"], .slot[data-game="${CSS.escape(g.id)}"]`).forEach((x) => x.classList.add('selected'));
+}
+
+// Une rangée de cartes qui défile à l'horizontale (façon console).
+function rowHTML({ title, color, games, more, selectedId }) {
+  return `<section class="row">
+    <div class="row-head"><h2>${color ? `<i class="sw" style="--c:${color}"></i>` : ''}${esc(title)}<span class="count">${games.length} jeu${games.length > 1 ? 'x' : ''}</span></h2>${more ? `<button data-seeall="${more}">Tout voir</button>` : ''}</div>
+    <div class="row-wrap"><button class="row-arrow l" data-rowscroll="-1" aria-label="Précédents" tabindex="-1">${ICON.chevL || '‹'}</button>
+      <div class="row-track">${games.map((g) => cardHTML(g, { selected: g.id === selectedId })).join('')}</div>
+      <button class="row-arrow r" data-rowscroll="1" aria-label="Suivants" tabindex="-1">${ICON.chevR || '›'}</button></div>
+  </section>`;
 }
 
 function renderHome() {
@@ -52,7 +79,7 @@ function renderHome() {
   }
   return `<div class="home">
     ${heroHTML(g)}
-    <div class="rows">${shelves.map((sh) => shelfHTML({ ...sh, selectedId: g.id })).join('')}</div>
+    <div class="rows">${shelves.map((sh) => rowHTML({ ...sh, selectedId: g.id })).join('')}</div>
   </div>`;
 }
 
@@ -295,10 +322,25 @@ function emuHints(e) {
 function emuTags(e, shared) {
   return `${e.platforms.map((p) => `<span class="tag" style="--c:${plat(p).color}">${esc(plat(p).label)}</span>`).join('')}${e.experimental ? '<span class="tag" style="--c:#f6c344">Expérimental</span>' : ''}${shared ? '<span class="tag" style="--c:var(--cream)">Conseillé</span>' : ''}`;
 }
+// Progression d'une installation : 3 étapes, barre animée, pourcentage.
+const EMU_STAGES = ['Recherche', 'Téléchargement', 'Installation'];
+function emuStage(step) {
+  if (/Terminé/i.test(step)) return 3;
+  if (/Décompression|Extraction|Installation|firmware|Réglage/i.test(step)) return 2;
+  if (/Téléchargement/i.test(step)) return 1;
+  return 0;
+}
 function emuProgressHTML(prog) {
   const pct = prog.total ? Math.min(100, Math.round((prog.done / prog.total) * 100)) : null;
-  return `<div class="progress"><span>${esc(prog.step)}${pct !== null ? ` · ${pct} %` : ''}${prog.total ? ` · ${fmtSize(prog.done)} / ${fmtSize(prog.total)}` : ''}</span>
-    <div class="bar${pct === null ? ' indet' : ''}"><i style="width:${pct ?? 35}%"></i></div></div>`;
+  const st = emuStage(prog.step || '');
+  return `<div class="eprogress${pct === null ? ' indet' : ''}" role="progressbar" aria-label="${esc(prog.step)}"${pct !== null ? ` aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"` : ''}>
+    <div class="ep-top">
+      <ol class="ep-steps">${EMU_STAGES.map((l, i) => `<li class="${i < st ? 'done' : i === st ? 'on' : ''}"><i>${i < st ? ICON.check : ''}</i>${l}</li>`).join('')}</ol>
+      <span class="ep-pct">${pct !== null ? `${pct}<small>%</small>` : '<span class="ep-spin"></span>'}</span>
+    </div>
+    <div class="ep-bar"><i style="--p:${pct ?? 100}"></i></div>
+    <div class="ep-sub">${esc(prog.step)}${prog.total ? ` · ${fmtSize(prog.done)} sur ${fmtSize(prog.total)}` : ''}</div>
+  </div>`;
 }
 
 function emuCard(e) {
@@ -310,7 +352,7 @@ function emuCard(e) {
   // Pas installé : une ligne compacte du catalogue.
   if (!e.installed) {
     const err = emuErr[e.id];
-    return `<div class="emu erow${err ? ' has-err' : ''}" data-emu="${e.id}" style="--c:${color}">
+    return `<div class="emu erow${err ? ' has-err' : ''}${prog && prog.step ? ' installing' : ''}" data-emu="${e.id}" style="--c:${color}">
       <span class="edot"></span>
       <div class="emain"><div class="ename"><b>${esc(e.name)}</b>${emuTags(e, shared)}</div><div class="eblurb" title="${esc(e.blurb)}">${esc(e.blurb)}</div></div>
       ${prog && prog.step ? `<div class="eprog">${emuProgressHTML(prog)}</div>` : `${emuHints(e)}<button class="btn sm primary" data-install="${e.id}">${ICON.download}${err ? 'Réessayer' : 'Installer'}</button>${menu}`}
@@ -325,7 +367,7 @@ function emuCard(e) {
       <button class="esys-i${e.keys && e.keys.keys ? ' ok' : ''}" data-keys="${e.id}" title="${e.keys && e.keys.keys ? 'Clés installées' : 'Clés manquantes : clique pour les ajouter'}">${e.keys && e.keys.keys ? ICON.check : ICON.key}<span>Clés</span></button>
       <button class="esys-i${e.keys && e.keys.firmware ? ' ok' : ''}" data-fw="${e.id}" title="${e.keys && e.keys.firmware ? 'Firmware installé' : 'Firmware manquant : clique pour l\'installer'}">${e.keys && e.keys.firmware ? ICON.check : ICON.chip}<span>Firmware</span></button>
     </div>` : '';
-  return `<article class="emu ecard" data-emu="${e.id}" style="--c:${color}">
+  return `<article class="emu ecard${prog && prog.step ? ' installing' : ''}" data-emu="${e.id}" style="--c:${color}">
     <div class="ecard-h"><h3>${esc(e.name)}</h3>${hasUpdate ? `<span class="status upd">${esc(e.latest)} dispo</span>` : `<span class="status ok">${ver ? ver : 'Installé'}</span>`}</div>
     <div class="ename">${emuTags(e, shared)}${emuHints(e)}</div>
     ${sys}

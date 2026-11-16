@@ -9,6 +9,7 @@ api.on('state:changed', (st) => {
   lastStateJson = json;
   S = st;
   applyAppearance();
+  updateIdle();
   // Pas de mise à jour de la fiche pendant que tu écris dedans (notes, options).
   if (modalState && modalState.detail && !document.activeElement?.closest?.('.modal input, .modal textarea')) refreshModal();
   if (!$('#tv').hidden) renderTV(true);
@@ -24,7 +25,20 @@ api.on('emu:progress', (p) => {
   if (ui.view === 'emulators') {
     const e = S.emulators.find((x) => x.id === p.id);
     const el = $(`.emu[data-emu="${p.id}"]`);
-    if (e && el) { const tmp = document.createElement('div'); tmp.innerHTML = emuCard(e); el.replaceWith(tmp.firstElementChild); }
+    if (!e || !el) return;
+    // Pendant une installation, on met la barre à jour sur place pour qu'elle avance en douceur.
+    const cur = $('.eprogress', el);
+    if (cur && p.step !== null) {
+      const tmp = document.createElement('div'); tmp.innerHTML = emuProgressHTML(p);
+      const nx = tmp.firstElementChild;
+      cur.className = nx.className;
+      for (const a of ['aria-label', 'aria-valuenow']) { if (nx.hasAttribute(a)) cur.setAttribute(a, nx.getAttribute(a)); else cur.removeAttribute(a); }
+      $('.ep-top', cur).innerHTML = $('.ep-top', nx).innerHTML;
+      $('.ep-sub', cur).textContent = $('.ep-sub', nx).textContent;
+      $('.ep-bar i', cur).style.setProperty('--p', $('.ep-bar i', nx).style.getPropertyValue('--p'));
+      return;
+    }
+    const tmp = document.createElement('div'); tmp.innerHTML = emuCard(e); el.replaceWith(tmp.firstElementChild);
   }
 });
 api.on('toast', (t) => toast(t.text, t.kind));

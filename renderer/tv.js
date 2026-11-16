@@ -32,9 +32,20 @@ function enterTV() {
   api.call('win:fullscreen', true).catch(() => {});
   tv.fullscreenSet = true;
   el.style.zoom = (Number(S.settings.tvScale) || 100) / 100;
+  el.classList.remove('leaving');
+  el.classList.add('entering');
+  clearTimeout(tv.enterT);
+  tv.enterT = setTimeout(() => el.classList.remove('entering'), 1100);
   renderTV();
 }
 function exitTV() {
+  const el = $('#tv');
+  if (el.hidden || el.classList.contains('leaving')) return;
+  // Petite sortie en fondu, sauf si Windows demande de réduire les animations.
+  if (!reduceMotion()) { el.classList.add('leaving'); setTimeout(closeTV, 240); } else closeTV();
+}
+function closeTV() {
+  $('#tv').classList.remove('leaving', 'entering');
   $('#tv').hidden = true;
   $('#tv').innerHTML = '';
   if (tv.fullscreenSet) api.call('win:fullscreen', false).catch(() => {});
@@ -88,25 +99,42 @@ function renderTV(keepShelf) {
   if (on) {
     const track = $('#tvTrack');
     const left = on.offsetLeft - 80;
-    track.scrollTo({ left: Math.max(0, left - track.clientWidth * 0.0), behavior: 'smooth' });
+    track.scrollTo({ left: Math.max(0, left), behavior: reduceMotion() ? 'auto' : 'smooth' });
   }
 
   const h = heroInfo(g);
   tvSetBg(h);
+  tvGlow(g);
   const cov = $('#tvCover');
   if (h && h.cover) { cov.style.display = ''; $('img', cov).src = h.cover; cov.style.opacity = 1; } else cov.style.opacity = 0;
 
-  const meta = metaParts(g).map((x) => `<span class="mi">${esc(x)}</span>`).join('');
-  $('#tvInfo').innerHTML = `
+  const p = plat(g.platform);
+  const stat = (v, l, cls = '') => `<div class="hz-stat${cls}"><b>${esc(v)}</b><span>${esc(l)}</span></div>`;
+  const info = $('#tvInfo');
+  const changed = info.dataset.game !== g.id;
+  info.dataset.game = g.id;
+  info.innerHTML = `
     <div class="kicker${g.running ? ' live' : ''}"><i class="dot"></i>${g.running ? 'En cours' : (g.emuReady ? 'Prêt à jouer' : 'Émulateur à installer')}</div>
     ${g.art.logo ? `<img class="tv-logo" src="${esc(g.art.logo)}" alt="" data-title="${esc(g.name)}">` : `<h1 class="tv-title${g.name.length > 20 ? ' long' : ''}">${esc(g.name)}</h1>`}
-    <div class="tv-meta">${meta}</div>
+    <div class="hz-stats tv-stats">
+      ${stat(g.minutes >= 1 ? fmtTime(g.minutes) : '0 h', 'de jeu', ' big')}
+      ${stat(g.last ? fmtLast(g.last).replace(/^./, (c) => c.toUpperCase()) : 'Jamais', 'dernière partie')}
+      ${stat(p.label, sourceLabel(g))}
+    </div>
     <div class="tv-acts"><button class="btn primary play focus" data-tvplay>${ICON.play}Jouer</button><button class="btn round" data-tvmenu title="Options">${ICON.dots}</button></div>`;
+  if (changed) { info.classList.remove('swap'); void info.offsetWidth; info.classList.add('swap'); }
 
   if (tv.menu) drawTvMenu();
 }
 
 let tvBgShown = 'A', tvBgUrl = null;
+// Couleur dominante du jeu sélectionné : sert à la lueur de la carte et au fond.
+function tvGlow(g) {
+  const el = $('#tv');
+  const key = g.art.cover || g.art.hero || g.art.header;
+  el.style.setProperty('--gl', (key && colorCache.get(key)) || hexToRgb(plat(g.platform).color));
+  if (key && !colorCache.has(key)) colorFor(key).then((rgb) => { if (rgb && tvCurrent() === g) el.style.setProperty('--gl', rgb); });
+}
 function tvSetBg(h) {
   const url = h ? h.url : null;
   if (url === tvBgUrl) return;

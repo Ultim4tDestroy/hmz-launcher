@@ -1,0 +1,269 @@
+/* HMZ · Système de design (3.0)
+   Chargé après style.css : toutes les valeurs communes (police, arrondis, espacements,
+   ombres, durées) vivent ici, en variables. Les thèmes ne changent que les couleurs. */
+
+@property --ang { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+
+:root {
+  /* Une seule police, du titre au plus petit libellé. */
+  --font: 'Inter', 'Segoe UI Variable Text', system-ui, sans-serif;
+  --display: var(--font);
+  --ui: var(--font);
+
+  /* Arrondis : une seule échelle pour tout HMZ. */
+  --r-xs: 6px;
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 18px;
+  --r-xl: 26px;
+  --r-pill: 999px;
+  --radius: var(--r-md);
+
+  /* Espacements (multiples de 4). */
+  --s-1: 4px;  --s-2: 8px;  --s-3: 12px; --s-4: 16px;
+  --s-5: 24px; --s-6: 32px; --s-7: 48px; --s-8: 64px;
+  --page-x: 56px;
+
+  /* Tailles de texte. */
+  --t-xs: 11.5px; --t-sm: 12.5px; --t-base: 14px; --t-md: 16px;
+  --t-lg: 20px;   --t-xl: 28px;   --t-2xl: 40px;
+
+  /* Mouvement. */
+  --dur-1: .14s;
+  --dur-2: .24s;
+  --dur-3: .42s;
+  --dur-4: .7s;
+  --ease: cubic-bezier(.2, .8, .2, 1);
+  --ease-spring: cubic-bezier(.34, 1.36, .64, 1);
+
+  /* Profondeur. */
+  --sh-1: 0 1px 2px rgba(0, 0, 0, .25);
+  --sh-2: 0 14px 34px -14px rgba(0, 0, 0, .6);
+  --sh-3: 0 40px 80px -30px rgba(0, 0, 0, .8);
+  --ring: 0 0 0 2px var(--cream);
+
+  /* Couleur de lueur par défaut (remplacée par la couleur de la jaquette). */
+  --gl: var(--amb);
+}
+
+html, body { font-family: var(--font); font-feature-settings: 'cv11', 'ss03'; }
+.page-head h1 { letter-spacing: -.04em; }
+h1, h2, h3, .hero-title, .tv-title { font-family: var(--font); }
+
+/* --- Transitions entre les pages ------------------------------------------------------
+   Seul le contenu bouge ; la barre du haut et le fond restent en place. */
+#view { view-transition-name: page; }
+::view-transition-old(root), ::view-transition-new(root) { animation: none; }
+::view-transition-old(page) { animation: vt-page-out .16s var(--ease) both; }
+::view-transition-new(page) { animation: vt-page-in .38s var(--ease) both; }
+@keyframes vt-page-out { to { opacity: 0; transform: translateY(-6px); } }
+@keyframes vt-page-in { from { opacity: 0; transform: translateY(14px); } }
+
+/* --- Boutons ------------------------------------------------------------------------------ */
+.btn { transition: background var(--dur-1), color var(--dur-1), transform var(--dur-1) var(--ease), box-shadow var(--dur-2) var(--ease); }
+.btn.primary { position: relative; overflow: hidden; isolation: isolate; }
+/* Reflet qui traverse le bouton au survol. */
+.btn.primary::after { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: linear-gradient(110deg, transparent 35%, rgba(255, 255, 255, .55) 50%, transparent 65%); transform: translateX(-130%); }
+.btn.primary:hover::after { transform: translateX(130%); transition: transform .75s var(--ease); }
+/* Bouton Jouer : lueur aux couleurs du jeu, et bordure lumineuse qui tourne au survol. */
+.btn.play { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .4), 0 16px 40px -14px rgba(var(--gl), .9); }
+.btn.play::before { content: ''; position: absolute; inset: 0; border-radius: inherit; padding: 2px; pointer-events: none; opacity: 0; transition: opacity var(--dur-2);
+  background: conic-gradient(from var(--ang), transparent 0 62%, rgba(var(--gl), 1) 80%, #fff 90%, transparent 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
+.btn.play:hover::before { opacity: 1; animation: beam 2.2s linear infinite; }
+@keyframes beam { to { --ang: 360deg; } }
+:focus-visible { outline-color: var(--cream); }
+
+/* --- Interrupteurs (style Uiverse) ------------------------------------------------- */
+.toggle { transition: background var(--dur-2) var(--ease), box-shadow var(--dur-2); }
+.toggle::after { transition: left var(--dur-2) var(--ease-spring), width var(--dur-1) var(--ease), background var(--dur-2); box-shadow: 0 2px 6px rgba(0, 0, 0, .35); }
+.toggle:active::after { width: 25px; }
+.toggle.on:active::after { left: 16px; }
+.toggle.on { box-shadow: 0 0 18px -4px color-mix(in srgb, var(--cream) 70%, transparent); }
+
+/* --- Chargement ---------------------------------------------------------------------- */
+.tv-launch .spin, .spin-ring { border: 0; background: conic-gradient(from 0deg, transparent 0 25%, var(--cream)); -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 4px)); mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 4px)); animation: spin .8s linear infinite; }
+
+/* --- Accueil : le dernier jeu lancé, en grand ------------------------------------------ */
+.hero.hz { position: relative; height: auto; min-height: clamp(440px, 62vh, 660px); margin: 0; display: flex; align-items: flex-end; overflow: hidden; }
+.hz-bg { position: absolute; inset: 0; overflow: hidden; -webkit-mask-image: linear-gradient(180deg, #000 55%, transparent 100%); mask-image: linear-gradient(180deg, #000 55%, transparent 100%); }
+.hz-blur { position: absolute; inset: -12%; background-size: cover; background-position: center 30%; filter: blur(64px) saturate(1.45) brightness(.78); transform: scale(1.08); }
+.hz-shade { position: absolute; inset: 0; pointer-events: none; background:
+  radial-gradient(80% 90% at 0% 70%, rgba(var(--bg-rgb), .6), transparent 65%);
+  -webkit-mask-image: linear-gradient(180deg, #000 50%, transparent 100%); mask-image: linear-gradient(180deg, #000 50%, transparent 100%); }
+.hz-inner { position: relative; z-index: 1; width: 100%; display: flex; align-items: flex-end; gap: var(--s-7); padding: 96px var(--page-x) var(--s-7); }
+.hz-art { flex: none; position: relative; height: clamp(300px, 46vh, 440px); aspect-ratio: 2 / 3; border-radius: var(--r-lg); overflow: hidden; background: rgba(var(--fg-rgb), .06);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .14), var(--sh-3), 0 0 90px -16px rgba(var(--gl), .55);
+  transition: transform var(--dur-3) var(--ease), box-shadow var(--dur-3) var(--ease); }
+.hz-art.wide { aspect-ratio: 16 / 9; height: clamp(180px, 28vh, 280px); }
+.hz-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.hz-art::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; background: linear-gradient(155deg, rgba(255, 255, 255, .22), transparent 38%); }
+.hz-art:hover { transform: translateY(-4px) scale(1.015); box-shadow: 0 0 0 1px rgba(255, 255, 255, .22), var(--sh-3), 0 0 110px -10px rgba(var(--gl), .7); }
+.hz-fb { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: space-between; padding: var(--s-5); text-align: left; background: radial-gradient(120% 90% at 30% 10%, color-mix(in srgb, var(--c) 70%, #000), #000); }
+.hz-fb span { font-size: var(--t-sm); font-weight: 600; opacity: .8; }
+.hz-fb b { font-size: 30px; line-height: 1; font-weight: 800; letter-spacing: -.03em; }
+.hz-text { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-4); padding-bottom: var(--s-1); }
+.hz .hero-title { font-size: clamp(40px, 5vw, 80px); line-height: .96; font-weight: 800; letter-spacing: -.045em; max-width: 16ch; }
+.hz .hero-title.long { font-size: clamp(34px, 3.8vw, 60px); max-width: 22ch; }
+.hz .hero-logo { max-height: 170px; max-width: min(520px, 100%); }
+.hz-stats { display: flex; align-items: flex-end; gap: 0; margin: var(--s-1) 0 var(--s-2); }
+.hz-stat { display: flex; flex-direction: column; gap: 3px; padding: 0 var(--s-5); }
+.hz-stat:first-child { padding-left: 0; }
+.hz-stat + .hz-stat { border-left: 1px solid rgba(var(--fg-rgb), .16); }
+.hz-stat b { font-size: var(--t-lg); line-height: 1.05; font-weight: 700; letter-spacing: -.015em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.hz-stat span { font-size: var(--t-sm); color: var(--muted); white-space: nowrap; }
+.hz-stat.big b { font-size: 38px; font-weight: 800; letter-spacing: -.035em; }
+.hz .hero-actions { margin-top: 0; }
+
+/* Entrée du héros : seulement quand le jeu affiché change. */
+.hz.enter .hz-blur { animation: hz-bg-in var(--dur-4) var(--ease) both; }
+.hz.enter .hz-art { animation: hz-art-in .65s var(--ease) both; }
+.hz.enter .hz-text > * { animation: rise .6s var(--ease) both; }
+.hz.enter .hz-text > :nth-child(2) { animation-delay: .05s; }
+.hz.enter .hz-text > :nth-child(3) { animation-delay: .1s; }
+.hz.enter .hz-text > :nth-child(4) { animation-delay: .15s; }
+@keyframes hz-bg-in { from { opacity: 0; transform: scale(1.18); } }
+@keyframes hz-art-in { from { opacity: 0; transform: translateY(16px) scale(.96); } }
+@keyframes rise { from { opacity: 0; transform: translateY(14px); filter: blur(6px); } }
+
+/* --- Rangées de cartes (accueil) -------------------------------------------------------- */
+.rows { margin-top: 0; padding: var(--s-2) 0 var(--s-7); }
+.row { margin-bottom: var(--s-3); }
+.row-head { padding: 0 var(--page-x); margin-bottom: 0; align-items: center; }
+.row-head h2 { font-size: var(--t-lg); font-weight: 700; letter-spacing: -.02em; gap: var(--s-3); }
+.row-head h2 .count { font-size: var(--t-sm); font-weight: 500; letter-spacing: 0; }
+.row-head .sw { width: 10px; height: 10px; border-radius: 3px; background: var(--c); }
+.row-wrap { position: relative; }
+.row-track { gap: var(--s-4); padding: 22px var(--page-x) 30px; scroll-padding: 0 var(--page-x); scroll-snap-type: x proximity; scroll-behavior: smooth; overscroll-behavior-x: contain;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%); mask-image: linear-gradient(90deg, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%); }
+.row-track > .card { width: 168px; scroll-snap-align: start; }
+.row-arrow { position: absolute; top: calc(50% - 26px); z-index: 4; width: 40px; height: 40px; border-radius: var(--r-pill); display: grid; place-items: center; opacity: 0; pointer-events: none;
+  background: rgba(var(--bg-rgb), .6); backdrop-filter: var(--blur); box-shadow: var(--glass-hi), var(--sh-2); color: var(--text); transition: opacity var(--dur-2), transform var(--dur-2) var(--ease); }
+.row-arrow.l { left: 14px; }
+.row-arrow.r { right: 14px; }
+.row-wrap.scrollable:hover .row-arrow { opacity: 1; pointer-events: auto; }
+.row-arrow:hover { transform: scale(1.08); }
+
+/* --- Cartes : agrandissement doux et lueur à la couleur de la jaquette ------------------- */
+.card { outline: none; }
+.card .cover { transition: transform var(--dur-3) var(--ease), box-shadow var(--dur-3) var(--ease); will-change: transform; }
+.card:hover .cover, .card:focus-visible .cover {
+  transform: translateY(-4px) scale(1.05);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .2), 0 22px 44px -18px rgba(0, 0, 0, .75), 0 14px 64px -4px rgba(var(--gl), .95); }
+.card:focus-visible .cover { box-shadow: 0 0 0 2px var(--cream), 0 22px 44px -18px rgba(0, 0, 0, .75), 0 10px 48px -8px rgba(var(--gl), .7); }
+.card.selected .cover { box-shadow: 0 0 0 2px var(--cream), 0 16px 34px -16px rgba(0, 0, 0, .7); }
+.card .card-name { transition: color var(--dur-2); }
+.card:hover .card-name, .card:focus-visible .card-name { color: #fff; }
+/* Étagères 3D de la bibliothèque : la même lueur, au sol sous la boîte. */
+.slot::after { transition: transform var(--dur-3) var(--ease), opacity var(--dur-3), background var(--dur-3); }
+.slot:hover::after, .slot:focus-visible::after { background: radial-gradient(closest-side, rgba(var(--gl), .75), transparent); opacity: 1; transform: scale(1.15); }
+
+/* --- Mode TV ------------------------------------------------------------------------------- */
+#tv { --gl: 245, 234, 208; animation: none; }
+#tv.entering { animation: tv-in .55s var(--ease) both; }
+#tv.entering .tv-info > *, #tv.entering .tv-tabs, #tv.entering .tv-card { animation: rise .6s var(--ease) both; }
+#tv.entering .tv-tabs { animation-delay: .12s; }
+#tv.entering .tv-card:nth-child(1) { animation-delay: .16s; }
+#tv.entering .tv-card:nth-child(2) { animation-delay: .2s; }
+#tv.entering .tv-card:nth-child(3) { animation-delay: .24s; }
+#tv.entering .tv-card:nth-child(4) { animation-delay: .28s; }
+#tv.entering .tv-card:nth-child(n+5) { animation-delay: .32s; }
+#tv.leaving { animation: tv-out .24s var(--ease) both; pointer-events: none; }
+@keyframes tv-in { from { opacity: 0; transform: scale(1.035); } }
+@keyframes tv-out { to { opacity: 0; transform: scale(1.02); } }
+
+/* Fond : l'image du jeu, qui avance très lentement (comme sur console). */
+.tv-bg:not(.blur) { animation: tv-kb 40s ease-in-out infinite alternate; }
+@keyframes tv-kb { from { transform: scale(1.02); } to { transform: scale(1.1) translate3d(-1.5%, -1%, 0); } }
+.tv-shade { background:
+  radial-gradient(70% 60% at 75% 25%, rgba(var(--gl), .16), transparent 70%),
+  linear-gradient(90deg, rgba(0, 0, 0, .86) 0%, rgba(0, 0, 0, .5) 38%, transparent 68%),
+  linear-gradient(0deg, #000 0%, rgba(0, 0, 0, .82) 30%, transparent 62%) !important; transition: background var(--dur-4); }
+.tv-top { top: 30px; }
+.tv-clock { font-size: 22px; font-weight: 600; letter-spacing: -.01em; }
+.tv-info { gap: var(--s-4); }
+.tv-info.swap > * { animation: rise .45s var(--ease) both; }
+.tv-info.swap > :nth-child(2) { animation-delay: .04s; }
+.tv-info.swap > :nth-child(3) { animation-delay: .08s; }
+.tv-info.swap > :nth-child(4) { animation-delay: .12s; }
+.tv-title { font-weight: 800; letter-spacing: -.045em; }
+.tv-stats .hz-stat b { font-size: 26px; color: #fff; }
+.tv-stats .hz-stat.big b { font-size: 46px; }
+.tv-stats .hz-stat span { font-size: 16px; color: rgba(255, 255, 255, .62); }
+.tv-stats .hz-stat + .hz-stat { border-left-color: rgba(255, 255, 255, .2); }
+.tv-acts .btn.play.focus { box-shadow: 0 0 0 3px #fff, 0 0 0 8px rgba(var(--gl), .35), 0 18px 50px -10px rgba(var(--gl), .85); }
+.tv-cover { box-shadow: 0 0 0 1px rgba(255, 255, 255, .16), var(--sh-3), 0 0 120px -20px rgba(var(--gl), .7) !important; transition: opacity var(--dur-3); }
+
+/* Catégories : l'onglet actif est une pastille claire, comme sur Xbox. */
+.tv-tabs { gap: var(--s-2); align-items: center; margin-bottom: var(--s-2); }
+.tv-tabs button { font-size: 19px; font-weight: 700; padding: 9px 18px; border-radius: var(--r-pill); color: rgba(255, 255, 255, .5); transition: color var(--dur-2), background var(--dur-2); }
+.tv-tabs button.on { color: #0c0c0c; background: #fff; }
+.tv-tabs .lb { margin: 0 var(--s-2); }
+
+/* Cartes : celle qui est sélectionnée grossit, s'entoure de blanc et brille à sa couleur. */
+.tv-track { padding: 30px 80px 26px; gap: 26px; }
+.tv-card { opacity: .55; transition: opacity var(--dur-2), filter var(--dur-2); filter: saturate(.8); }
+.tv-card .thumb { transition: transform var(--dur-3) var(--ease-spring), box-shadow var(--dur-3) var(--ease); }
+.tv-card.on { opacity: 1; filter: none; }
+.tv-card.on .thumb { transform: scale(1.08); box-shadow: 0 0 0 3px #fff, 0 0 0 8px rgba(var(--gl), .4), 0 28px 60px -14px rgba(0, 0, 0, .85), 0 0 80px -6px rgba(var(--gl), .75); }
+.tv-card .nm { transition: color var(--dur-2), transform var(--dur-3) var(--ease); color: rgba(255, 255, 255, .55); }
+.tv-card .sb { opacity: 0; transition: opacity var(--dur-2); }
+.tv-card.on .nm { color: #fff; transform: translateY(8px); }
+.tv-card.on .sb { opacity: 1; transform: translateY(8px); }
+.tv-foot { background: linear-gradient(0deg, rgba(0, 0, 0, .7), transparent) !important; backdrop-filter: none !important; border-top: 0 !important; }
+.tv-menu { border-radius: var(--r-lg); backdrop-filter: var(--blur); }
+
+/* --- Émulateurs : progression d'une installation --------------------------------------- */
+.eprogress { width: 100%; display: flex; flex-direction: column; gap: var(--s-2); }
+.ep-top { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); }
+.ep-steps { display: flex; align-items: center; gap: var(--s-2); margin: 0; padding: 0; list-style: none; font-size: var(--t-sm); font-weight: 600; color: var(--faint); min-width: 0; }
+.ep-steps li { display: flex; align-items: center; gap: 6px; white-space: nowrap; transition: color var(--dur-2); }
+.ep-steps li + li::before { content: ''; width: 14px; height: 1.5px; border-radius: 2px; background: currentColor; opacity: .45; margin-right: 2px; }
+.ep-steps i { width: 16px; height: 16px; border-radius: 50%; display: grid; place-items: center; box-shadow: inset 0 0 0 1.5px currentColor; flex: none; }
+.ep-steps i svg { width: 10px; height: 10px; stroke-width: 3.2; }
+.ep-steps li.done { color: var(--green); }
+.ep-steps li.done i { background: var(--green); color: #0a1a10; box-shadow: none; }
+.ep-steps li.on { color: var(--text); }
+.ep-steps li.on i { box-shadow: inset 0 0 0 1.5px var(--c); }
+.ep-steps li.on i::after { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--c); animation: ep-ping 1.2s var(--ease) infinite; }
+@keyframes ep-ping { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--c) 70%, transparent); } 100% { box-shadow: 0 0 0 7px transparent; } }
+.ep-pct { font-size: 22px; line-height: 1; font-weight: 800; letter-spacing: -.03em; font-variant-numeric: tabular-nums; flex: none; }
+.ep-pct small { font-size: var(--t-sm); font-weight: 600; color: var(--muted); margin-left: 1px; }
+.ep-spin { display: block; width: 18px; height: 18px; border-radius: 50%; background: conic-gradient(from 0deg, transparent 0 25%, var(--c)); -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px)); mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px)); animation: spin .8s linear infinite; }
+.ep-bar { position: relative; height: 8px; border-radius: var(--r-pill); background: rgba(var(--fg-rgb), .08); overflow: hidden; }
+.ep-bar i { position: absolute; inset: 0 auto 0 0; width: calc(var(--p) * 1%); border-radius: inherit; overflow: hidden; transition: width .5s var(--ease);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--c) 75%, #000), color-mix(in srgb, var(--c) 70%, #fff)); box-shadow: 0 0 18px color-mix(in srgb, var(--c) 65%, transparent); }
+.ep-bar i::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .5), transparent); transform: translateX(-100%); animation: ep-sheen 1.6s var(--ease) infinite; }
+.eprogress.indet .ep-bar i { width: 38%; animation: ep-indet 1.3s ease-in-out infinite; }
+@keyframes ep-sheen { to { transform: translateX(100%); } }
+@keyframes ep-indet { from { transform: translateX(-100%); } to { transform: translateX(270%); } }
+.ep-sub { font-size: var(--t-sm); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.emu-page .emu.erow.installing { background: linear-gradient(90deg, color-mix(in srgb, var(--c) 12%, transparent), transparent 75%); }
+.erow.installing .eprog { flex: 0 1 440px; min-width: 260px; }
+.erow.installing .edot { animation: ep-ping 1.2s var(--ease) infinite; }
+.ecard.installing::before { opacity: 1; background: linear-gradient(90deg, transparent, var(--c), transparent) !important; background-size: 50% 100% !important; background-repeat: no-repeat !important; animation: ep-line 1.6s linear infinite; }
+@keyframes ep-line { from { background-position: -50% 0; } to { background-position: 150% 0; } }
+
+/* --- Au repos : HMZ caché, réduit ou jeu en cours → les animations décoratives s'arrêtent - */
+.is-idle .tv-bg, .is-idle .kicker .dot, .is-idle .btn.play::before, .is-idle #ambient *, .is-idle .ep-steps li.on i::after, .is-idle .erow.installing .edot { animation-play-state: paused !important; }
+
+/* --- Windows « Afficher les animations » désactivé --------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; animation-delay: 0s !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
+  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
+  .tv-bg:not(.blur) { animation: none !important; }
+  .eprogress.indet .ep-bar i { animation: none !important; width: 100%; opacity: .45; }
+  .ep-bar i::after, .ecard.installing::before, .btn.play::before { animation: none !important; }
+  .card:hover .cover, .card:focus-visible .cover, .hz-art:hover, .tv-card.on .thumb { transform: none; }
+}
+
+/* Mode TV : tailles adaptées à la police unique */
+.tv-title { font-size: clamp(42px, min(5.6vw, 9vh), 112px); line-height: .95; max-width: 15ch; }
+.tv-title.long { font-size: clamp(36px, min(4.4vw, 7.5vh), 86px); max-width: 20ch; }
+.tv-info { width: 60%; }
+.tv-tabs { overflow: hidden; }
+.tv-tabs button, .tv-tabs .count { white-space: nowrap; flex: none; }
+.tv-tabs button { font-size: 17px; padding: 8px 16px; }
+.tv-info { bottom: calc(var(--shelf-h, 330px) + 128px); }
+.hz .kicker, .tv-info .kicker { backdrop-filter: blur(12px); background: color-mix(in srgb, rgba(var(--bg-rgb), .55) 70%, var(--cream) 12%); }
+.hz .kicker.live, .tv-info .kicker.live { background: color-mix(in srgb, rgba(var(--bg-rgb), .55) 70%, var(--amber) 16%); }
