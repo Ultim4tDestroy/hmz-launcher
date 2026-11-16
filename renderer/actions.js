@@ -44,7 +44,6 @@ async function installEmu(id) {
 
 document.addEventListener('click', async (ev) => {
   const t = ev.target.closest('button, [data-url], .linkish, a, .lrow, .slot');
-  if (!ev.target.closest('.theme-pop, #themeBtn')) $('.theme-pop')?.remove();
   if (!$('#ctx').hidden && !ev.target.closest('#ctx')) closeCtx();
   if (!t) return;
   const d = t.dataset;
@@ -89,8 +88,6 @@ document.addEventListener('click', async (ev) => {
   if (d.collsec) { ui.closed[d.collsec] = !ui.closed[d.collsec]; return render(); }
   if (d.snav) { const el = document.getElementById(d.snav); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
   if (d.libview) { setAppearance({ libView: d.libview }); return render(); }
-  if (d.themePick) { setAppearance({ theme: d.themePick }); $$('[data-theme-pick]').forEach((b) => b.classList.toggle('on', b.dataset.themePick === d.themePick)); return; }
-  if (d.accent !== undefined) { setAppearance({ accent: d.accent }); $$('[data-accent]').forEach((b) => b.classList.toggle('on', b.dataset.accent === d.accent)); return; }
   if (d.collmenu) { const r = t.getBoundingClientRect(); return openCollCtx(d.collmenu, r.left, r.bottom + 8); }
   if (d.colltoggle) {
     const gid = d.id, cid = d.colltoggle;
@@ -336,7 +333,6 @@ $('#searchBtn').onclick = openPalette;
 let resizeT = null;
 addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(() => { if (ui.view === 'library' && (S.settings.libView || 'shelf') === 'shelf' && !$('#view input:focus')) render(); }, 160); });
 $('#tvBtn').onclick = () => enterTV();
-$('#themeBtn').onclick = (e) => { e.stopPropagation(); toggleThemePop(); };
 $('#randomBtn').onclick = () => randomGame();
 
 // Garde ouvert/fermé le bloc « Dossiers de jeux » d'un rendu à l'autre.

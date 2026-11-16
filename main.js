@@ -119,7 +119,7 @@ function defaults() {
   return {
     settings: {
       root, romDirs, sgdbKey: '', startInTV: false, emuFullscreen: true, minimizeOnPlay: true,
-      scanSteam: true, scanEpic: true, scanOthers: true, scanStores: true, showOwned: true, closeClients: false, globalSearch: true, discord: false, discordId: '', tvCursor: true, tvDisplay: '', tvScale: 100,
+      scanSteam: true, scanEpic: true, scanOthers: true, scanStores: true, showOwned: true, closeClients: false, globalSearch: true, discord: false, discordId: '', tvCursor: true, tvSounds: true, tvDisplay: '', tvScale: 100,
       theme: 'foret', accent: '', cardSize: 168, libView: 'shelf',
       padQuit: true, padHome: true, backups: true, backupDir: '', autostart: false,
     },

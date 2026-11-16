@@ -23,93 +23,65 @@ const ORDER = ['switch2', 'switch', 'wiiu', 'wii', 'gc', '3ds', 'ds', 'n64', 'sn
 const FAMILY = { nintendo: 'Nintendo', playstation: 'PlayStation', xbox: 'Xbox', sega: 'Sega et rétro' };
 
 const ICON = {
-  play: '<svg viewBox="0 0 24 24"><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12.4-7.5a1 1 0 0 0 0-1.72L8.5 3.64A1 1 0 0 0 7 4.5z"/></svg>',
-  dots: '<svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></svg>',
-  info: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>',
-  star: '<svg viewBox="0 0 24 24"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg>',
-  folder: '<svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>',
-  image: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></svg>',
-  edit: '<svg viewBox="0 0 24 24"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z"/></svg>',
-  eye: '<svg viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
-  trash: '<svg viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>',
-  plus: '<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
-  check: '<svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg>',
-  download: '<svg viewBox="0 0 24 24"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14"/></svg>',
-  ext: '<svg viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>',
-  refresh: '<svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></svg>',
-  pad: '<svg viewBox="0 0 24 24"><rect x="2.5" y="7" width="19" height="11" rx="5.5"/><path d="M7 11v3M5.5 12.5h3"/><circle cx="16" cy="11.5" r=".8"/><circle cx="18" cy="13.5" r=".8"/></svg>',
-  key: '<svg viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="m11 12 9-9M17 6l3 3M15 8l2 2"/></svg>',
-  chip: '<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></svg>',
-  palette: '<svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.6-.8 1.6-1.6 0-.5-.2-.8-.5-1.2-.3-.3-.4-.7-.4-1.1 0-.9.7-1.6 1.6-1.6H16a5 5 0 0 0 5-5c0-4-4-7.5-9-7.5z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10.5" cy="7" r="1"/><circle cx="15.5" cy="7.5" r="1"/></svg>',
-  shelf: '<svg viewBox="0 0 24 24"><path d="M3 20h18M3 12h18"/><rect x="5" y="4" width="3" height="8" rx=".5"/><rect x="9.5" y="5" width="3" height="7" rx=".5"/><rect x="14" y="14" width="3" height="6" rx=".5"/><rect x="6" y="14.5" width="4" height="5.5" rx=".5"/></svg>',
-  grid: '<svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>',
-  list: '<svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/></svg>',
-  chevL: '<svg viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg>',
-  chevR: '<svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>',
-  chev: '<svg class="chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>',
-  clock: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
-  sparkle: '<svg viewBox="0 0 24 24"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/></svg>',
-  layers: '<svg viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/></svg>',
-  tagic: '<svg viewBox="0 0 24 24"><path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z"/><circle cx="7.5" cy="7.5" r="1.3"/></svg>',
-  warn: '<svg viewBox="0 0 24 24"><path d="M12 3 2 20h20zM12 10v4M12 17h.01"/></svg>',
-  x: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+  // <ICÔNES>
+  play: '<svg viewBox="0 0 24 24"><path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z" /></svg>',
+  dots: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></svg>',
+  info: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" /></svg>',
+  star: '<svg viewBox="0 0 24 24"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z" /></svg>',
+  folder: '<svg viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" /></svg>',
+  image: '<svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" ry="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" /></svg>',
+  edit: '<svg viewBox="0 0 24 24"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" /><path d="m15 5 4 4" /></svg>',
+  eye: '<svg viewBox="0 0 24 24"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" /><circle cx="12" cy="12" r="3" /></svg>',
+  trash: '<svg viewBox="0 0 24 24"><path d="M10 11v6" /><path d="M14 11v6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /><path d="M3 6h18" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>',
+  plus: '<svg viewBox="0 0 24 24"><path d="M5 12h14" /><path d="M12 5v14" /></svg>',
+  check: '<svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" /></svg>',
+  download: '<svg viewBox="0 0 24 24"><path d="M12 15V3" /><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="m7 10 5 5 5-5" /></svg>',
+  ext: '<svg viewBox="0 0 24 24"><path d="M15 3h6v6" /><path d="M10 14 21 3" /><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /></svg>',
+  refresh: '<svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /><path d="M8 16H3v5" /></svg>',
+  pad: '<svg viewBox="0 0 24 24"><line x1="6" x2="10" y1="11" y2="11" /><line x1="8" x2="8" y1="9" y2="13" /><line x1="15" x2="15.01" y1="12" y2="12" /><line x1="18" x2="18.01" y1="10" y2="10" /><path d="M17.32 5H6.68a4 4 0 0 0-3.978 3.59c-.006.052-.01.101-.017.152C2.604 9.416 2 14.456 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.414-1.414A2 2 0 0 1 9.828 16h4.344a2 2 0 0 1 1.414.586L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.545-.604-6.584-.685-7.258-.007-.05-.011-.1-.017-.151A4 4 0 0 0 17.32 5z" /></svg>',
+  key: '<svg viewBox="0 0 24 24"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z" /><circle cx="16.5" cy="7.5" r=".5" fill="currentColor" /></svg>',
+  chip: '<svg viewBox="0 0 24 24"><path d="M12 20v2" /><path d="M12 2v2" /><path d="M17 20v2" /><path d="M17 2v2" /><path d="M2 12h2" /><path d="M2 17h2" /><path d="M2 7h2" /><path d="M20 12h2" /><path d="M20 17h2" /><path d="M20 7h2" /><path d="M7 20v2" /><path d="M7 2v2" /><rect x="4" y="4" width="16" height="16" rx="2" /><rect x="8" y="8" width="8" height="8" rx="1" /></svg>',
+  palette: '<svg viewBox="0 0 24 24"><path d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8z" /><circle cx="13.5" cy="6.5" r=".5" fill="currentColor" /><circle cx="17.5" cy="10.5" r=".5" fill="currentColor" /><circle cx="6.5" cy="12.5" r=".5" fill="currentColor" /><circle cx="8.5" cy="7.5" r=".5" fill="currentColor" /></svg>',
+  shelf: '<svg viewBox="0 0 24 24"><path d="m16 6 4 14" /><path d="M12 6v14" /><path d="M8 8v12" /><path d="M4 4v16" /></svg>',
+  grid: '<svg viewBox="0 0 24 24"><rect width="7" height="7" x="3" y="3" rx="1" /><rect width="7" height="7" x="14" y="3" rx="1" /><rect width="7" height="7" x="14" y="14" rx="1" /><rect width="7" height="7" x="3" y="14" rx="1" /></svg>',
+  list: '<svg viewBox="0 0 24 24"><path d="M3 5h.01" /><path d="M3 12h.01" /><path d="M3 19h.01" /><path d="M8 5h13" /><path d="M8 12h13" /><path d="M8 19h13" /></svg>',
+  chevL: '<svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6" /></svg>',
+  chevR: '<svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></svg>',
+  chev: '<svg class="chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></svg>',
+  clock: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>',
+  sparkle: '<svg viewBox="0 0 24 24"><path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z" /><path d="M20 2v4" /><path d="M22 4h-4" /><circle cx="4" cy="20" r="2" /></svg>',
+  layers: '<svg viewBox="0 0 24 24"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z" /><path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12" /><path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17" /></svg>',
+  tagic: '<svg viewBox="0 0 24 24"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z" /><circle cx="7.5" cy="7.5" r=".5" fill="currentColor" /></svg>',
+  warn: '<svg viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3" /><path d="M12 9v4" /><path d="M12 17h.01" /></svg>',
+  x: '<svg viewBox="0 0 24 24"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>',
+  home: '<svg viewBox="0 0 24 24"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" /><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg>',
+  tv: '<svg viewBox="0 0 24 24"><path d="m17 2-5 5-5-5" /><rect width="20" height="15" x="2" y="7" rx="2" /></svg>',
+  dice: '<svg viewBox="0 0 24 24"><rect width="12" height="12" x="2" y="10" rx="2" ry="2" /><path d="m17.92 14 3.5-3.5a2.24 2.24 0 0 0 0-3l-5-4.92a2.24 2.24 0 0 0-3 0L10 6" /><path d="M6 18h.01" /><path d="M10 14h.01" /><path d="M15 6h.01" /><path d="M18 9h.01" /></svg>',
+  settings: '<svg viewBox="0 0 24 24"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915" /><circle cx="12" cy="12" r="3" /></svg>',
+  search: '<svg viewBox="0 0 24 24"><path d="m21 21-4.34-4.34" /><circle cx="11" cy="11" r="8" /></svg>',
+  stats: '<svg viewBox="0 0 24 24"><path d="M5 21v-6" /><path d="M12 21V3" /><path d="M19 21V9" /></svg>',
+  minus: '<svg viewBox="0 0 24 24"><path d="M5 12h14" /></svg>',
+  square: '<svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" /></svg>',
+  flame: '<svg viewBox="0 0 24 24"><path d="M12 3q1 4 4 6.5t3 5.5a1 1 0 0 1-14 0 5 5 0 0 1 1-3 1 1 0 0 0 5 0c0-2-1.5-3-1.5-5q0-2 2.5-4" /></svg>',
+  calendar: '<svg viewBox="0 0 24 24"><path d="M8 2v3" /><path d="M16 2v3" /><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18" /><path d="M8 13h.01" /><path d="M12 13h.01" /><path d="M16 13h.01" /><path d="M8 17h.01" /><path d="M12 17h.01" /><path d="M16 17h.01" /></svg>',
+  trophy: '<svg viewBox="0 0 24 24"><path d="M10 14.66V17a1 1 0 0 1-1 1 2 2 0 0 0-2 2v2" /><path d="M14 14.66V17a1 1 0 0 0 1 1 2 2 0 0 1 2 2v2" /><path d="M17.916 10H19.5A2.5 2.5 0 0 0 22 7.5V5a1 1 0 0 0-1-1h-3" /><path d="M4 22h16" /><path d="M6 9a6 6 0 0 0 12 0V3a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1z" /><path d="M6.084 10H4.5A2.5 2.5 0 0 1 2 7.5V5a1 1 0 0 1 1-1h3" /></svg>',
+  volume: '<svg viewBox="0 0 24 24"><path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z" /><path d="M16 9a5 5 0 0 1 0 6" /><path d="M19.364 18.364a9 9 0 0 0 0-12.728" /></svg>',
+  // </ICÔNES>
 };
 
-// --- Thèmes ----------------------------------------------------------------------------
-const THEMES = [
-  { id: 'foret', label: 'Forêt', sub: 'Par défaut', c: ['#0a0d0b', '#101512', '#f5ead0', '#5fd38d'] },
-  { id: 'minuit', label: 'Minuit', sub: 'Bleu nuit', c: ['#060912', '#0f1729', '#8fb4ff', '#5fd3c0'] },
-  { id: 'neon', label: 'Néon', sub: 'Cyberpunk', c: ['#06050a', '#120f1e', '#ff3ea5', '#3ef0ff'] },
-  { id: 'sakura', label: 'Sakura', sub: 'Rose doux', c: ['#120a10', '#21131d', '#ffb3cf', '#9be3b5'] },
-  { id: 'lave', label: 'Lave', sub: 'Orange chaud', c: ['#0d0907', '#1c1410', '#ff7a3d', '#ffcb5c'] },
-  { id: 'aurore', label: 'Aurore', sub: 'Vert polaire', c: ['#041110', '#0c2220', '#5ef0c6', '#b4f25e'] },
-  { id: 'retro', label: 'Rétro', sub: 'Console portable', c: ['#0f1a0f', '#1a2c1a', '#9bbc0f', '#c8e86a'] },
-  { id: 'oled', label: 'OLED', sub: 'Noir pur', c: ['#000000', '#0a0a0a', '#ffffff', '#4ade80'] },
-  { id: 'glace', label: 'Glace', sub: 'Clair', c: ['#e9eef3', '#ffffff', '#1f6feb', '#16a34a'] },
-];
-const ACCENTS = ['#f5ead0', '#8fb4ff', '#ff3ea5', '#ffb3cf', '#ff7a3d', '#5ef0c6', '#9bbc0f', '#c084fc', '#f6c344', '#ff5a4e', '#ffffff'];
+// Icônes de la barre du haut (écrites dans le HTML sous forme de repères).
+$$('[data-icon]').forEach((el) => { el.outerHTML = ICON[el.dataset.icon] || ''; });
 
-function inkFor(hex) {
-  const n = parseInt(hex.replace('#', ''), 16);
-  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
-  return (0.299 * r + 0.587 * g + 0.114 * b) > 150 ? '#141414' : '#ffffff';
-}
+// --- Apparence : une seule palette (renderer/design.css) ---------------------------------
 function applyAppearance(st = S && S.settings) {
   if (!st) return;
-  const root = document.documentElement;
-  if (st.theme && st.theme !== 'foret') root.dataset.theme = st.theme; else delete root.dataset.theme;
-  if (st.accent) { root.style.setProperty('--cream', st.accent); root.style.setProperty('--cream-ink', inkFor(st.accent)); }
-  else { root.style.removeProperty('--cream'); root.style.removeProperty('--cream-ink'); }
-  root.style.setProperty('--card-min', `${st.cardSize || 168}px`);
+  document.documentElement.style.setProperty('--card-min', `${st.cardSize || 168}px`);
 }
 function setAppearance(patch) {
   Object.assign(S.settings, patch);
   applyAppearance();
   api.call('settings:set', patch).catch(() => {});
 }
-function themeCards() {
-  const cur = S.settings.theme || 'foret';
-  return `<div class="theme-grid">${THEMES.map((t) => `<button class="theme-card${cur === t.id ? ' on' : ''}" data-theme-pick="${t.id}">
-    <div class="theme-prev" style="background:linear-gradient(135deg, ${t.c[0]}, ${t.c[1]})">
-      <i class="tp-bar" style="background:${t.id === 'glace' ? '#111821' : '#f4f0e6'}"></i><i class="tp-line" style="background:${t.id === 'glace' ? '#111821' : '#f4f0e6'}"></i>
-      <i class="tp-btn" style="background:${t.c[2]}"></i>
-      <span class="tp-cards"><i style="background:${t.c[2]}"></i><i style="background:${t.c[3]}"></i><i style="background:${t.id === 'glace' ? '#c9d3de' : '#ffffff33'}"></i></span>
-    </div>
-    <div class="theme-name">${esc(t.label)}<small>${esc(t.sub)}</small></div></button>`).join('')}</div>`;
-}
-function accentSwatches() {
-  const cur = S.settings.accent || '';
-  return `<div class="swatches"><button class="swatch auto${!cur ? ' on' : ''}" data-accent="" title="Couleur du thème"></button>${ACCENTS.map((c) => `<button class="swatch${cur === c ? ' on' : ''}" data-accent="${c}" style="background:${c}" title="${c}"></button>`).join('')}</div>`;
-}
-function toggleThemePop() {
-  const old = $('.theme-pop');
-  if (old) { old.remove(); return; }
-  const el = document.createElement('div');
-  el.className = 'theme-pop';
-  el.innerHTML = `<h4>Thème</h4>${themeCards()}<h4 style="margin-top:14px">Couleur d'accent</h4>${accentSwatches()}`;
-  document.body.appendChild(el);
-}
-
 // --- Ambiance : image floutée et couleur du jeu sélectionné ------------------------------
 const colorCache = new Map(Object.entries((() => { try { return JSON.parse(localStorage.getItem('hmzColors') || '{}'); } catch { return {}; } })()));
 function hexToRgb(h) { const n = parseInt(String(h).replace('#', ''), 16); return `${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}`; }
@@ -182,6 +154,8 @@ function moveNavInd() {
   ind.style.width = on.offsetWidth + 'px';
 }
 addEventListener('resize', () => moveNavInd());
+// La police change la largeur des onglets : on replace l'indicateur une fois chargée.
+if (document.fonts) document.fonts.ready.then(() => moveNavInd());
 let hoverT = null;
 document.addEventListener('mouseover', (e) => {
   const sl = e.target.closest && e.target.closest('.slot[data-game], .rows .card[data-game]');
@@ -241,6 +215,34 @@ function glowFor(el) {
 }
 document.addEventListener('pointerover', (e) => { const el = e.target.closest && e.target.closest('.card[data-game], .slot[data-game]'); if (el) glowFor(el); });
 document.addEventListener('focusin', (e) => { const el = e.target.closest && e.target.closest('.card[data-game], .slot[data-game]'); if (el) glowFor(el); });
+
+// --- Effet fort de l'accueil : la jaquette s'incline vers la souris, avec un reflet ---------
+// (transform seulement, une mise à jour par image au plus, rien quand la souris ne bouge pas)
+let tiltRaf = 0, tiltEv = null;
+document.addEventListener('pointermove', (e) => {
+  const art = e.target.closest && e.target.closest('.hz-art');
+  if (!art || reduceMotion()) return;
+  tiltEv = { art, x: e.clientX, y: e.clientY };
+  if (tiltRaf) return;
+  tiltRaf = requestAnimationFrame(() => {
+    tiltRaf = 0;
+    const { art: a, x, y } = tiltEv;
+    const r = a.getBoundingClientRect();
+    const px = (x - r.left) / r.width - 0.5, py = (y - r.top) / r.height - 0.5;
+    a.style.setProperty('--rx', `${(-py * 10).toFixed(2)}deg`);
+    a.style.setProperty('--ry', `${(px * 12).toFixed(2)}deg`);
+    a.style.setProperty('--sx', `${(px * 60).toFixed(1)}%`);
+    a.style.setProperty('--sy', `${(py * 60).toFixed(1)}%`);
+    a.classList.add('tilting');
+  });
+});
+document.addEventListener('pointerout', (e) => {
+  const art = e.target.closest && e.target.closest('.hz-art');
+  if (art && !art.contains(e.relatedTarget)) { art.classList.remove('tilting'); ['--rx', '--ry', '--sx', '--sy'].forEach((k) => art.style.removeProperty(k)); }
+});
+
+// Voile sous la barre du haut quand la page défile.
+$('#view').addEventListener('scroll', (e) => document.documentElement.classList.toggle('scrolled', e.currentTarget.scrollTop > 8), { passive: true });
 
 // --- Au repos : rien ne bouge quand HMZ est caché, réduit, ou qu'un jeu tourne -------------
 function updateIdle() {

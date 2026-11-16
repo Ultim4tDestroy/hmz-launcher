@@ -1,6 +1,13 @@
 // HMZ · Pages : accueil, bibliothèque, émulateurs, statistiques, paramètres.
 // (Les fichiers de l'interface partagent leurs variables : ils sont chargés dans l'ordre de index.html.)
 // Accueil ------------------------------------------------------------------------------------
+// Temps de jeu des 7 derniers jours (sessions déjà connues de l'interface).
+function weekMinutes(id) {
+  const since = Date.now() - 7 * 864e5;
+  let ms = 0;
+  for (const x of S.sessions || []) if (x.g === id && x.e > since) ms += x.e - Math.max(x.s, since);
+  return ms / 60000;
+}
 // Le héros ne rejoue son animation d'entrée que quand le jeu affiché change (pas à chaque rafraîchissement).
 let heroShown = null;
 function heroHTML(g) {
@@ -16,18 +23,19 @@ function heroHTML(g) {
     ? `<img src="${esc(cover)}" draggable="false" alt="">`
     : wide ? `<img src="${esc(wide)}" draggable="false" alt="">` : `<div class="hz-fb"><span>${esc(p.label)}</span><b>${esc(g.name)}</b></div>`;
   const stat = (v, l, cls = '') => `<div class="hz-stat${cls}"><b>${esc(v)}</b><span>${esc(l)}</span></div>`;
+  const week = weekMinutes(g.id);
   return `<section class="hero hz${enter ? ' enter' : ''}" style="--c:${p.color}">
       <div class="hz-bg">${blurSrc ? `<div class="hz-blur" style="background-image:url('${esc(blurSrc)}')"></div>` : ''}</div>
       <div class="hz-shade"></div>
       <div class="hz-inner">
-        <button class="hz-art${cover ? '' : ' wide'}" data-detail="${esc(g.id)}" title="Voir la fiche">${art}</button>
+        <button class="hz-art${cover ? '' : ' wide'}" data-detail="${esc(g.id)}" title="Voir la fiche"><span class="hz-tilt">${art}<i class="hz-shine"></i></span></button>
         <div class="hz-text">
-          <div class="kicker${g.running ? ' live' : ''}"><i class="dot"></i>${kicker}</div>
+          <div class="hz-kick"><div class="kicker${g.running ? ' live' : ''}"><i class="dot"></i>${kicker}</div><span class="hz-plat"><i style="background:${p.color}"></i>${esc(p.label)} · ${esc(sourceLabel(g))}</span></div>
           ${g.art.logo ? `<img class="hero-logo" src="${esc(g.art.logo)}" alt="${esc(g.name)}" data-title="${esc(g.name)}">` : `<h1 class="hero-title${g.name.length > 22 ? ' long' : ''}">${esc(g.name)}</h1>`}
           <div class="hz-stats">
             ${stat(g.minutes >= 1 ? fmtTime(g.minutes) : '0 h', 'de jeu', ' big')}
             ${stat(g.last ? fmtLast(g.last).replace(/^./, (c) => c.toUpperCase()) : 'Jamais', 'dernière partie')}
-            ${stat(p.label, sourceLabel(g))}
+            ${week >= 1 ? stat(fmtTime(week), 'cette semaine') : ''}
           </div>
           <div class="hero-actions">
             <button class="btn primary play" data-play="${esc(g.id)}">${playIcon(g)}${playLabel(g)}</button>
@@ -168,7 +176,7 @@ function renderCollPanel(all) {
   }).join('');
   const newRow = ui.newColl ? `<div class="coll-new"><input id="newCollName" placeholder="Nom de la collection" maxlength="60"></div>` : '';
   return `<aside class="coll-panel">
-    <div class="coll-search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="libSearch" placeholder="Filtrer" value="${esc(ui.q)}"></div>
+    <div class="coll-search">${ICON.search}<input id="libSearch" placeholder="Filtrer" value="${esc(ui.q)}"></div>
     <nav class="clist">${quick}</nav>
     ${collSection('user', 'Mes collections', `<div class="clist">${user || (ui.newColl ? '' : '<p class="chint">Crée une collection, puis glisse des jeux dessus.</p>')}${newRow}</div>`, `<button class="cadd" data-action="new-coll" title="Nouvelle collection">${ICON.plus}</button>`)}
     ${plats ? collSection('plats', 'Consoles', `<div class="pills">${plats}</div>`) : ''}
@@ -293,7 +301,7 @@ function renderEmulators() {
       ${nInst ? `<button class="btn ghost sm" data-action="check-updates">${ICON.refresh}Mises à jour</button>` : ''}</div>
     <p class="emu-legal">${ICON.info}<span>Les jeux, BIOS et clés ne sont pas fournis : ils viennent de ta propre console. Installe les émulateurs ici ou depuis leur site officiel, jamais ailleurs.</span></p>
     <div class="emu-bar">
-      <label class="emu-search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="emuQ" type="search" placeholder="Chercher une console ou un émulateur" value="${esc(f.q)}" autocomplete="off" spellcheck="false"></label>
+      <label class="emu-search">${ICON.search}<input id="emuQ" type="search" placeholder="Chercher une console ou un émulateur" value="${esc(f.q)}" autocomplete="off" spellcheck="false"></label>
       <div class="seg emu-fam">${chip('all', 'Toutes')}${Object.entries(FAMILY).map(([k, l]) => chip(k, l)).join('')}</div>
     </div>
     <div class="emu-results">${emuResultsHTML()}</div>
@@ -321,6 +329,18 @@ function emuHints(e) {
 }
 function emuTags(e, shared) {
   return `${e.platforms.map((p) => `<span class="tag" style="--c:${plat(p).color}">${esc(plat(p).label)}</span>`).join('')}${e.experimental ? '<span class="tag" style="--c:#f6c344">Expérimental</span>' : ''}${shared ? '<span class="tag" style="--c:var(--cream)">Conseillé</span>' : ''}`;
+}
+// Le pourcentage défile jusqu'à sa nouvelle valeur (compteur animé, ~0,4 s).
+function countTo(el, from, to) {
+  if (!el || reduceMotion() || from === to || from == null) return;
+  const t0 = performance.now(), d = 420;
+  const tick = (now) => {
+    const k = Math.min(1, (now - t0) / d), v = Math.round(from + (to - from) * (1 - (1 - k) ** 3));
+    if (el.firstChild) el.firstChild.nodeValue = String(v);
+    if (k < 1 && el.isConnected) requestAnimationFrame(tick);
+  };
+  if (el.firstChild) el.firstChild.nodeValue = String(from);
+  requestAnimationFrame(tick);
 }
 // Progression d'une installation : 3 étapes, barre animée, pourcentage.
 const EMU_STAGES = ['Recherche', 'Téléchargement', 'Installation'];
@@ -474,8 +494,6 @@ function renderSettingsRaw() {
     <div class="page-head"><div><h1>Paramètres</h1><p>HMZ Launcher ${esc(S.version)}</p></div></div>
     <div class="settings">
       <div class="set-group">Apparence</div>
-      <div class="set" style="display:block"><div class="t" style="margin-bottom:12px">Thème</div>${themeCards()}</div>
-      <div class="set"><div><div class="t">Couleur d'accent</div><div class="d">Boutons, sélection et graphiques. Le multicolore reprend la couleur du thème.</div></div>${accentSwatches()}</div>
       <div class="set"><div><div class="t">Taille des jaquettes</div><div class="d">Dans la bibliothèque. Aussi réglable directement depuis la bibliothèque.</div></div><input type="range" class="range" id="cardSize" min="120" max="260" step="4" value="${S.settings.cardSize || 168}"></div>
       <div class="set-group">Version</div>
       <div class="set"><div><div class="t">HMZ Launcher ${esc(S.version)}${S.codeSource === 'mise à jour' ? ' · mise à jour locale' : ''}</div>
@@ -509,6 +527,7 @@ function renderSettingsRaw() {
       <div class="set"><div><div class="t">Afficher les jeux masqués</div><div class="d">Pour retrouver un jeu que tu as masqué.</div></div><button class="toggle${ui.showHidden ? ' on' : ''}" data-action="toggle-hidden"></button></div>
       <div class="set"><div><div class="t">Recherche depuis n'importe où</div><div class="d"><b>Ctrl + Alt + Espace</b> ouvre la recherche de HMZ même quand il est réduit, pour lancer un jeu en deux secondes. Clic droit sur l'icône HMZ dans la barre des tâches : tes jeux récents.</div></div>${tg('globalSearch')}</div>
       <div class="set-group">Mode TV</div>
+      <div class="set"><div><div class="t">Sons et vibrations</div><div class="d">Petits sons de navigation et légère vibration de la manette, comme sur console.</div></div>${tg('tvSounds')}</div>
       <div class="set"><div><div class="t">Cacher la souris</div><div class="d">Le pointeur disparaît après 2 secondes sans bouger.</div></div>${tg('tvCursor')}</div>
       <div class="set"><div><div class="t">Écran du mode TV</div><div class="d">Pratique si ta télé est branchée en deuxième écran.</div></div><select class="select" id="tvDisplay"><option value="">Écran actuel</option>${(ui.displays || []).map((d) => `<option value="${esc(d.id)}"${String(s.tvDisplay) === d.id ? ' selected' : ''}>${esc(d.label)}</option>`).join('')}</select></div>
       <div class="set"><div><div class="t">Taille du texte et des jaquettes</div><div class="d">Agrandis tout si tu joues loin de l'écran.</div></div><select class="select" id="tvScale">${[[100, 'Normale'], [115, 'Grande'], [130, 'Très grande']].map(([v, l]) => `<option value="${v}"${Number(s.tvScale || 100) === v ? ' selected' : ''}>${l}</option>`).join('')}</select></div>

@@ -33,7 +33,10 @@ api.on('emu:progress', (p) => {
       const nx = tmp.firstElementChild;
       cur.className = nx.className;
       for (const a of ['aria-label', 'aria-valuenow']) { if (nx.hasAttribute(a)) cur.setAttribute(a, nx.getAttribute(a)); else cur.removeAttribute(a); }
+      const oldPct = parseInt(($('.ep-pct', cur) || {}).textContent, 10);
       $('.ep-top', cur).innerHTML = $('.ep-top', nx).innerHTML;
+      const pctEl = $('.ep-pct', cur);
+      if (pctEl && pctEl.firstChild && pctEl.firstChild.nodeType === 3 && !Number.isNaN(oldPct)) countTo(pctEl, oldPct, parseInt(pctEl.textContent, 10));
       $('.ep-sub', cur).textContent = $('.ep-sub', nx).textContent;
       $('.ep-bar i', cur).style.setProperty('--p', $('.ep-bar i', nx).style.getPropertyValue('--p'));
       return;

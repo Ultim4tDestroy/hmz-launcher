@@ -18,7 +18,8 @@
     "electron": "^45.0.0",
     "electron-builder": "^26.0.0",
     "eslint": "^9.39.5",
-    "globals": "^15.15.0"
+    "globals": "^15.15.0",
+    "lucide-static": "^1.73.0"
   },
   "build": {
     "appId": "fr.hmz.launcher",

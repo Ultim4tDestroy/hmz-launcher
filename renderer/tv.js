@@ -34,6 +34,7 @@ function enterTV() {
   el.style.zoom = (Number(S.settings.tvScale) || 100) / 100;
   el.classList.remove('leaving');
   el.classList.add('entering');
+  uiSound('open');
   clearTimeout(tv.enterT);
   tv.enterT = setTimeout(() => el.classList.remove('entering'), 1100);
   renderTV();
@@ -81,7 +82,7 @@ function renderTV(keepShelf) {
     el.dataset.tab = tab.key; el.dataset.n = String(tab.games.length);
     el.innerHTML = `<div class="tv-bg" id="tvBgA"></div><div class="tv-bg" id="tvBgB" style="opacity:0"></div><div class="tv-shade"></div>
       <div class="tv-cover" id="tvCover" style="opacity:0"><img alt=""></div>
-      <div class="tv-top"><div class="brand"><span class="brand-mark"></span>HMZ</div><div class="tv-clock" id="tvClock"></div></div>
+      <div class="tv-top"><div class="brand"><span class="brand-mark"></span>HMZ</div><div class="tv-hello" id="tvHello"></div><div class="tv-clock" id="tvClock"></div></div>
       <div class="tv-info" id="tvInfo"></div>
       <div class="tv-shelf">
         <div class="tv-tabs"><span class="lb">LB</span>${tabs.map((t, i) => `<button class="${i === tv.tab ? 'on' : ''}" data-tvtab="${i}">${esc(t.label)}</button>`).join('')}<span class="lb">RB</span><span class="count">${tab.games.length} jeu${tab.games.length > 1 ? 'x' : ''}</span></div>
@@ -94,6 +95,8 @@ function renderTV(keepShelf) {
     tvBgShown = 'A'; tvBgUrl = null;
     tvClock();
   }
+  const onTab = $('.tv-tabs button.on', el);
+  if (onTab) { const bar = onTab.parentElement; const l = onTab.offsetLeft - 120; if (l < bar.scrollLeft || onTab.offsetLeft + onTab.offsetWidth > bar.scrollLeft + bar.clientWidth - 120) bar.scrollLeft = Math.max(0, l); }
   $$('.tv-card', el).forEach((c, i) => c.classList.toggle('on', i === tv.idx));
   const on = $('.tv-card.on', el);
   if (on) {
@@ -119,7 +122,7 @@ function renderTV(keepShelf) {
     <div class="hz-stats tv-stats">
       ${stat(g.minutes >= 1 ? fmtTime(g.minutes) : '0 h', 'de jeu', ' big')}
       ${stat(g.last ? fmtLast(g.last).replace(/^./, (c) => c.toUpperCase()) : 'Jamais', 'dernière partie')}
-      ${stat(p.label, sourceLabel(g))}
+      ${weekMinutes(g.id) >= 1 ? stat(fmtTime(weekMinutes(g.id)), 'cette semaine') : stat(p.label, sourceLabel(g))}
     </div>
     <div class="tv-acts"><button class="btn primary play focus" data-tvplay>${ICON.play}Jouer</button><button class="btn round" data-tvmenu title="Options">${ICON.dots}</button></div>`;
   if (changed) { info.classList.remove('swap'); void info.offsetWidth; info.classList.add('swap'); }
@@ -152,20 +155,26 @@ function tvSetBg(h) {
 
 function tvClock() {
   const c = $('#tvClock');
-  if (c) { const d = new Date(); c.textContent = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; }
+  const d = new Date();
+  if (c) c.textContent = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  const h = $('#tvHello');
+  if (h) { const hr = d.getHours(); h.textContent = hr < 5 ? 'Bonne nuit' : hr < 18 ? 'Bonjour' : 'Bonsoir'; }
 }
 setInterval(tvClock, 10000);
 
 function tvMove(dx) {
   const tab = tvTabs()[tv.tab];
   if (!tab) return;
+  const before = tv.idx;
   tv.idx = Math.max(0, Math.min(tab.games.length - 1, tv.idx + dx));
+  if (tv.idx !== before) { uiSound('move'); padRumble(); } else uiSound('edge');
   renderTV(true);
 }
 function tvTab(d) {
   const n = tvTabs().length;
   tv.tab = (tv.tab + d + n) % n;
   tv.idx = 0;
+  uiSound('tab');
   renderTV();
 }
 
@@ -226,10 +235,10 @@ function tvAction(a) {
     case 'right': tvMove(1); break;
     case 'up': case 'lb': tvTab(-1); break;
     case 'down': case 'rb': tvTab(1); break;
-    case 'ok': if (g) play(g.id); break;
+    case 'ok': if (g) { uiSound('play'); padRumble(60, .5); play(g.id); } break;
     case 'fav': if (g) api.call('game:update', g.id, { favorite: !g.favorite }); break;
     case 'menu': tvMenuOpen(); break;
-    case 'back': exitTV(); break;
+    case 'back': uiSound('back'); exitTV(); break;
   }
 }
 
@@ -290,6 +299,7 @@ function onPad(k) {
   if (!document.hasFocus()) return;
   if ($('#tv').hidden) {
     if (k === 'start') enterTV();
+    else deskPad(k);
     return;
   }
   tvAction(k === 'start' ? 'menu' : k);
@@ -320,3 +330,60 @@ window.addEventListener('gamepadconnected', (e) => {
   if (ui.view === 'settings' && !modalState) render();
 });
 window.addEventListener('gamepaddisconnected', () => { if (ui.view === 'settings' && !modalState) render(); });
+
+// --- Manette sur le bureau : se déplacer dans les rangées de l'accueil ----------------------
+// Croix ou stick : choisir un jeu (la carte grossit et brille) ; A : afficher le jeu en haut,
+// puis A sur « Jouer » ; B : revenir en haut. Start ouvre toujours le mode TV.
+function deskPad(k) {
+  if (ui.view !== 'home' || modalState) return;
+  const cur = document.activeElement;
+  const rows = $$('.rows .row-track');
+  const inRow = cur && cur.closest && cur.closest('.rows .card[data-game]');
+  const playBtn = $('.hz .btn.play');
+  const focus = (el) => { if (!el) return; el.focus({ preventScroll: true }); el.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: reduceMotion() ? 'auto' : 'smooth' }); padRumble(); };
+  if (!inRow && cur !== playBtn) { if (['left', 'right', 'up', 'down'].includes(k)) focus(playBtn || $('.rows .card[data-game]')); return; }
+  if (cur === playBtn) {
+    if (k === 'down') focus($('.rows .card.selected') || $('.rows .card[data-game]'));
+    else if (k === 'ok') playBtn.click();
+    return;
+  }
+  const track = inRow.closest('.row-track');
+  const cards = $$('.card[data-game]', track);
+  const i = cards.indexOf(inRow), r = rows.indexOf(track);
+  if (k === 'left' || k === 'right') focus(cards[Math.max(0, Math.min(cards.length - 1, i + (k === 'right' ? 1 : -1)))]);
+  else if (k === 'down' && rows[r + 1]) { const n = $$('.card[data-game]', rows[r + 1]); focus(n[Math.min(i, n.length - 1)]); }
+  else if (k === 'up') { if (r > 0) { const n = $$('.card[data-game]', rows[r - 1]); focus(n[Math.min(i, n.length - 1)]); } else { $('#view').scrollTo({ top: 0, behavior: reduceMotion() ? 'auto' : 'smooth' }); focus(playBtn); } }
+  else if (k === 'ok') { ui.heroId = inRow.dataset.game; renderHero(); uiSound('tab'); $('#view').scrollTo({ top: 0, behavior: reduceMotion() ? 'auto' : 'smooth' }); setTimeout(() => focus($('.hz .btn.play')), 50); }
+  else if (k === 'back') { $('#view').scrollTo({ top: 0, behavior: reduceMotion() ? 'auto' : 'smooth' }); focus(playBtn); }
+}
+
+// --- Sons d'interface (créés à la volée, aucun fichier) et vibration de la manette ----------
+let audioCtx = null;
+function uiSound(kind) {
+  if (!S || S.settings.tvSounds === false || $('#tv').hidden && kind !== 'open') return;
+  try {
+    audioCtx = audioCtx || new AudioContext();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const t = audioCtx.currentTime;
+    const tone = (f1, f2, dur, vol, type = 'sine', at = 0) => {
+      const o = audioCtx.createOscillator(), gn = audioCtx.createGain();
+      o.type = type; o.frequency.setValueAtTime(f1, t + at); o.frequency.exponentialRampToValueAtTime(f2, t + at + dur);
+      gn.gain.setValueAtTime(0.0001, t + at); gn.gain.exponentialRampToValueAtTime(vol, t + at + 0.008); gn.gain.exponentialRampToValueAtTime(0.0001, t + at + dur);
+      o.connect(gn).connect(audioCtx.destination); o.start(t + at); o.stop(t + at + dur + 0.02);
+    };
+    if (kind === 'move') tone(1250, 1050, 0.045, 0.035, 'triangle');
+    else if (kind === 'edge') tone(300, 260, 0.06, 0.04, 'triangle');
+    else if (kind === 'tab') tone(700, 900, 0.07, 0.04, 'triangle');
+    else if (kind === 'play') { tone(523, 523, 0.12, 0.05, 'triangle'); tone(784, 784, 0.22, 0.05, 'triangle', 0.08); }
+    else if (kind === 'back') tone(600, 380, 0.09, 0.04, 'triangle');
+    else if (kind === 'open') { tone(392, 392, 0.18, 0.04, 'sine'); tone(587, 587, 0.24, 0.04, 'sine', 0.09); tone(784, 784, 0.36, 0.035, 'sine', 0.18); }
+  } catch {}
+}
+function padRumble(ms = 22, strength = 0.22) {
+  if (!S || S.settings.tvSounds === false) return;
+  try {
+    for (const gp of navigator.getGamepads ? navigator.getGamepads() : []) {
+      if (gp && gp.connected && gp.vibrationActuator) gp.vibrationActuator.playEffect('dual-rumble', { duration: ms, weakMagnitude: strength, strongMagnitude: strength / 3 }).catch(() => {});
+    }
+  } catch {}
+}

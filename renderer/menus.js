@@ -18,7 +18,6 @@ function paletteActions() {
     { label: 'Afficher en liste', icon: ICON.list, run: () => { setAppearance({ libView: 'list' }); go('library'); render(); } },
     { label: 'Ajouter mes jeux BlueStacks', icon: ICON.plus, run: () => openBlueStacks() },
     { label: 'Raccourcis clavier', icon: ICON.info, kbd: '?', run: () => openKeys() },
-    ...THEMES.map((t) => ({ label: `Thème ${t.label}`, icon: ICON.palette, run: () => setAppearance({ theme: t.id }) })),
   ];
 }
 
