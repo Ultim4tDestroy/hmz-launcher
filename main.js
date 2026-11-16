@@ -20,7 +20,6 @@ const STORES = require('./src/stores');
 const EXTRAS = require('./src/extras');
 const HDR = require('./src/hdr');
 const PADCFG = require('./src/padconfig');
-const RIOT = require('./src/riot');
 const META = require('./src/meta');
 const CLIENTS = require('./src/clients');
 const { DiscordPresence, DEFAULT_APP_ID: DISCORD_DEFAULT_ID } = require('./src/discord');
@@ -560,19 +559,15 @@ async function launchGame(id, emuOverride) {
     db.save(); notifyChange(); minimizeForGame();
     return { ok: true };
   }
-  // Jeux Riot : le Riot Client ignore souvent la demande de lancement pendant qu'il démarre ou se
-  // connecte. On la renvoie une fois le client prêt, jusqu'à ce que le jeu s'ouvre (voir src/riot.js).
+  // Jeux Riot : depuis 2026, Riot ouvre toujours la page du jeu dans le Riot Client, et il faut y
+  // cliquer sur « Jouer » (même connecté, même avec le raccourci officiel). Aucun moyen officiel
+  // de passer cette étape : on ouvre la bonne page et on le dit clairement.
   if (g.source === 'riot' && g.launch && exists(g.launch.target)) {
-    const rc = g.launch.target, rargs = [...(g.launch.args || []), ...splitArgs(g.launchArgs)];
-    const send = () => spawn(rc, rargs, { cwd: path.dirname(rc), detached: true, stdio: 'ignore' }).unref();
-    send();
-    const product = RIOT.productOf(rargs);
-    RIOT.ensureStarted(product, { send, runningNames, wait: (ms) => new Promise((r) => setTimeout(r, ms)), log: (t) => LOG.info(t) })
-      .then((r) => LOG.info(`Lancement Riot (${product}) : ${r.started ? 'jeu ouvert' : r.started === false ? 'jeu pas détecté' : 'demande renvoyée'}, ${r.resends} renvoi(s)`))
-      .catch((e) => console.warn(e));
+    const rc = g.launch.target;
+    spawn(rc, [...(g.launch.args || []), ...splitArgs(g.launchArgs)], { cwd: path.dirname(rc), detached: true, stdio: 'ignore' }).unref();
     g.lastLaunched = Date.now();
     db.save(); notifyChange(); minimizeForGame();
-    return { ok: true };
+    return { ok: true, viaLauncher: 'Riot Client' };
   }
   // Jeu BlueStacks ajouté depuis HMZ : la bonne instance et la commande des raccourcis BlueStacks.
   if (g.source === 'bluestacks' && g.manualMobile && g.package) {
@@ -647,11 +642,6 @@ async function launchGame(id, emuOverride) {
   return { ok: true };
 }
 
-// Noms (en minuscules) de tous les programmes ouverts, en un seul appel.
-async function runningNames() {
-  if (process.platform !== 'win32') return [];
-  try { return (await run('tasklist', ['/FO', 'CSV', '/NH'])).split(/\r?\n/).map((l) => (l.match(/^"([^"]+)"/) || [])[1]).filter(Boolean).map((n) => n.toLowerCase()); } catch { return []; }
-}
 async function isProcessRunning(name) {
   if (process.platform !== 'win32') return false;
   try { return new RegExp(`^"${name.replace(/\./g, '\\.')}"`, 'im').test(await run('tasklist', ['/FI', `IMAGENAME eq ${name}`, '/FO', 'CSV', '/NH'])); } catch { return false; }

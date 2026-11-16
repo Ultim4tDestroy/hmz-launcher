@@ -105,32 +105,3 @@ console.log('ROM OK', names);
   console.log('libretro OK', decodeURIComponent(u1.split('/').pop()), '|', u2 && decodeURIComponent(u2.split('/').pop()));
 })().catch(e=>{ console.error(e); process.exit(1); });
 
-// Lancement direct des jeux Riot : la demande est renvoyée une fois le client prêt.
-(async () => {
-  const assert = require('assert');
-  const R = require('../src/riot');
-  assert.strictEqual(R.productOf(['--launch-product=valorant', '--launch-patchline=live']), 'valorant');
-  const sim = (timeline) => {
-    let t = 0, sends = 0;
-    const deps = { wait: async (ms) => { t += ms; }, send: () => { sends++; }, log: () => {}, runningNames: async () => timeline(t, sends) };
-    return { deps, sends: () => sends };
-  };
-  const o = { step: 1000, settle: 3000, gap: 5000, total: 60000 };
-  // 1. Le client s'ouvre et reste sur sa page : on renvoie, puis le jeu démarre après le 1er renvoi.
-  let s = sim((t, n) => (t < 2000 ? [] : n >= 1 ? ['riot client.exe', 'valorant-win64-shipping.exe'] : ['riot client.exe']));
-  let r = await R.ensureStarted('valorant', s.deps, o);
-  assert.deepStrictEqual(r, { started: true, resends: 1 });
-  // 2. Le jeu démarre tout seul : aucun renvoi.
-  s = sim((t) => (t < 4000 ? ['riot client.exe'] : ['riot client.exe', 'valorant.exe']));
-  r = await R.ensureStarted('valorant', s.deps, o);
-  assert.deepStrictEqual(r, { started: true, resends: 0 });
-  // 3. Le jeu ne vient jamais (mise à jour, Vanguard…) : au plus 3 renvois, pas d'insistance.
-  s = sim(() => ['riot client.exe']);
-  r = await R.ensureStarted('valorant', s.deps, o);
-  assert.strictEqual(r.started, false); assert.strictEqual(r.resends, 3);
-  // 4. Client fermé : on ne renvoie rien.
-  s = sim(() => []);
-  r = await R.ensureStarted('valorant', s.deps, { ...o, total: 20000 });
-  assert.deepStrictEqual(r, { started: false, resends: 0 });
-  console.log('Riot OK');
-})().catch((e) => { console.error(e); process.exit(1); });
