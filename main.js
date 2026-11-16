@@ -58,6 +58,10 @@ process.on('unhandledRejection', (e) => onUnexpected('promesse', e));
 let win = null;
 let db = null;
 let art = null;
+// Raccourci de la recherche globale (voir applyGlobalSearch).
+const SEARCH_KEYS = ['Control+Alt+Space', 'Control+Shift+Space', 'Control+Alt+H', 'Alt+Shift+H', 'Control+Shift+H'];
+let globalSearchKey = null;
+const keyLabel = (k) => (k ? k.replace('Control', 'Ctrl').replace('Shift', 'Maj').replace('Space', 'Espace').split('+').join(' + ') : null);
 const running = new Map();     // id du jeu → { start, kind: 'child' | 'detect' }
 let minimizedForGame = false;
 const CUR_VERSION = process.env.HMZ_VERSION || app.getVersion();
@@ -214,6 +218,7 @@ function publicState() {
   const since = Date.now() - 400 * 864e5;
   return {
     version: CUR_VERSION,
+    globalSearchKey: keyLabel(globalSearchKey),
     builtinVersion: process.env.HMZ_BUILTIN_VERSION || CUR_VERSION,
     codeSource: process.env.HMZ_CODE_SOURCE || 'installée',
     updateReady,
@@ -841,12 +846,21 @@ function updateJumpList() {
   } catch (e) { console.warn('Jump list', e.message); }
 }
 
-// Recherche de jeux depuis n'importe où (Ctrl + Alt + Espace).
+// Recherche de jeux depuis n'importe où. Ctrl + Alt + Espace de préférence ; s'il est déjà pris
+// par un autre programme, on essaie les suivants et les Paramètres affichent celui qui marche.
 function applyGlobalSearch() {
-  try { globalShortcut.unregister('Control+Alt+Space'); } catch {}
+  if (globalSearchKey) { try { globalShortcut.unregister(globalSearchKey); } catch {} }
+  globalSearchKey = null;
   if (!db.data.settings.globalSearch) return;
-  const ok = globalShortcut.register('Control+Alt+Space', () => { bringToFront(false); send('palette:open'); });
-  if (!ok) LOG.info('Raccourci Ctrl+Alt+Espace déjà pris par un autre programme.');
+  const taken = [];
+  for (const k of SEARCH_KEYS) {
+    let ok = false;
+    try { ok = globalShortcut.register(k, () => { bringToFront(false); send('palette:open'); }); } catch {}
+    if (ok) { globalSearchKey = k; break; }
+    taken.push(keyLabel(k));
+  }
+  if (db) notifyChange();
+  if (taken.length) LOG.info(`Raccourci de recherche : ${taken.join(', ')} déjà pris ; ${globalSearchKey ? `${keyLabel(globalSearchKey)} utilisé à la place` : 'aucun raccourci libre'}.`);
 }
 app.on('will-quit', () => { try { globalShortcut.unregisterAll(); } catch {} });
 

@@ -12,7 +12,7 @@ const electron = {
   BrowserWindow: function(){ return fakeWin; },
   ipcMain: { handle:(ch,fn)=>{ handlers[ch]=fn; } },
   dialog: { showErrorBox:(t,m)=>console.error('BOÎTE D\'ERREUR:', t, m) }, shell: { openExternal: async()=>{}, openPath: async()=>'' }, Menu: { setApplicationMenu(){}, buildFromTemplate:()=>({}) },
-  globalShortcut: { register:()=>true, unregister(){}, unregisterAll(){} }, Tray: function(){ return { setToolTip(){}, setContextMenu(){}, on(){}, destroy(){} }; }, nativeImage: { createFromPath:()=>({ resize(){ return this; } }) },
+  globalShortcut: { register:(k)=>k!=='Control+Alt+Space', unregister(){}, unregisterAll(){} }, Tray: function(){ return { setToolTip(){}, setContextMenu(){}, on(){}, destroy(){} }; }, nativeImage: { createFromPath:()=>({ resize(){ return this; } }) },
 };
 const orig = Module._load;
 Module._load = function(req, ...a){ if (req==='electron') return electron; return orig.call(this, req, ...a); };
@@ -45,6 +45,10 @@ try { readyCb(); } catch (e) { console.error('ÉCHEC au démarrage :', e); proce
   if (diag.includes(os.homedir()) && os.homedir().length > 3) { console.error('ÉCHEC : le diagnostic contient le dossier personnel'); process.exit(1); }
   console.log('diagnostic OK,', diag.split('\n').length, 'lignes');
   console.log('événements envoyés:', [...new Set(sent)].join(', '));
+  // Raccourci de recherche déjà pris par un autre programme : HMZ en prend un autre et le dit.
+  const st3 = await call('state:get');
+  if (st3.globalSearchKey !== 'Ctrl + Maj + Espace') { console.error('ÉCHEC : raccourci de secours non utilisé', st3.globalSearchKey); process.exit(1); }
+  console.log('raccourci de recherche :', st3.globalSearchKey);
   if (crashes().length) { console.error('ÉCHEC : plantage noté', crashes()); process.exit(1); }
   reachedEnd = true;
   process.exit(0);

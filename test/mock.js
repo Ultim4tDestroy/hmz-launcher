@@ -57,7 +57,7 @@
     version: '2.0.0',
     settings: { root: 'C:\\Users\\Hamza\\HMZ', romDirs: { ds: ['C:\\Users\\Hamza\\HMZ\\Jeux\\DS'], '3ds': ['C:\\Users\\Hamza\\HMZ\\Jeux\\3DS'], switch: ['C:\\Users\\Hamza\\HMZ\\Jeux\\Switch', 'D:\\Jeux Switch'], switch2: ['C:\\Users\\Hamza\\HMZ\\Jeux\\Switch 2'], ps2: ['C:\\Users\\Hamza\\HMZ\\Jeux\\PS2'] }, sgdbKey: '', backups: true, backupDirShown: 'C:\\Users\\Hamza\\HMZ\\Sauvegardes', padQuit: true, padHome: true, scanOthers: true, autostart: false, startInTV: false, emuFullscreen: true, minimizeOnPlay: true, scanSteam: true, scanEpic: true },
     platforms: window.__CAT ? window.__CAT.platforms : {},
-    games, emulators, sessions, padKinds: ['playstation'], collections: [{ id: 'c1', name: 'À finir', color: '#ff6b5e', games: ['switch:zelda-totk', 'ds:pokemon-heartgold'] }, { id: 'c2', name: 'Soirées entre potes', color: '#7aa2ff', games: ['switch2:mario-kart-world', 'switch:smash', 'steam:730'] }],
+    games, emulators, sessions, globalSearchKey: 'Ctrl + Maj + Espace', padKinds: ['playstation'], collections: [{ id: 'c1', name: 'À finir', color: '#ff6b5e', games: ['switch:zelda-totk', 'ds:pokemon-heartgold'] }, { id: 'c2', name: 'Soirées entre potes', color: '#7aa2ff', games: ['switch2:mario-kart-world', 'switch:smash', 'steam:730'] }],
   };
   if (location.hash === '#empty') state.games = [];
   const listeners = {};
