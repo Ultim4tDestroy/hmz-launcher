@@ -23,7 +23,7 @@ Les mêmes vérifications tournent sur GitHub à **chaque** modification (onglet
 
 ## Publier une version
 
-1. Augmenter le numéro de version dans `package.json`. Une version déjà publique n'est jamais republiée.
+1. Augmenter le numéro de version avec `npm version X.Y.Z --no-git-tag-version`, jamais à la main ni par rechercher-remplacer (`package-lock.json` contient d'autres paquets qui ont les mêmes numéros). Une version déjà publique n'est jamais republiée.
 2. Lancer **Actions › Publier une version**. Le workflow enchaîne :
    1. toutes les vérifications ci-dessus ;
    2. démarrage réel du code sous Windows ;
