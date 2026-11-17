@@ -11,6 +11,7 @@ const steps = [
   ['Démarrage (boot.js)', 'node', ['test/boot.test.js']],
   ['Démarrage simulé du programme principal', 'node', ['test/main.smoke.js']],
   ['Mode secours (version cassée → réparation automatique)', 'node', ['test/recovery.test.js']],
+  ['Jeux qui exigent les droits administrateur', 'node', ['test/elevation.test.js']],
   ['Préparation de l\'interface de test', 'node', ['test/gen-catalog.js']],
   ['', 'node', ['test/make-dev.js']],
   ['Parcours complet de l\'interface dans un navigateur', process.platform === 'win32' ? 'python' : 'python3', ['test/flow.py']],

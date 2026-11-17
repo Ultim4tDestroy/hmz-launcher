@@ -514,6 +514,70 @@ function afterGame(id) {
 }
 const splitArgs = (str) => (String(str || '').match(/(?:[^\s"]+|"[^"]*")+/g) || []).map((a) => a.replace(/^"|"$/g, ''));
 
+// Programme qui exige les droits administrateur : Windows refuse de le démarrer directement
+// (erreur 740 « élévation requise », que Node traduit en EACCES). Il doit passer par la
+// confirmation Windows, comme un double-clic.
+const needsElevation = (e) => process.platform === 'win32' && !!e && e.code === 'EACCES';
+
+// Message compréhensible pour un lancement raté (au lieu de « spawn C:\… EACCES »).
+function launchErrorText(e, cmd) {
+  const name = cmd ? path.basename(cmd) : 'le programme';
+  if (e && e.code === 'ENOENT') return `${name} est introuvable. Le jeu a peut-être été déplacé ou désinstallé.`;
+  if (e && (e.code === 'EACCES' || e.code === 'EPERM')) return `Windows refuse de lancer ${name} (droits insuffisants).`;
+  if (e && e.code === 'EBUSY') return `${name} est bloqué par un autre programme (antivirus, mise à jour en cours…).`;
+  return (e && e.message) || 'erreur inconnue';
+}
+
+// Démarre un programme avec la confirmation administrateur de Windows.
+// Se termine quand le programme est démarré, ou échoue si la confirmation est refusée.
+async function startElevated(cmd, args = [], cwd = path.dirname(cmd)) {
+  const q = (x) => `'${String(x).replace(/'/g, "''")}'`;
+  const ps = `Start-Process -FilePath ${q(cmd)} -WorkingDirectory ${q(exists(cwd) ? cwd : path.dirname(cmd))} -Verb RunAs${args.length ? ` -ArgumentList ${args.map((a) => q(/\s/.test(a) ? `"${a}"` : a)).join(',')}` : ''}`;
+  try {
+    await run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps]);
+  } catch (e) {
+    const msg = `${e.message} ${e.stderr || ''}`;
+    throw new Error(/annul|cancel/i.test(msg) ? 'Lancement annulé.' : `Lancement en administrateur impossible : ${String(e.stderr || e.message).trim().split('\n')[0]}`);
+  }
+}
+
+// Lance un programme détaché (boutique, launcher, émulateur…). S'il exige les droits
+// administrateur, on passe automatiquement par la confirmation Windows au lieu d'échouer.
+// Sans ce gestionnaire, une erreur de lancement ferait planter HMZ.
+function spawnDetached(cmd, args = [], cwd = path.dirname(cmd)) {
+  const child = spawn(cmd, args, { cwd, detached: true, stdio: 'ignore' });
+  child.on('error', (e) => {
+    if (needsElevation(e)) {
+      LOG.info('Droits administrateur requis :', path.basename(cmd));
+      startElevated(cmd, args, cwd).catch((err) => toast(err.message, 'error'));
+    } else {
+      console.warn('Lancement impossible', cmd, e.message);
+      toast(`Lancement impossible : ${launchErrorText(e, cmd)}`, 'error');
+    }
+  });
+  child.unref();
+  return child;
+}
+
+// Après un lancement en administrateur, HMZ ne suit pas le processus : le temps de jeu est
+// compté par la détection des jeux ouverts. Un jeu Netmarble qui ne démarre pas (il veut son
+// launcher) est repéré ici, comme pour un lancement normal.
+function afterElevatedLaunch(g, cmd) {
+  const base = path.basename(cmd).toLowerCase();
+  if (!(g.exeHints || []).includes(base)) g.exeHints = [...(g.exeHints || []), base];
+  g.lastLaunched = Date.now();
+  db.save(); notifyChange(); minimizeForGame();
+  if (g.source === 'netmarble' && g.launcherExe && exists(g.launcherExe)) {
+    setTimeout(async () => {
+      if (running.has(g.id) || await isProcessRunning(path.basename(cmd))) return;
+      spawnDetached(g.launcherExe);
+      g.needsLauncher = true;
+      db.save();
+      toast(`${g.customName || g.name} se lance depuis le launcher Netmarble : clique sur « Jouer » dans la fenêtre qui vient de s'ouvrir.`);
+    }, 20000);
+  }
+}
+
 async function launchGame(id, emuOverride) {
   const g = db.data.games[id];
   if (!g) throw new Error('Jeu introuvable');
@@ -537,7 +601,7 @@ async function launchGame(id, emuOverride) {
   // Jeu Netmarble qui exige son launcher : on l'ouvre directement (le temps de jeu est compté
   // dès que le jeu apparaît parmi les programmes ouverts).
   if (g.source === 'netmarble' && g.needsLauncher && g.launcherExe && exists(g.launcherExe)) {
-    spawn(g.launcherExe, [], { cwd: path.dirname(g.launcherExe), detached: true, stdio: 'ignore' }).unref();
+    spawnDetached(g.launcherExe);
     g.lastLaunched = Date.now();
     db.save(); notifyChange(); minimizeForGame();
     return { ok: true, viaLauncher: 'Netmarble' };
@@ -547,14 +611,14 @@ async function launchGame(id, emuOverride) {
   if (g.source === 'battlenet' && g.launch && exists(g.launch.target)) {
     const bnet = g.launch.target, args = g.launch.args;
     const open = await isProcessRunning('Battle.net.exe');
-    spawn(bnet, args, { cwd: path.dirname(bnet), detached: true, stdio: 'ignore' }).unref();
+    spawnDetached(bnet, args);
     if (!open) {
       (async () => {
         for (let i = 0; i < 20; i++) {
           await new Promise((r) => setTimeout(r, 3000));
           if (await isProcessRunning('Battle.net.exe')) {
             await new Promise((r) => setTimeout(r, 8000)); // le temps que Battle.net se connecte
-            spawn(bnet, args, { cwd: path.dirname(bnet), detached: true, stdio: 'ignore' }).unref();
+            spawnDetached(bnet, args);
             return;
           }
         }
@@ -569,7 +633,7 @@ async function launchGame(id, emuOverride) {
   // de passer cette étape : on ouvre la bonne page et on le dit clairement.
   if (g.source === 'riot' && g.launch && exists(g.launch.target)) {
     const rc = g.launch.target;
-    spawn(rc, [...(g.launch.args || []), ...splitArgs(g.launchArgs)], { cwd: path.dirname(rc), detached: true, stdio: 'ignore' }).unref();
+    spawnDetached(rc, [...(g.launch.args || []), ...splitArgs(g.launchArgs)]);
     g.lastLaunched = Date.now();
     db.save(); notifyChange(); minimizeForGame();
     return { ok: true, viaLauncher: 'Riot Client' };
@@ -596,14 +660,9 @@ async function launchGame(id, emuOverride) {
     if (!exists(cmd)) throw new Error('Le programme du jeu est introuvable.');
     if (g.runAsAdmin) {
       // Windows demande la confirmation administrateur ; le temps de jeu est compté par la détection.
-      const q = (x) => `'${String(x).replace(/'/g, "''")}'`;
-      const ps = `Start-Process -FilePath ${q(cmd)} -WorkingDirectory ${q((g.launch.cwd && exists(g.launch.cwd)) ? g.launch.cwd : path.dirname(cmd))} -Verb RunAs${args.length ? ` -ArgumentList ${args.map((a) => q(/\s/.test(a) ? `"${a}"` : a)).join(',')}` : ''}`;
-      await run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps]).catch((e) => { throw new Error(/annul|cancel/i.test(e.message) ? 'Lancement annulé.' : `Lancement en administrateur impossible : ${e.message}`); });
-      const base = path.basename(cmd).toLowerCase();
-      if (!(g.exeHints || []).includes(base)) g.exeHints = [...(g.exeHints || []), base];
-      g.lastLaunched = Date.now();
-      db.save(); notifyChange(); minimizeForGame();
-      return { ok: true };
+      await startElevated(cmd, args, (g.launch.cwd && exists(g.launch.cwd)) ? g.launch.cwd : path.dirname(cmd));
+      afterElevatedLaunch(g, cmd);
+      return { ok: true, elevated: true };
     }
   } else if (g.launch && g.launch.type === 'shell') {
     spawn('explorer.exe', [g.launch.target], { detached: true, stdio: 'ignore' }).unref();
@@ -617,23 +676,48 @@ async function launchGame(id, emuOverride) {
     return { ok: true };
   }
 
-  const child = spawn(cmd, args, { cwd: (g.launch && g.launch.cwd && exists(g.launch.cwd)) ? g.launch.cwd : path.dirname(cmd), detached: true, stdio: 'ignore', windowsHide: false });
+  const cwd = (g.launch && g.launch.cwd && exists(g.launch.cwd)) ? g.launch.cwd : path.dirname(cmd);
+  const child = spawn(cmd, args, { cwd, detached: true, stdio: 'ignore', windowsHide: false });
+  // Le jeu exige les droits administrateur : on le relance avec la confirmation Windows et
+  // on s'en souvient (option « Lancer en administrateur » activée, modifiable dans la fiche).
+  const elevateInstead = async () => {
+    running.delete(id); // pas endSession : le jeu va démarrer, HDR et boutique restent prêts
+    notifyChange();
+    if (!g.runAsAdmin) {
+      g.runAsAdmin = true;
+      db.save();
+      LOG.info('Lancement en administrateur activé automatiquement :', g.customName || g.name);
+    }
+    try {
+      await startElevated(cmd, args, cwd);
+      afterElevatedLaunch(g, cmd);
+      toast(`${g.customName || g.name} demande les droits administrateur : confirme la fenêtre de Windows. HMZ s'en souviendra pour les prochains lancements.`);
+    } catch (err) {
+      afterGame(id);
+      if (minimizedForGame && running.size === 0) bringBackAfterGame();
+      toast(err.message, err.message === 'Lancement annulé.' ? 'info' : 'error');
+    }
+  };
   if (g.noChildTracking) {
     // Ce programme lance le jeu puis se ferme : le temps est compté par la détection des jeux.
-    child.on('error', (e) => toast(`Lancement impossible : ${e.message}`, 'error'));
+    child.on('error', (e) => { if (needsElevation(e)) elevateInstead(); else toast(`Lancement impossible : ${launchErrorText(e, cmd)}`, 'error'); });
     child.unref();
     g.lastLaunched = Date.now();
     db.save(); notifyChange(); minimizeForGame();
     return { ok: true };
   }
   const emuUsed = g.source === 'rom' || (g.source === 'manual' && g.platform !== 'pc') ? (emuOverride || g.emu || resolveEmu(g.platform)) : null;
-  child.on('error', (e) => { toast(`Lancement impossible : ${e.message}`, 'error'); endSession(id); });
+  child.on('error', (e) => {
+    if (needsElevation(e)) { elevateInstead(); return; }
+    toast(`Lancement impossible : ${launchErrorText(e, cmd)}`, 'error');
+    endSession(id);
+  });
   const startedAt = Date.now();
   child.on('exit', () => {
     endSession(id);
     // Un jeu Netmarble qui se ferme tout de suite veut être lancé par le launcher Netmarble.
     if (g.source === 'netmarble' && Date.now() - startedAt < 20000 && g.launcherExe && exists(g.launcherExe)) {
-      spawn(g.launcherExe, [], { cwd: path.dirname(g.launcherExe), detached: true, stdio: 'ignore' }).unref();
+      spawnDetached(g.launcherExe);
       g.needsLauncher = true; // la prochaine fois, le launcher s'ouvre tout de suite
       db.save();
       toast(`${g.customName || g.name} se lance depuis le launcher Netmarble : clique sur « Jouer » dans la fenêtre qui vient de s'ouvrir.`);
@@ -1290,7 +1374,7 @@ handle('emu:uninstall', async (id) => {
 handle('emu:open', (id) => {
   const e = db.data.emulators[id];
   if (!e || !exists(e.exe)) throw new Error("L'émulateur n'est pas installé.");
-  spawn(e.exe, [], { cwd: path.dirname(e.exe), detached: true, stdio: 'ignore' }).unref();
+  spawnDetached(e.exe);
 });
 handle('emu:openDir', (id) => { const e = db.data.emulators[id]; if (e && e.dir) shell.openPath(e.dir); });
 handle('emu:keys', async (id) => {
